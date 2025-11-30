@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -166,6 +167,18 @@ func main() {
 		return handleExtractVariables(ctx, request, packageDirectory)
 	})
 
+	// Tool to extract parameters
+	extractParametersTool := mcp.NewTool("extract_parameters",
+		mcp.WithDescription("Extract and list all parameters from a DTSX file, including data types, default values, and properties"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(extractParametersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleExtractParameters(ctx, request, packageDirectory)
+	})
+
 	// Tool to extract script code from Script Tasks
 	extractScriptTool := mcp.NewTool("extract_script_code",
 		mcp.WithDescription("Extract script code from Script Tasks in a DTSX file"),
@@ -260,6 +273,50 @@ func main() {
 	)
 	s.AddTool(analyzeDataFlowTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAnalyzeDataFlow(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze event handlers
+	analyzeEventHandlersTool := mcp.NewTool("analyze_event_handlers",
+		mcp.WithDescription("Analyze event handlers in a DTSX file, including OnError, OnWarning, and other event types"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeEventHandlersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeEventHandlers(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze package dependencies
+	analyzePackageDependenciesTool := mcp.NewTool("analyze_package_dependencies",
+		mcp.WithDescription("Analyze relationships between packages, shared connections, and variables across multiple DTSX files"),
+	)
+	s.AddTool(analyzePackageDependenciesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzePackageDependencies(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze package configurations
+	analyzeConfigurationsTool := mcp.NewTool("analyze_configurations",
+		mcp.WithDescription("Analyze package configurations (XML, SQL Server, environment variable configs)"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeConfigurationsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeConfigurations(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze performance metrics
+	analyzePerformanceTool := mcp.NewTool("analyze_performance_metrics",
+		mcp.WithDescription("Analyze data flow performance settings (buffer sizes, engine threads, etc.) to identify bottlenecks and optimization opportunities"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzePerformanceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzePerformanceMetrics(ctx, request, packageDirectory)
 	})
 
 	if *httpMode {
@@ -521,6 +578,51 @@ func handleExtractVariables(ctx context.Context, request mcp.CallToolRequest, pa
 	}
 
 	return mcp.NewToolResultText(variables), nil
+}
+
+func handleExtractParameters(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := ioutil.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Parameters:\n")
+
+	if len(pkg.Parameters.Params) == 0 {
+		result.WriteString("No parameters found in this package.\n")
+		return mcp.NewToolResultText(result.String()), nil
+	}
+
+	for i, p := range pkg.Parameters.Params {
+		result.WriteString(fmt.Sprintf("%d. %s\n", i+1, p.Name))
+		result.WriteString(fmt.Sprintf("   Data Type: %s\n", p.DataType))
+		result.WriteString(fmt.Sprintf("   Value: %s\n", p.Value))
+		if p.Description != "" {
+			result.WriteString(fmt.Sprintf("   Description: %s\n", p.Description))
+		}
+		result.WriteString(fmt.Sprintf("   Required: %t\n", p.Required))
+		result.WriteString(fmt.Sprintf("   Sensitive: %t\n", p.Sensitive))
+		result.WriteString("\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
 }
 
 func handleExtractScriptCode(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
@@ -1142,6 +1244,558 @@ func handleAnalyzeDataFlow(ctx context.Context, request mcp.CallToolRequest, pac
 	}
 
 	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeEventHandlers(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	fullPath := resolveFilePath(filePath, packageDirectory)
+
+	// Read and parse the DTSX file
+	data, err := ioutil.ReadFile(fullPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Event Handler Analysis:\n\n")
+
+	if len(pkg.EventHandlers.EventHandlers) == 0 {
+		result.WriteString("No event handlers found in this package.\n")
+		return mcp.NewToolResultText(result.String()), nil
+	}
+
+	result.WriteString(fmt.Sprintf("Found %d event handler(s):\n\n", len(pkg.EventHandlers.EventHandlers)))
+
+	for i, eh := range pkg.EventHandlers.EventHandlers {
+		result.WriteString(fmt.Sprintf("%d. Event Handler: %s\n", i+1, eh.ObjectName))
+		result.WriteString(fmt.Sprintf("   Type: %s\n", eh.EventHandlerType))
+		result.WriteString(fmt.Sprintf("   Container: %s\n", eh.ContainerID))
+
+		// Analyze tasks in the event handler
+		if len(eh.Executables.Tasks) > 0 {
+			result.WriteString(fmt.Sprintf("   Tasks (%d):\n", len(eh.Executables.Tasks)))
+			for _, task := range eh.Executables.Tasks {
+				taskType := getTaskType(task)
+				result.WriteString(fmt.Sprintf("     - %s (%s)\n", task.Name, taskType))
+
+				// Show key properties
+				for _, prop := range task.Properties {
+					if isKeyProperty(prop.Name) {
+						result.WriteString(fmt.Sprintf("       %s: %s\n", prop.Name, prop.Value))
+					}
+				}
+			}
+		} else {
+			result.WriteString("   Tasks: None\n")
+		}
+
+		// Analyze variables in the event handler
+		if len(eh.Variables.Vars) > 0 {
+			result.WriteString(fmt.Sprintf("   Variables (%d):\n", len(eh.Variables.Vars)))
+			for _, variable := range eh.Variables.Vars {
+				resolvedValue := resolveVariableExpressions(variable.Value, pkg.Variables.Vars, 10)
+				result.WriteString(fmt.Sprintf("     - %s: %s\n", variable.Name, resolvedValue))
+				if variable.Expression != "" {
+					result.WriteString(fmt.Sprintf("       Expression: %s\n", variable.Expression))
+				}
+			}
+		}
+
+		// Analyze precedence constraints in the event handler
+		if len(eh.PrecedenceConstraints.Constraints) > 0 {
+			result.WriteString(fmt.Sprintf("   Precedence Constraints (%d):\n", len(eh.PrecedenceConstraints.Constraints)))
+			for _, constraint := range eh.PrecedenceConstraints.Constraints {
+				result.WriteString(fmt.Sprintf("     - %s → %s", constraint.From, constraint.To))
+				if constraint.Expression != "" {
+					resolvedExpr := resolveVariableExpressions(constraint.Expression, append(pkg.Variables.Vars, eh.Variables.Vars...), 10)
+					result.WriteString(fmt.Sprintf(" (Expression: %s)", resolvedExpr))
+				}
+				result.WriteString("\n")
+			}
+		}
+
+		result.WriteString("\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzePackageDependencies(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	// Find all DTSX files in the package directory
+	var dtsxFiles []string
+	err := filepath.Walk(packageDirectory, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(strings.ToLower(info.Name()), ".dtsx") {
+			dtsxFiles = append(dtsxFiles, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to scan directory: %v", err)), nil
+	}
+
+	if len(dtsxFiles) == 0 {
+		return mcp.NewToolResultText("No DTSX files found in the package directory."), nil
+	}
+
+	// Data structures to track dependencies
+	type ConnectionInfo struct {
+		Name             string
+		ConnectionString string
+		Packages         []string
+	}
+
+	type VariableInfo struct {
+		Name     string
+		Value    string
+		Packages []string
+	}
+
+	connections := make(map[string]*ConnectionInfo)
+	variables := make(map[string]*VariableInfo)
+
+	// Process each DTSX file
+	for _, filePath := range dtsxFiles {
+		data, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			continue // Skip files that can't be read
+		}
+
+		// Remove namespace prefixes for easier parsing
+		data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+		var pkg SSISPackage
+		if err := xml.Unmarshal(data, &pkg); err != nil {
+			continue // Skip files that can't be parsed
+		}
+
+		packageName := filepath.Base(filePath)
+
+		// Extract connections
+		for _, conn := range pkg.ConnectionMgr.Connections {
+			connKey := conn.Name // Use connection name as key
+			if connections[connKey] == nil {
+				connections[connKey] = &ConnectionInfo{
+					Name:     conn.Name,
+					Packages: []string{},
+				}
+			}
+			// Add package to connection's package list if not already present
+			found := false
+			for _, pkg := range connections[connKey].Packages {
+				if pkg == packageName {
+					found = true
+					break
+				}
+			}
+			if !found {
+				connections[connKey].Packages = append(connections[connKey].Packages, packageName)
+			}
+		}
+
+		// Extract variables
+		for _, variable := range pkg.Variables.Vars {
+			varKey := variable.Name // Use variable name as key
+			if variables[varKey] == nil {
+				variables[varKey] = &VariableInfo{
+					Name:     variable.Name,
+					Packages: []string{},
+				}
+			}
+			// Add package to variable's package list if not already present
+			found := false
+			for _, pkg := range variables[varKey].Packages {
+				if pkg == packageName {
+					found = true
+					break
+				}
+			}
+			if !found {
+				variables[varKey].Packages = append(variables[varKey].Packages, packageName)
+			}
+		}
+	}
+
+	// Build the result
+	var result strings.Builder
+	result.WriteString(fmt.Sprintf("Package Dependency Analysis (%d packages scanned)\n\n", len(dtsxFiles)))
+
+	// Shared Connections
+	result.WriteString("🔗 Shared Connections:\n")
+	sharedConnections := 0
+	for _, conn := range connections {
+		if len(conn.Packages) > 1 {
+			sharedConnections++
+			result.WriteString(fmt.Sprintf("• %s (used by %d packages):\n", conn.Name, len(conn.Packages)))
+			for _, pkg := range conn.Packages {
+				result.WriteString(fmt.Sprintf("  - %s\n", pkg))
+			}
+			result.WriteString("\n")
+		}
+	}
+	if sharedConnections == 0 {
+		result.WriteString("No shared connections found.\n\n")
+	}
+
+	// Shared Variables
+	result.WriteString("📊 Shared Variables:\n")
+	sharedVariables := 0
+	for _, variable := range variables {
+		if len(variable.Packages) > 1 {
+			sharedVariables++
+			result.WriteString(fmt.Sprintf("• %s (used by %d packages):\n", variable.Name, len(variable.Packages)))
+			for _, pkg := range variable.Packages {
+				result.WriteString(fmt.Sprintf("  - %s\n", pkg))
+			}
+			result.WriteString("\n")
+		}
+	}
+	if sharedVariables == 0 {
+		result.WriteString("No shared variables found.\n\n")
+	}
+
+	// Summary
+	result.WriteString("📈 Summary:\n")
+	result.WriteString(fmt.Sprintf("• Total packages analyzed: %d\n", len(dtsxFiles)))
+	result.WriteString(fmt.Sprintf("• Shared connections: %d\n", sharedConnections))
+	result.WriteString(fmt.Sprintf("• Shared variables: %d\n", sharedVariables))
+
+	if sharedConnections > 0 || sharedVariables > 0 {
+		result.WriteString("\n💡 These shared resources indicate potential dependencies between packages.")
+		result.WriteString("\n   Consider documenting these relationships for maintenance and deployment purposes.")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeConfigurations(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := ioutil.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Configuration Analysis:\n\n")
+
+	if len(pkg.Configurations.Configs) == 0 {
+		result.WriteString("No configurations found in this package.\n")
+		result.WriteString("\n💡 Note: Configurations were used in SSIS 2005-2008 for parameterization.")
+		result.WriteString(" Modern SSIS (2012+) uses Parameters instead.")
+		return mcp.NewToolResultText(result.String()), nil
+	}
+
+	result.WriteString(fmt.Sprintf("Found %d configuration(s):\n\n", len(pkg.Configurations.Configs)))
+
+	// Configuration type mapping
+	configTypes := map[int]string{
+		0: "Parent Package Variable",
+		1: "XML Configuration File",
+		2: "Environment Variable",
+		3: "Registry Entry",
+		4: "Parent Package Variable (indirect)",
+		5: "XML Configuration File (indirect)",
+		6: "Environment Variable (indirect)",
+		7: "Registry Entry (indirect)",
+		8: "SQL Server",
+		9: "SQL Server (indirect)",
+	}
+
+	for i, config := range pkg.Configurations.Configs {
+		result.WriteString(fmt.Sprintf("%d. %s\n", i+1, config.Name))
+
+		// Configuration type
+		typeName, exists := configTypes[config.Type]
+		if exists {
+			result.WriteString(fmt.Sprintf("   Type: %s (%d)\n", typeName, config.Type))
+		} else {
+			result.WriteString(fmt.Sprintf("   Type: Unknown (%d)\n", config.Type))
+		}
+
+		// Description
+		if config.Description != "" {
+			result.WriteString(fmt.Sprintf("   Description: %s\n", config.Description))
+		}
+
+		// Configuration string (connection info for SQL Server, file path for XML, etc.)
+		if config.ConfigurationString != "" {
+			result.WriteString(fmt.Sprintf("   Configuration String: %s\n", config.ConfigurationString))
+		}
+
+		// Configured type and value
+		if config.ConfiguredType != "" {
+			result.WriteString(fmt.Sprintf("   Configured Type: %s\n", config.ConfiguredType))
+		}
+		if config.ConfiguredValue != "" {
+			result.WriteString(fmt.Sprintf("   Configured Value: %s\n", config.ConfiguredValue))
+		}
+
+		result.WriteString("\n")
+	}
+
+	// Summary and recommendations
+	result.WriteString("📋 Configuration Summary:\n")
+	xmlConfigs := 0
+	sqlConfigs := 0
+	envConfigs := 0
+
+	for _, config := range pkg.Configurations.Configs {
+		switch config.Type {
+		case 1, 5: // XML Configuration File
+			xmlConfigs++
+		case 8, 9: // SQL Server
+			sqlConfigs++
+		case 2, 6: // Environment Variable
+			envConfigs++
+		}
+	}
+
+	if xmlConfigs > 0 {
+		result.WriteString(fmt.Sprintf("• XML Configuration Files: %d\n", xmlConfigs))
+	}
+	if sqlConfigs > 0 {
+		result.WriteString(fmt.Sprintf("• SQL Server Configurations: %d\n", sqlConfigs))
+	}
+	if envConfigs > 0 {
+		result.WriteString(fmt.Sprintf("• Environment Variable Configurations: %d\n", envConfigs))
+	}
+
+	result.WriteString("\n💡 Recommendations:\n")
+	result.WriteString("• Consider migrating to SSIS 2012+ Parameters for better security and maintainability\n")
+	result.WriteString("• XML configurations should be stored in secure locations\n")
+	result.WriteString("• SQL Server configurations require appropriate database permissions\n")
+	result.WriteString("• Environment variables are machine-specific and may not work across environments\n")
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzePerformanceMetrics(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := ioutil.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Performance Metrics Analysis:\n\n")
+
+	// Analyze package-level performance properties
+	result.WriteString("📦 Package-Level Performance Settings:\n")
+	packagePerfProps := extractPerformanceProperties(pkg.Properties, "package")
+	if len(packagePerfProps) > 0 {
+		for _, prop := range packagePerfProps {
+			result.WriteString(fmt.Sprintf("• %s: %s\n", prop.Name, prop.Value))
+			if prop.Recommendation != "" {
+				result.WriteString(fmt.Sprintf("  💡 %s\n", prop.Recommendation))
+			}
+		}
+	} else {
+		result.WriteString("No performance-related package properties found.\n")
+	}
+	result.WriteString("\n")
+
+	// Analyze data flow performance settings
+	result.WriteString("🔄 Data Flow Performance Analysis:\n")
+	dataFlowCount := 0
+
+	for _, task := range pkg.Executables.Tasks {
+		if isDataFlowTask(task) {
+			dataFlowCount++
+			result.WriteString(fmt.Sprintf("Data Flow Task: %s\n", task.Name))
+
+			// Extract data flow task properties
+			taskPerfProps := extractPerformanceProperties(task.Properties, "dataflow")
+			if len(taskPerfProps) > 0 {
+				result.WriteString("  Task Properties:\n")
+				for _, prop := range taskPerfProps {
+					result.WriteString(fmt.Sprintf("  • %s: %s\n", prop.Name, prop.Value))
+					if prop.Recommendation != "" {
+						result.WriteString(fmt.Sprintf("    💡 %s\n", prop.Recommendation))
+					}
+				}
+			}
+
+			// Analyze data flow components
+			if task.ObjectData.DataFlow.Components.Components != nil {
+				result.WriteString("  Components:\n")
+				for _, comp := range task.ObjectData.DataFlow.Components.Components {
+					compPerfProps := extractComponentPerformanceProperties(comp)
+					if len(compPerfProps) > 0 {
+						result.WriteString(fmt.Sprintf("    • %s (%s):\n", comp.Name, getComponentType(comp.ComponentClassID)))
+						for _, prop := range compPerfProps {
+							result.WriteString(fmt.Sprintf("      - %s: %s\n", prop.Name, prop.Value))
+							if prop.Recommendation != "" {
+								result.WriteString(fmt.Sprintf("        💡 %s\n", prop.Recommendation))
+							}
+						}
+					}
+				}
+			}
+			result.WriteString("\n")
+		}
+	}
+
+	if dataFlowCount == 0 {
+		result.WriteString("No Data Flow Tasks found in this package.\n\n")
+	}
+
+	// Performance recommendations
+	result.WriteString("🚀 Performance Optimization Recommendations:\n")
+	result.WriteString("• Increase DefaultBufferSize if processing large datasets (recommended: 10MB+)\n")
+	result.WriteString("• Adjust DefaultBufferMaxRows based on row size (recommended: 10,000-100,000)\n")
+	result.WriteString("• Increase EngineThreads for parallel processing (recommended: 2-4 per CPU core)\n")
+	result.WriteString("• Use BLOBTempStoragePath and BufferTempStoragePath for large datasets\n")
+	result.WriteString("• Consider MaxConcurrentExecutables for parallel task execution\n")
+	result.WriteString("• Monitor AutoAdjustBufferSize for optimal memory usage\n")
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func extractPerformanceProperties(properties []Property, category string) []PerformanceProperty {
+	var perfProps []PerformanceProperty
+
+	performancePropNames := map[string]bool{
+		// Package level
+		"MaxConcurrentExecutables": true,
+		"EnableConfigurableRetry":  true,
+		"RetryCount":               true,
+		"RetryInterval":            true,
+
+		// Data flow level
+		"DefaultBufferSize":     true,
+		"DefaultBufferMaxRows":  true,
+		"EngineThreads":         true,
+		"BufferTempStoragePath": true,
+		"BLOBTempStoragePath":   true,
+		"AutoAdjustBufferSize":  true,
+		"BufferMaxRows":         true,
+		"MaxBufferSize":         true,
+		"MinBufferSize":         true,
+	}
+
+	for _, prop := range properties {
+		if performancePropNames[prop.Name] {
+			perfProp := PerformanceProperty{
+				Name:  prop.Name,
+				Value: prop.Value,
+			}
+
+			// Add recommendations based on property values
+			switch prop.Name {
+			case "DefaultBufferSize":
+				if val, err := strconv.Atoi(prop.Value); err == nil && val < 10485760 { // 10MB
+					perfProp.Recommendation = "Consider increasing to 10MB+ for better performance with large datasets"
+				}
+			case "DefaultBufferMaxRows":
+				if val, err := strconv.Atoi(prop.Value); err == nil && val < 10000 {
+					perfProp.Recommendation = "Consider increasing to 10,000+ rows for better throughput"
+				}
+			case "EngineThreads":
+				if val, err := strconv.Atoi(prop.Value); err == nil && val < 2 {
+					perfProp.Recommendation = "Consider increasing to 2+ threads for parallel processing"
+				}
+			}
+
+			perfProps = append(perfProps, perfProp)
+		}
+	}
+
+	return perfProps
+}
+
+func extractComponentPerformanceProperties(component DataFlowComponent) []PerformanceProperty {
+	var perfProps []PerformanceProperty
+
+	for _, prop := range component.ObjectData.PipelineComponent.Properties.Properties {
+		// Component-specific performance properties
+		switch prop.Name {
+		case "CommandTimeout", "BatchSize", "RowsPerBatch", "MaximumInsertCommitSize":
+			perfProps = append(perfProps, PerformanceProperty{
+				Name:  prop.Name,
+				Value: prop.Value,
+			})
+		}
+	}
+
+	return perfProps
+}
+
+func isDataFlowTask(task Task) bool {
+	for _, prop := range task.Properties {
+		if prop.Name == "CreationName" && strings.Contains(prop.Value, "DataFlow") {
+			return true
+		}
+	}
+	return false
+}
+
+func getTaskType(task Task) string {
+	// Determine task type based on properties or creation name
+	for _, prop := range task.Properties {
+		if prop.Name == "CreationName" {
+			switch prop.Value {
+			case "Microsoft.ExecuteSQLTask":
+				return "Execute SQL Task"
+			case "Microsoft.SendMailTask":
+				return "Send Mail Task"
+			case "Microsoft.ExecuteProcessTask":
+				return "Execute Process Task"
+			case "Microsoft.ScriptTask":
+				return "Script Task"
+			case "Microsoft.BulkInsertTask":
+				return "Bulk Insert Task"
+			case "Microsoft.DataProfilingTask":
+				return "Data Profiling Task"
+			case "Microsoft.MessageQueueTask":
+				return "Message Queue Task"
+			default:
+				return prop.Value
+			}
+		}
+	}
+	return "Unknown Task Type"
 }
 
 func getComponentType(classID string) string {

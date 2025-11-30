@@ -12,6 +12,9 @@ type SSISPackage struct {
 	Variables             Variables             `xml:"Variables"`
 	Executables           Executables           `xml:"Executables"`
 	PrecedenceConstraints PrecedenceConstraints `xml:"PrecedenceConstraints"`
+	EventHandlers         EventHandlers         `xml:"EventHandlers"`
+	Parameters            Parameters            `xml:"Parameters"`
+	Configurations        Configurations        `xml:"Configurations"`
 }
 
 type Property struct {
@@ -200,4 +203,68 @@ type PrecedenceConstraint struct {
 	To         string `xml:"To,attr"`
 	Expression string `xml:"Expression,attr"`
 	EvalOp     string `xml:"EvalOp,attr"`
+}
+
+type EventHandlers struct {
+	EventHandlers []EventHandler `xml:"EventHandler"`
+}
+
+type EventHandler struct {
+	EventHandlerType      string                `xml:"EventHandlerType,attr"`
+	ContainerID           string                `xml:"ContainerID,attr"`
+	ObjectName            string                `xml:"ObjectName,attr"`
+	Executables           Executables           `xml:"Executables"`
+	Variables             Variables             `xml:"Variables"`
+	PrecedenceConstraints PrecedenceConstraints `xml:"PrecedenceConstraints"`
+}
+
+type Parameters struct {
+	Params []Parameter `xml:"Parameter"`
+}
+
+type Parameter struct {
+	Name        string `xml:"ObjectName,attr"`
+	DataType    string `xml:"DataType,attr"`
+	Value       string `xml:"ParameterValue"`
+	Description string `xml:"Description,attr"`
+	Required    bool   `xml:"Required,attr"`
+	Sensitive   bool   `xml:"Sensitive,attr"`
+}
+
+type Configurations struct {
+	Configs []Configuration `xml:"Configuration"`
+}
+
+type Configuration struct {
+	Name                string `xml:"ObjectName,attr"`
+	Type                int    `xml:"ConfigurationType,attr"`
+	Description         string `xml:"Description,attr"`
+	ConfigurationString string `xml:"ConfigurationString"`
+	ConfiguredType      string `xml:"ConfiguredType,attr"`
+	ConfiguredValue     string `xml:"ConfiguredValue"`
+}
+
+type PerformanceMetrics struct {
+	PackageLevel   []PerformanceProperty
+	DataFlowLevel  []DataFlowPerformance
+	ComponentLevel []ComponentPerformance
+}
+
+type PerformanceProperty struct {
+	Name           string
+	Value          string
+	Category       string
+	Recommendation string
+}
+
+type DataFlowPerformance struct {
+	TaskName   string
+	Properties []PerformanceProperty
+	Components []ComponentPerformance
+}
+
+type ComponentPerformance struct {
+	ComponentName string
+	ComponentType string
+	Properties    []PerformanceProperty
 }

@@ -1,15 +1,19 @@
 # SSIS DTSX Analyzer MCP Server
 
-This is a comprehensive Model Context Protocol (MCP) server written in Go that provides advanced tools for analyzing SSIS (SQL Server Integration Services) DTSX files. It offers detailed insights into package structure, logging configurations, task analysis, and best practices validation.
+This is a comprehensive Model Context Protocol (MCP) server written in Go that provides 18 advanced tools for analyzing SSIS (SQL Server Integration Services) DTSX files. It offers detailed insights into package structure, logging configurations, task analysis, and best practices validation.
 
 ## Features
 
 - **Package Analysis**: Parse DTSX files and extract comprehensive package information
 - **Data Flow Analysis**: Analyze components within Data Flow Tasks (sources, transformations, destinations, data paths, and component properties)
-- **Task Analysis**: List and analyze all tasks within packages with expression resolution in task properties
+- **Event Handler Analysis**: Analyze event handlers (OnError, OnWarning, OnPreExecute, etc.) with their tasks, variables, and precedence constraints
 - **Precedence Constraint Analysis**: Extract and analyze precedence constraints with expression resolution
 - **Connection Management**: Extract and analyze connection manager details with expression resolution
 - **Variable Extraction**: List all package and task variables with expression resolution
+- **Parameter Extraction**: Extract project and package parameters with their properties, data types, and default values
+- **Package Dependency Mapping**: Analyze relationships between packages, shared connections, and variables across multiple DTSX files
+- **Configuration Analysis**: Analyze package configurations (XML, SQL Server, environment variable configs) with types, filters, and property mappings
+- **Performance Metrics Analysis**: Analyze data flow performance settings (buffer sizes, engine threads, etc.) to identify bottlenecks and optimization opportunities
 - **Script Code Analysis**: Extract C#/VB.NET code from Script Tasks
 - **Logging Configuration**: Detailed analysis of logging providers, events, and destinations
 - **Best Practices Validation**: Check SSIS packages for best practices and potential issues
@@ -166,51 +170,80 @@ This configuration provides both HTTP and stdio transport options. The HTTP tran
    - Parameters:
      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-6. **extract_script_code**
+6. **extract_parameters**
+
+   - Description: Extract and list all parameters from a DTSX file, including data types, default values, and properties
+   - Parameters:
+     - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+7. **extract_script_code**
 
    - Description: Extract script code from Script Tasks in a DTSX file
    - Parameters:
      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-7. **validate_best_practices**
+8. **validate_best_practices**
 
    - Description: Check SSIS package for best practices and potential issues
    - Parameters:
      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-8. **ask_about_dtsx**
+9. **ask_about_dtsx**
 
    - Description: Ask questions about an SSIS DTSX file and get relevant information
    - Parameters:
      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
      - `question` (string, required): Question about the DTSX file
 
-9. **analyze_message_queue_tasks**
+10. **analyze_message_queue_tasks**
 
-   - Description: Analyze Message Queue Tasks in a DTSX file, including send/receive operations and message content
-   - Parameters:
-     - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+    - Description: Analyze Message Queue Tasks in a DTSX file, including send/receive operations and message content
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-10. **detect_hardcoded_values**
+11. **detect_hardcoded_values**
 
     - Description: Detect hard-coded values in a DTSX file, such as embedded literals in connection strings, messages, or expressions
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-11. **analyze_logging_configuration**
+12. **analyze_logging_configuration**
 
     - Description: Analyze detailed logging configuration in a DTSX file, including log providers, events, and destinations
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-12. **list_packages**
+13. **list_packages**
 
     - Description: Recursively list all DTSX packages found in the package directory
     - Parameters: None (uses the configured package directory)
 
-13. **analyze_data_flow**
+14. **analyze_data_flow**
 
     - Description: Analyze Data Flow components in a DTSX file, including sources, transformations, destinations, and data paths
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+15. **analyze_event_handlers**
+
+    - Description: Analyze event handlers in a DTSX file, including OnError, OnWarning, OnPreExecute, and other event types with their associated tasks, variables, and precedence constraints
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+16. **analyze_package_dependencies**
+
+    - Description: Analyze relationships between packages, shared connections, and variables across multiple DTSX files
+    - Parameters: None (analyzes all DTSX files in the package directory)
+
+17. **analyze_configurations**
+
+    - Description: Analyze package configurations (XML, SQL Server, environment variable configs)
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+18. **analyze_performance_metrics**
+
+    - Description: Analyze data flow performance settings (buffer sizes, engine threads, etc.) to identify bottlenecks and optimization opportunities
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
@@ -218,6 +251,12 @@ This configuration provides both HTTP and stdio transport options. The HTTP tran
 
 The SSIS DTSX Analyzer provides specialized analysis for:
 
+- **Data Flow Components**: Detailed analysis of sources, transformations, destinations, and data paths within Data Flow Tasks
+- **Event Handlers**: Comprehensive analysis of OnError, OnWarning, OnPreExecute handlers with tasks, variables, and precedence constraints
+- **Parameters**: Extraction of SSIS 2012+ project and package parameters with data types, default values, and properties
+- **Package Dependencies**: Cross-package analysis of shared connections and variables to understand ETL workflow relationships
+- **Configurations**: Analysis of legacy SSIS configurations (XML, SQL Server, environment variables) with migration recommendations
+- **Performance Metrics**: Analysis of data flow performance settings including buffer sizes, engine threads, and optimization recommendations
 - **Message Queue Tasks**: Send/receive operations and message content analysis
 - **Logging Configuration**: Detailed log provider, event, and destination analysis
 - **Script Task Code**: Full C#/VB.NET code extraction from embedded scripts
@@ -254,6 +293,41 @@ The SSIS DTSX Analyzer provides specialized analysis for:
 → Provides send/receive operations and message content details
 ```
 
+### Parameter Extraction
+
+```
+"Extract all parameters from this DTSX file"
+→ Returns parameter names, data types, default values, and properties
+```
+
+### Data Flow Analysis
+
+```
+"Analyze the data flow components in this DTSX file"
+→ Provides detailed analysis of sources, transformations, destinations, and data paths
+```
+
+### Event Handler Analysis
+
+```
+"Analyze event handlers in this DTSX file"
+→ Returns OnError, OnWarning handlers with their tasks, variables, and constraints
+```
+
+### Package Dependency Analysis
+
+```
+"Analyze package dependencies across all DTSX files"
+→ Identifies shared connections and variables between packages
+```
+
+### Configuration Analysis
+
+```
+"Analyze configurations in this DTSX file"
+→ Returns XML, SQL Server, and environment variable configurations with migration recommendations
+```
+
 ## Development
 
 To modify or extend the server:
@@ -264,7 +338,7 @@ To modify or extend the server:
 
 ## Notes
 
-- This server provides comprehensive analysis of SSIS package elements including advanced features like logging configuration, script code extraction, and specialized task analysis
+- This server provides comprehensive analysis of SSIS package elements including advanced features like data flow analysis, event handler analysis, parameter extraction, package dependency mapping, configuration analysis, logging configuration, script code extraction, and specialized task analysis
 - SSIS DTSX files have complex XML structures; the parsing handles namespace prefixes and various XML schemas
 - Ensure the MCP client has read access to the DTSX files you want to analyze
 - Supports analysis of SQL Server, Message Queue, Script, and other specialized SSIS tasks
