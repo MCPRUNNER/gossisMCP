@@ -62,11 +62,18 @@ Based on the current feature set of the SSIS DTSX Analyzer MCP Server, here are 
 - **Value**: Assess package quality and technical debt
 - **Implementation**: Analyze script complexity, expression complexity, and structural metrics
 
+### 10. **Read Text File Integration**
+
+- **Description**: Read configuration or data from text files
+- **Value**: Many SSIS packages utilize text files for configurations or data inputs
+- **Implementation**: Implement a module to read and parse text files such as bat files, extracting relevant configuration or data for analysis. 
+
+
 ### 10. **SSIS Catalog Integration**
 
 - **Description**: Analyze deployed packages from SSISDB
 - **Value**: Compare development vs. production packages
-- **Implementation**: Connect to SSISDB and extract deployed package metadata
+- **Implementation**: Connect to ```Microsoft SQL Server SSISDB``` via a provided connection string and extract deployed package metadata. If no connection string is provided, check for it in GOSSIS_SSISDB_CONNECTION_STRING environment variable or command line argument. If still not found, skip this analysis. 
 
 ## Implementation Priority
 

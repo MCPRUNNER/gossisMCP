@@ -1,6 +1,6 @@
 # SSIS DTSX Analyzer MCP Server
 
-This is a comprehensive Model Context Protocol (MCP) server written in Go that provides 18 advanced tools for analyzing SSIS (SQL Server Integration Services) DTSX files. It offers detailed insights into package structure, logging configurations, task analysis, and best practices validation.
+This is a comprehensive Model Context Protocol (MCP) server written in Go that provides 22 advanced tools for analyzing SSIS (SQL Server Integration Services) DTSX files. It offers detailed insights into package structure, logging configurations, task analysis, and best practices validation.
 
 ## Features
 
@@ -14,6 +14,10 @@ This is a comprehensive Model Context Protocol (MCP) server written in Go that p
 - **Package Dependency Mapping**: Analyze relationships between packages, shared connections, and variables across multiple DTSX files
 - **Configuration Analysis**: Analyze package configurations (XML, SQL Server, environment variable configs) with types, filters, and property mappings
 - **Performance Metrics Analysis**: Analyze data flow performance settings (buffer sizes, engine threads, etc.) to identify bottlenecks and optimization opportunities
+- **Security Analysis**: Detect potential security issues (hardcoded credentials, sensitive data exposure)
+- **Package Comparison**: Compare two DTSX files and highlight differences
+- **Code Quality Metrics**: Calculate maintainability metrics (complexity, duplication, etc.)
+- **Read Text File Integration**: Read configuration or data from text files referenced by SSIS packages
 - **Script Code Analysis**: Extract C#/VB.NET code from Script Tasks
 - **Logging Configuration**: Detailed analysis of logging providers, events, and destinations
 - **Best Practices Validation**: Check SSIS packages for best practices and potential issues
@@ -247,6 +251,31 @@ This configuration provides both HTTP and stdio transport options. The HTTP tran
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
+19. **detect_security_issues**
+
+    - Description: Detect potential security issues (hardcoded credentials, sensitive data exposure)
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+20. **compare_packages**
+
+    - Description: Compare two DTSX files and highlight differences
+    - Parameters:
+      - `file_path1` (string, required): Path to the first DTSX file (relative to package directory if set, or absolute path)
+      - `file_path2` (string, required): Path to the second DTSX file (relative to package directory if set, or absolute path)
+
+21. **analyze_code_quality**
+
+    - Description: Calculate maintainability metrics (complexity, duplication, etc.) to assess package quality and technical debt
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+22. **read_text_file**
+
+    - Description: Read configuration or data from text files referenced by SSIS packages
+    - Parameters:
+      - `file_path` (string, required): Path to the text file to read (relative to package directory if set, or absolute path)
+
 ## Advanced Analysis Capabilities
 
 The SSIS DTSX Analyzer provides specialized analysis for:
@@ -257,6 +286,10 @@ The SSIS DTSX Analyzer provides specialized analysis for:
 - **Package Dependencies**: Cross-package analysis of shared connections and variables to understand ETL workflow relationships
 - **Configurations**: Analysis of legacy SSIS configurations (XML, SQL Server, environment variables) with migration recommendations
 - **Performance Metrics**: Analysis of data flow performance settings including buffer sizes, engine threads, and optimization recommendations
+- **Security Analysis**: Detection of hardcoded credentials, sensitive data exposure, and authentication vulnerabilities
+- **Package Comparison**: Structural diff of tasks, connections, variables, parameters, and configurations between two DTSX files
+- **Code Quality Metrics**: Analysis of script complexity, expression complexity, structural metrics, and overall maintainability scoring
+- **Read Text File Integration**: Parsing and analysis of text files (.bat, .config, .sql) referenced by SSIS packages
 - **Message Queue Tasks**: Send/receive operations and message content analysis
 - **Logging Configuration**: Detailed log provider, event, and destination analysis
 - **Script Task Code**: Full C#/VB.NET code extraction from embedded scripts
@@ -328,6 +361,34 @@ The SSIS DTSX Analyzer provides specialized analysis for:
 → Returns XML, SQL Server, and environment variable configurations with migration recommendations
 ```
 
+### Security Analysis
+
+```
+"Detect security issues in this DTSX file"
+→ Identifies hardcoded credentials, authentication vulnerabilities, and sensitive data exposure
+```
+
+### Package Comparison
+
+```
+"Compare these two DTSX files"
+→ Highlights differences in tasks, connections, variables, parameters, and configurations
+```
+
+### Code Quality Analysis
+
+```
+"Analyze code quality metrics for this DTSX file"
+→ Calculates maintainability scores, complexity metrics, and provides improvement recommendations
+```
+
+### Text File Analysis
+
+```
+"Read and analyze this configuration file"
+→ Parses text files (.bat, .config, .sql) and extracts relevant configuration data
+```
+
 ## Development
 
 To modify or extend the server:
@@ -338,7 +399,7 @@ To modify or extend the server:
 
 ## Notes
 
-- This server provides comprehensive analysis of SSIS package elements including advanced features like data flow analysis, event handler analysis, parameter extraction, package dependency mapping, configuration analysis, logging configuration, script code extraction, and specialized task analysis
+- This server provides comprehensive analysis of SSIS package elements including advanced features like data flow analysis, event handler analysis, parameter extraction, package dependency mapping, configuration analysis, logging configuration, script code extraction, performance metrics analysis, security analysis, package comparison, code quality metrics, text file integration, and specialized task analysis
 - SSIS DTSX files have complex XML structures; the parsing handles namespace prefixes and various XML schemas
 - Ensure the MCP client has read access to the DTSX files you want to analyze
 - Supports analysis of SQL Server, Message Queue, Script, and other specialized SSIS tasks
