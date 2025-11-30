@@ -5,9 +5,11 @@ This is a comprehensive Model Context Protocol (MCP) server written in Go that p
 ## Features
 
 - **Package Analysis**: Parse DTSX files and extract comprehensive package information
-- **Task Analysis**: List and analyze all tasks within packages, including specialized tasks like Message Queue Tasks
-- **Connection Management**: Extract and analyze connection manager details
-- **Variable Extraction**: List all package and task variables
+- **Data Flow Analysis**: Analyze components within Data Flow Tasks (sources, transformations, destinations, data paths, and component properties)
+- **Task Analysis**: List and analyze all tasks within packages with expression resolution in task properties
+- **Precedence Constraint Analysis**: Extract and analyze precedence constraints with expression resolution
+- **Connection Management**: Extract and analyze connection manager details with expression resolution
+- **Variable Extraction**: List all package and task variables with expression resolution
 - **Script Code Analysis**: Extract C#/VB.NET code from Script Tasks
 - **Logging Configuration**: Detailed analysis of logging providers, events, and destinations
 - **Best Practices Validation**: Check SSIS packages for best practices and potential issues
@@ -34,7 +36,7 @@ go mod tidy
 4. Build the server:
 
 ```bash
-go build -o ssis-analyzer.exe main.go
+go build -o ssis-analyzer.exe .
 ```
 
 5. Run the server:
@@ -142,63 +144,75 @@ This configuration provides both HTTP and stdio transport options. The HTTP tran
 
 2. **extract_tasks**
 
-   - Description: Extract and list all tasks from a DTSX file
+   - Description: Extract and list all tasks from a DTSX file, including resolved expressions in task properties
    - Parameters:
      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
 3. **extract_connections**
 
-   - Description: Extract and list all connection managers from a DTSX file
+   - Description: Extract and list all connection managers from a DTSX file, including resolved expressions in connection strings
    - Parameters:
      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-4. **extract_variables**
+4. **extract_precedence_constraints**
 
-   - Description: Extract and list all variables from a DTSX file
+   - Description: Extract and list all precedence constraints from a DTSX file, including resolved expressions
    - Parameters:
      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-5. **extract_script_code**
+5. **extract_variables**
+
+   - Description: Extract and list all variables from a DTSX file, including resolved expressions
+   - Parameters:
+     - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+6. **extract_script_code**
 
    - Description: Extract script code from Script Tasks in a DTSX file
    - Parameters:
      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-6. **validate_best_practices**
+7. **validate_best_practices**
 
    - Description: Check SSIS package for best practices and potential issues
    - Parameters:
      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-7. **ask_about_dtsx**
+8. **ask_about_dtsx**
 
    - Description: Ask questions about an SSIS DTSX file and get relevant information
    - Parameters:
      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
      - `question` (string, required): Question about the DTSX file
 
-8. **analyze_message_queue_tasks**
+9. **analyze_message_queue_tasks**
 
    - Description: Analyze Message Queue Tasks in a DTSX file, including send/receive operations and message content
    - Parameters:
      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-9. **detect_hardcoded_values**
+10. **detect_hardcoded_values**
 
-   - Description: Detect hard-coded values in a DTSX file, such as embedded literals in connection strings, messages, or expressions
-   - Parameters:
-     - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+    - Description: Detect hard-coded values in a DTSX file, such as embedded literals in connection strings, messages, or expressions
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-10. **analyze_logging_configuration**
+11. **analyze_logging_configuration**
 
     - Description: Analyze detailed logging configuration in a DTSX file, including log providers, events, and destinations
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-11. **list_packages**
+12. **list_packages**
 
     - Description: Recursively list all DTSX packages found in the package directory
     - Parameters: None (uses the configured package directory)
+
+13. **analyze_data_flow**
+
+    - Description: Analyze Data Flow components in a DTSX file, including sources, transformations, destinations, and data paths
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
 ## Advanced Analysis Capabilities
 
@@ -245,8 +259,8 @@ The SSIS DTSX Analyzer provides specialized analysis for:
 To modify or extend the server:
 
 1. Edit `main.go` to add new tools or modify existing ones
-2. Update the SSIS XML parsing structs as needed for more detailed analysis
-3. Run `go build` to compile changes
+2. Update the SSIS XML parsing structs in `ssis_types.go` as needed for more detailed analysis
+3. Run `go build -o ssis-analyzer.exe .` to compile changes
 
 ## Notes
 

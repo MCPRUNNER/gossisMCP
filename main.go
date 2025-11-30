@@ -16,97 +16,59 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+// resolveVariableExpressions resolves SSIS variable expressions by substituting variable references
+func resolveVariableExpressions(value string, variables []Variable, maxDepth int) string {
+	if maxDepth <= 0 {
+		return value // Prevent infinite recursion
+	}
+
+	// Find all @[...] expressions in the value
+	re := regexp.MustCompile(`@\[([^]]+)\]`)
+	result := re.ReplaceAllStringFunc(value, func(match string) string {
+		// Extract the variable reference (remove @[ and ])
+		varRef := match[2 : len(match)-1]
+
+		// Handle User:: and System:: prefixes
+		var resolved string
+		if strings.HasPrefix(varRef, "User::") {
+			varName := strings.TrimPrefix(varRef, "User::")
+			resolved = findVariableValue(varName, variables)
+		} else if strings.HasPrefix(varRef, "System::") {
+			// For system variables, we can't resolve actual runtime values,
+			// but we can indicate what type of system variable it is
+			resolved = "<System variable: " + varRef + ">"
+		} else {
+			// Try to find as a user variable without prefix
+			resolved = findVariableValue(varRef, variables)
+		}
+
+		if resolved == "" {
+			return match // Return original if not found
+		}
+
+		// Recursively resolve any expressions in the resolved value
+		return resolveVariableExpressions(resolved, variables, maxDepth-1)
+	})
+
+	return result
+}
+
+// findVariableValue finds a variable value by name
+func findVariableValue(name string, variables []Variable) string {
+	for _, v := range variables {
+		if v.Name == name {
+			return v.Value
+		}
+	}
+	return ""
+}
+
 // resolveFilePath resolves a file path against the package directory if it's relative
 func resolveFilePath(filePath, packageDirectory string) string {
 	if packageDirectory == "" || filepath.IsAbs(filePath) {
 		return filePath
 	}
 	return filepath.Join(packageDirectory, filePath)
-}
-
-// SSISPackage represents the root of a DTSX file
-type SSISPackage struct {
-	XMLName       xml.Name      `xml:"Executable"`
-	Properties    []Property    `xml:"Property"`
-	ConnectionMgr ConnectionMgr `xml:"ConnectionManagers"`
-	Variables     Variables     `xml:"Variables"`
-	Executables   Executables   `xml:"Executables"`
-}
-
-type Property struct {
-	Name  string `xml:"Name,attr"`
-	Value string `xml:",innerxml"`
-}
-
-type ConnectionMgr struct {
-	Connections []Connection `xml:"ConnectionManager"`
-}
-
-type Connection struct {
-	Name       string     `xml:"ObjectName,attr"`
-	ObjectData ObjectData `xml:"ObjectData"`
-}
-
-type ObjectData struct {
-	ConnectionMgr InnerConnection `xml:"ConnectionManager"`
-	MsmqConnMgr   MsmqConnection  `xml:"MsmqConnectionManager"`
-}
-
-type InnerConnection struct {
-	ConnectionString string `xml:"ConnectionString,attr"`
-}
-
-type MsmqConnection struct {
-	ConnectionString string `xml:"ConnectionString,attr"`
-}
-
-type Executables struct {
-	Tasks []Task `xml:"Executable"`
-}
-
-type Task struct {
-	Name       string         `xml:"ObjectName,attr"`
-	Properties []Property     `xml:"Property"`
-	ObjectData TaskObjectData `xml:"ObjectData"`
-}
-
-type TaskObjectData struct {
-	Task       TaskDetails       `xml:"Task"`
-	ScriptTask ScriptTaskDetails `xml:"ScriptTask"`
-}
-
-type TaskDetails struct {
-	MessageQueueTask MessageQueueTaskDetails `xml:"MessageQueueTask"`
-}
-
-type MessageQueueTaskDetails struct {
-	MessageQueueTaskData MessageQueueTaskData `xml:"MessageQueueTaskData"`
-}
-
-type MessageQueueTaskData struct {
-	MessageType string `xml:"MessageType,attr"`
-	Message     string `xml:"Message"`
-}
-
-type ScriptTaskDetails struct {
-	ScriptTaskData ScriptTaskData `xml:"ScriptTaskData"`
-}
-
-type ScriptTaskData struct {
-	ScriptProject ScriptProject `xml:"ScriptProject"`
-}
-
-type ScriptProject struct {
-	ScriptCode string `xml:",innerxml"`
-}
-
-type Variables struct {
-	Vars []Variable `xml:"Variable"`
-}
-
-type Variable struct {
-	Name  string `xml:"ObjectName,attr"`
-	Value string `xml:"VariableValue"`
 }
 
 func main() {
@@ -158,7 +120,7 @@ func main() {
 
 	// Tool to extract tasks
 	extractTasksTool := mcp.NewTool("extract_tasks",
-		mcp.WithDescription("Extract and list all tasks from a DTSX file"),
+		mcp.WithDescription("Extract and list all tasks from a DTSX file, including resolved expressions in task properties"),
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
@@ -170,7 +132,7 @@ func main() {
 
 	// Tool to extract connections
 	extractConnectionsTool := mcp.NewTool("extract_connections",
-		mcp.WithDescription("Extract and list all connection managers from a DTSX file"),
+		mcp.WithDescription("Extract and list all connection managers from a DTSX file, including resolved expressions"),
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
@@ -180,9 +142,21 @@ func main() {
 		return handleExtractConnections(ctx, request, packageDirectory)
 	})
 
+	// Tool to extract precedence constraints
+	extractPrecedenceTool := mcp.NewTool("extract_precedence_constraints",
+		mcp.WithDescription("Extract and list all precedence constraints from a DTSX file, including resolved expressions"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(extractPrecedenceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleExtractPrecedenceConstraints(ctx, request, packageDirectory)
+	})
+
 	// Tool to extract variables
 	extractVariablesTool := mcp.NewTool("extract_variables",
-		mcp.WithDescription("Extract and list all variables from a DTSX file"),
+		mcp.WithDescription("Extract and list all variables from a DTSX file, including resolved expressions"),
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
@@ -276,6 +250,18 @@ func main() {
 		return handleListPackages(ctx, request, packageDirectory)
 	})
 
+	// Tool to analyze data flow components
+	analyzeDataFlowTool := mcp.NewTool("analyze_data_flow",
+		mcp.WithDescription("Analyze Data Flow components in a DTSX file, including sources, transformations, destinations, and data paths"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeDataFlowTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeDataFlow(ctx, request, packageDirectory)
+	})
+
 	if *httpMode {
 		// Run in HTTP streaming mode
 		runHTTPServer(s, *httpPort)
@@ -357,6 +343,18 @@ func handleExtractTasks(ctx context.Context, request mcp.CallToolRequest, packag
 		for _, prop := range task.Properties {
 			if prop.Name == "Description" {
 				tasks += fmt.Sprintf("   Description: %s\n", strings.TrimSpace(prop.Value))
+			} else if prop.Name == "SqlStatementSource" || prop.Name == "Executable" || prop.Name == "Arguments" {
+				// Show important task properties that might contain expressions
+				propValue := strings.TrimSpace(prop.Value)
+				tasks += fmt.Sprintf("   %s: %s\n", prop.Name, propValue)
+
+				// Check if property value contains expressions
+				if strings.Contains(propValue, "@[") {
+					resolvedValue := resolveVariableExpressions(propValue, pkg.Variables.Vars, 10)
+					if resolvedValue != propValue {
+						tasks += fmt.Sprintf("   Resolved %s: %s\n", prop.Name, resolvedValue)
+					}
+				}
 			}
 		}
 	}
@@ -394,9 +392,63 @@ func handleExtractConnections(ctx context.Context, request mcp.CallToolRequest, 
 			connStr = conn.ObjectData.MsmqConnMgr.ConnectionString
 		}
 		connections += fmt.Sprintf("   Connection String: %s\n", connStr)
+
+		// Check if connection string contains expressions and resolve them
+		if strings.Contains(connStr, "@[") {
+			resolvedConnStr := resolveVariableExpressions(connStr, pkg.Variables.Vars, 10)
+			if resolvedConnStr != connStr {
+				connections += fmt.Sprintf("   Resolved Connection String: %s\n", resolvedConnStr)
+			}
+		}
 	}
 
 	return mcp.NewToolResultText(connections), nil
+}
+
+func handleExtractPrecedenceConstraints(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := ioutil.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	constraints := "Precedence Constraints:\n"
+	for i, constraint := range pkg.PrecedenceConstraints.Constraints {
+		constraints += fmt.Sprintf("%d. %s\n", i+1, constraint.Name)
+		constraints += fmt.Sprintf("   From: %s\n", constraint.From)
+		constraints += fmt.Sprintf("   To: %s\n", constraint.To)
+		constraints += fmt.Sprintf("   Evaluation Operation: %s\n", constraint.EvalOp)
+
+		if constraint.Expression != "" {
+			constraints += fmt.Sprintf("   Expression: %s\n", constraint.Expression)
+
+			// Resolve expressions in the constraint
+			if strings.Contains(constraint.Expression, "@[") {
+				resolvedExpr := resolveVariableExpressions(constraint.Expression, pkg.Variables.Vars, 10)
+				if resolvedExpr != constraint.Expression {
+					constraints += fmt.Sprintf("   Resolved Expression: %s\n", resolvedExpr)
+				}
+			}
+		}
+		constraints += "\n"
+	}
+
+	return mcp.NewToolResultText(constraints), nil
 }
 
 func handleValidateDtsx(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -450,7 +502,22 @@ func handleExtractVariables(ctx context.Context, request mcp.CallToolRequest, pa
 
 	variables := "Variables:\n"
 	for i, v := range pkg.Variables.Vars {
-		variables += fmt.Sprintf("%d. %s = %s\n", i+1, v.Name, v.Value)
+		variables += fmt.Sprintf("%d. %s\n", i+1, v.Name)
+
+		// Show expression if it exists
+		if v.Expression != "" {
+			variables += fmt.Sprintf("   Expression: %s\n", v.Expression)
+		}
+
+		variables += fmt.Sprintf("   Raw: %s\n", v.Value)
+
+		// Try to resolve expressions in the value
+		resolvedValue := resolveVariableExpressions(v.Value, pkg.Variables.Vars, 10)
+		if resolvedValue != v.Value {
+			variables += fmt.Sprintf("   Resolved: %s\n", resolvedValue)
+		}
+
+		variables += "\n"
 	}
 
 	return mcp.NewToolResultText(variables), nil
@@ -934,6 +1001,200 @@ func handleListPackages(ctx context.Context, request mcp.CallToolRequest, packag
 	}
 
 	return mcp.NewToolResultText(result), nil
+}
+
+func handleAnalyzeDataFlow(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	fullPath := resolveFilePath(filePath, packageDirectory)
+
+	// Read the DTSX file as string for analysis
+	data, err := ioutil.ReadFile(fullPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	xmlContent := string(data)
+
+	var result strings.Builder
+	result.WriteString("Data Flow Analysis:\n\n")
+
+	// Check if this package contains data flow tasks
+	if !strings.Contains(xmlContent, "Microsoft.Pipeline") {
+		result.WriteString("No Data Flow Tasks found in this package.\n")
+		return mcp.NewToolResultText(result.String()), nil
+	}
+
+	result.WriteString("Data Flow Task found in package.\n\n")
+
+	// Extract component information using regex
+	// Find all component definitions
+	componentRegex := regexp.MustCompile(`(?s)<component[^>]*>`)
+	matches := componentRegex.FindAllString(xmlContent, -1)
+
+	if len(matches) > 0 {
+		result.WriteString("Components:\n")
+		for _, componentTag := range matches {
+			// Extract individual attributes
+			nameRegex := regexp.MustCompile(`name="([^"]*)"`)
+			classIDRegex := regexp.MustCompile(`componentClassID="([^"]*)"`)
+			descRegex := regexp.MustCompile(`description="([^"]*)"`)
+
+			nameMatch := nameRegex.FindStringSubmatch(componentTag)
+			classIDMatch := classIDRegex.FindStringSubmatch(componentTag)
+			descMatch := descRegex.FindStringSubmatch(componentTag)
+
+			name := ""
+			if len(nameMatch) > 1 {
+				name = nameMatch[1]
+			}
+
+			classID := ""
+			if len(classIDMatch) > 1 {
+				classID = classIDMatch[1]
+			}
+
+			description := ""
+			if len(descMatch) > 1 {
+				description = descMatch[1]
+			}
+
+			componentType := getComponentType(classID)
+
+			result.WriteString(fmt.Sprintf("  - %s (%s)\n", name, componentType))
+			if description != "" {
+				result.WriteString(fmt.Sprintf("    Description: %s\n", description))
+			}
+
+			// Try to find key properties for this component
+			// Look for properties within this component's section
+			componentStart := strings.Index(xmlContent, fmt.Sprintf(`name="%s"`, name))
+			if componentStart > 0 {
+				componentEnd := strings.Index(xmlContent[componentStart:], "</component>")
+				if componentEnd > 0 {
+					componentSection := xmlContent[componentStart : componentStart+componentEnd]
+
+					// Look for key properties
+					keyProps := []string{"SqlCommand", "TableOrViewName", "FileName", "ConnectionString"}
+					for _, prop := range keyProps {
+						propRegex := regexp.MustCompile(fmt.Sprintf(`<property[^>]*name="%s"[^>]*>([^<]*)</property>`, prop))
+						propMatch := propRegex.FindStringSubmatch(componentSection)
+						if len(propMatch) > 1 && strings.TrimSpace(propMatch[1]) != "" {
+							result.WriteString(fmt.Sprintf("    %s: %s\n", prop, strings.TrimSpace(propMatch[1])))
+						}
+					}
+				}
+			}
+			result.WriteString("\n")
+		}
+	} else {
+		result.WriteString("No components found in data flow.\n")
+	} // Extract path information
+	pathRegex := regexp.MustCompile(`(?s)<path[^>]*>`)
+	pathMatches := pathRegex.FindAllString(xmlContent, -1)
+
+	if len(pathMatches) > 0 {
+		result.WriteString("Data Paths:\n")
+		for _, pathTag := range pathMatches {
+			// Extract individual attributes
+			refIDRegex := regexp.MustCompile(`refId="[^"]*\.Paths\[([^]]+)\]"`)
+			startIDRegex := regexp.MustCompile(`startId="([^"]*)"`)
+			endIDRegex := regexp.MustCompile(`endId="([^"]*)"`)
+
+			refIDMatch := refIDRegex.FindStringSubmatch(pathTag)
+			startIDMatch := startIDRegex.FindStringSubmatch(pathTag)
+			endIDMatch := endIDRegex.FindStringSubmatch(pathTag)
+
+			pathName := ""
+			if len(refIDMatch) > 1 {
+				pathName = refIDMatch[1]
+			}
+
+			startID := ""
+			if len(startIDMatch) > 1 {
+				// Extract just the component name from the full ID
+				startFull := startIDMatch[1]
+				if idx := strings.LastIndex(startFull, "\\"); idx > 0 {
+					startID = startFull[idx+1:]
+				} else {
+					startID = startFull
+				}
+			}
+
+			endID := ""
+			if len(endIDMatch) > 1 {
+				// Extract just the component name from the full ID
+				endFull := endIDMatch[1]
+				if idx := strings.LastIndex(endFull, "\\"); idx > 0 {
+					endID = endFull[idx+1:]
+				} else {
+					endID = endFull
+				}
+			}
+
+			result.WriteString(fmt.Sprintf("  - %s: %s → %s\n", pathName, startID, endID))
+		}
+		result.WriteString("\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func getComponentType(classID string) string {
+	// Map common SSIS component class IDs to readable names
+	switch {
+	case strings.Contains(classID, "OLEDBSource"):
+		return "OLE DB Source"
+	case strings.Contains(classID, "OLEDBDestination"):
+		return "OLE DB Destination"
+	case strings.Contains(classID, "FlatFileSource"):
+		return "Flat File Source"
+	case strings.Contains(classID, "FlatFileDestination"):
+		return "Flat File Destination"
+	case strings.Contains(classID, "Lookup"):
+		return "Lookup"
+	case strings.Contains(classID, "Sort"):
+		return "Sort"
+	case strings.Contains(classID, "Aggregate"):
+		return "Aggregate"
+	case strings.Contains(classID, "Merge"):
+		return "Merge"
+	case strings.Contains(classID, "MergeJoin"):
+		return "Merge Join"
+	case strings.Contains(classID, "ConditionalSplit"):
+		return "Conditional Split"
+	case strings.Contains(classID, "Multicast"):
+		return "Multicast"
+	case strings.Contains(classID, "UnionAll"):
+		return "Union All"
+	case strings.Contains(classID, "ScriptComponent"):
+		return "Script Component"
+	case strings.Contains(classID, "Lineage"):
+		return "Audit"
+	case strings.Contains(classID, "ManagedComponentHost"):
+		return "Script Component"
+	case strings.Contains(classID, "Cache"):
+		return "Cache Transform"
+	default:
+		return classID
+	}
+}
+
+func isKeyProperty(propName string) bool {
+	keyProps := []string{
+		"SqlCommand", "TableOrViewName", "FileName", "ConnectionString",
+		"Expression", "SortKeyPosition", "AggregationType", "Operation",
+	}
+	for _, key := range keyProps {
+		if propName == key {
+			return true
+		}
+	}
+	return false
 }
 
 // runHTTPServer starts an HTTP server with streaming capabilities

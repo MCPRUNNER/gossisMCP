@@ -1,0 +1,203 @@
+package main
+
+import (
+	"encoding/xml"
+)
+
+// SSISPackage represents the root of a DTSX file
+type SSISPackage struct {
+	XMLName               xml.Name              `xml:"Executable"`
+	Properties            []Property            `xml:"Property"`
+	ConnectionMgr         ConnectionMgr         `xml:"ConnectionManagers"`
+	Variables             Variables             `xml:"Variables"`
+	Executables           Executables           `xml:"Executables"`
+	PrecedenceConstraints PrecedenceConstraints `xml:"PrecedenceConstraints"`
+}
+
+type Property struct {
+	Name  string `xml:"Name,attr"`
+	Value string `xml:",innerxml"`
+}
+
+type ConnectionMgr struct {
+	Connections []Connection `xml:"ConnectionManager"`
+}
+
+type Connection struct {
+	Name       string     `xml:"ObjectName,attr"`
+	ObjectData ObjectData `xml:"ObjectData"`
+}
+
+type ObjectData struct {
+	ConnectionMgr InnerConnection `xml:"ConnectionManager"`
+	MsmqConnMgr   MsmqConnection  `xml:"MsmqConnectionManager"`
+}
+
+type InnerConnection struct {
+	ConnectionString string `xml:"ConnectionString,attr"`
+}
+
+type MsmqConnection struct {
+	ConnectionString string `xml:"ConnectionString,attr"`
+}
+
+type Executables struct {
+	Tasks []Task `xml:"Executable"`
+}
+
+type Task struct {
+	Name       string         `xml:"ObjectName,attr"`
+	Properties []Property     `xml:"Property"`
+	ObjectData TaskObjectData `xml:"ObjectData"`
+}
+
+type TaskObjectData struct {
+	Task       TaskDetails       `xml:"Task"`
+	ScriptTask ScriptTaskDetails `xml:"ScriptTask"`
+	DataFlow   DataFlowDetails   `xml:"pipeline"`
+}
+
+type TaskDetails struct {
+	MessageQueueTask MessageQueueTaskDetails `xml:"MessageQueueTask"`
+}
+
+type MessageQueueTaskDetails struct {
+	MessageQueueTaskData MessageQueueTaskData `xml:"MessageQueueTaskData"`
+}
+
+type MessageQueueTaskData struct {
+	MessageType string `xml:"MessageType,attr"`
+	Message     string `xml:"Message"`
+}
+
+type ScriptTaskDetails struct {
+	ScriptTaskData ScriptTaskData `xml:"ScriptTaskData"`
+}
+
+type ScriptTaskData struct {
+	ScriptProject ScriptProject `xml:"ScriptProject"`
+}
+
+type ScriptProject struct {
+	ScriptCode string `xml:",innerxml"`
+}
+
+type DataFlowDetails struct {
+	Components DataFlowComponents `xml:"Components"`
+	Paths      DataFlowPaths      `xml:"Paths"`
+}
+
+type DataFlowComponents struct {
+	Components []DataFlowComponent `xml:"Component"`
+}
+
+type DataFlowComponent struct {
+	Name                     string              `xml:"name,attr"`
+	ComponentClassID         string              `xml:"componentClassID,attr"`
+	Description              string              `xml:"description,attr"`
+	LocaleID                 string              `xml:"localeId,attr"`
+	UsesDispositions         bool                `xml:"usesDispositions,attr"`
+	ValidateExternalMetadata bool                `xml:"validateExternalMetadata,attr"`
+	Version                  int                 `xml:"version,attr"`
+	ObjectData               ComponentObjectData `xml:"ObjectData"`
+	Inputs                   ComponentInputs     `xml:"Inputs"`
+	Outputs                  ComponentOutputs    `xml:"Outputs"`
+}
+
+type ComponentObjectData struct {
+	PipelineComponent PipelineComponent `xml:"PipelineComponent"`
+}
+
+type PipelineComponent struct {
+	Properties ComponentProperties `xml:"Properties"`
+}
+
+type ComponentProperties struct {
+	Properties []ComponentProperty `xml:"Property"`
+}
+
+type ComponentProperty struct {
+	Name  string `xml:"Name,attr"`
+	Value string `xml:",innerxml"`
+}
+
+type ComponentInputs struct {
+	Inputs []ComponentInput `xml:"Input"`
+}
+
+type ComponentInput struct {
+	Name           string       `xml:"name,attr"`
+	HasSideEffects bool         `xml:"hasSideEffects,attr"`
+	IsSorted       bool         `xml:"isSorted,attr"`
+	InputColumns   InputColumns `xml:"InputColumns"`
+}
+
+type InputColumns struct {
+	Columns []InputColumn `xml:"InputColumn"`
+}
+
+type InputColumn struct {
+	Name      string `xml:"name,attr"`
+	DataType  string `xml:"dataType,attr"`
+	Length    int    `xml:"length,attr"`
+	Precision int    `xml:"precision,attr"`
+	Scale     int    `xml:"scale,attr"`
+	CodePage  int    `xml:"codePage,attr"`
+}
+
+type ComponentOutputs struct {
+	Outputs []ComponentOutput `xml:"Output"`
+}
+
+type ComponentOutput struct {
+	Name           string        `xml:"name,attr"`
+	HasSideEffects bool          `xml:"hasSideEffects,attr"`
+	IsErrorOut     bool          `xml:"isErrorOut,attr"`
+	Synchronous    bool          `xml:"synchronous,attr"`
+	OutputColumns  OutputColumns `xml:"OutputColumns"`
+}
+
+type OutputColumns struct {
+	Columns []OutputColumn `xml:"OutputColumn"`
+}
+
+type OutputColumn struct {
+	Name      string `xml:"name,attr"`
+	DataType  string `xml:"dataType,attr"`
+	Length    int    `xml:"length,attr"`
+	Precision int    `xml:"precision,attr"`
+	Scale     int    `xml:"scale,attr"`
+	CodePage  int    `xml:"codePage,attr"`
+}
+
+type DataFlowPaths struct {
+	Paths []DataFlowPath `xml:"Path"`
+}
+
+type DataFlowPath struct {
+	Name    string `xml:"name,attr"`
+	StartID string `xml:"startId,attr"`
+	EndID   string `xml:"endId,attr"`
+}
+
+type Variables struct {
+	Vars []Variable `xml:"Variable"`
+}
+
+type Variable struct {
+	Name       string `xml:"ObjectName,attr"`
+	Value      string `xml:"VariableValue"`
+	Expression string `xml:"Expression,attr"`
+}
+
+type PrecedenceConstraints struct {
+	Constraints []PrecedenceConstraint `xml:"PrecedenceConstraint"`
+}
+
+type PrecedenceConstraint struct {
+	Name       string `xml:"ObjectName,attr"`
+	From       string `xml:"From,attr"`
+	To         string `xml:"To,attr"`
+	Expression string `xml:"Expression,attr"`
+	EvalOp     string `xml:"EvalOp,attr"`
+}
