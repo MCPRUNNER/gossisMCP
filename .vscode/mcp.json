@@ -8,7 +8,7 @@
       "type": "stdio",
       "command": ".\\ssis-analyzer.exe",
       "env": {
-        "GOSSIS_PKG_DIRECTORY": "C:\\Users\\U00001\\Documents\\SSIS_EXAMPLES"
+        "GOSSIS_PKG_DIRECTORY": ".\\Documents\\SSIS_EXAMPLES"
       }
     }
   }

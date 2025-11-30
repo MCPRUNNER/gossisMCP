@@ -71,6 +71,206 @@ func resolveFilePath(filePath, packageDirectory string) string {
 	return filepath.Join(packageDirectory, filePath)
 }
 
+// Unified source component analysis handler
+func handleAnalyzeSource(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	sourceType, err := request.RequireString("source_type")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Map source types to ComponentClassIDs
+	sourceTypeMap := map[string]string{
+		"ole_db":    "Microsoft.OLEDBSource",
+		"ado_net":   "Microsoft.SqlServer.Dts.Pipeline.DataReaderSourceAdapter",
+		"odbc":      "Microsoft.SqlServer.Dts.Pipeline.OdbcSourceAdapter",
+		"flat_file": "Microsoft.SqlServer.Dts.Pipeline.FlatFileSourceAdapter",
+		"excel":     "Microsoft.SqlServer.Dts.Pipeline.ExcelSourceAdapter",
+		"access":    "Microsoft.SqlServer.Dts.Pipeline.AccessSourceAdapter",
+		"xml":       "Microsoft.SqlServer.Dts.Pipeline.XmlSourceAdapter",
+		"raw_file":  "Microsoft.SqlServer.Dts.Pipeline.RawFileSourceAdapter",
+		"cdc":       "Microsoft.SqlServer.Dts.Pipeline.CdcSourceAdapter",
+		"sap_bw":    "Microsoft.SqlServer.Dts.Pipeline.SapBwSourceAdapter",
+	}
+
+	componentClassID, exists := sourceTypeMap[sourceType]
+	if !exists {
+		return mcp.NewToolResultError(fmt.Sprintf("Unknown source type: %s. Supported types: ole_db, ado_net, odbc, flat_file, excel, access, xml, raw_file, cdc, sap_bw", sourceType)), nil
+	}
+
+	// Map source types to display names
+	sourceNameMap := map[string]string{
+		"ole_db":    "OLE DB Source",
+		"ado_net":   "ADO.NET Source",
+		"odbc":      "ODBC Source",
+		"flat_file": "Flat File Source",
+		"excel":     "Excel Source",
+		"access":    "Access Source",
+		"xml":       "XML Source",
+		"raw_file":  "Raw File Source",
+		"cdc":       "CDC Source",
+		"sap_bw":    "SAP BW Source",
+	}
+
+	displayName := sourceNameMap[sourceType]
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString(fmt.Sprintf("%s Analysis:\n\n", displayName))
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == componentClassID {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Output Columns
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString(fmt.Sprintf("No %s components found in this package.\n", displayName))
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+// Unified destination component analysis handler
+func handleAnalyzeDestination(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	destinationType, err := request.RequireString("destination_type")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Map destination types to ComponentClassIDs
+	destinationTypeMap := map[string]string{
+		"ole_db":     "Microsoft.SqlServer.Dts.Pipeline.OLEDBDestinationAdapter",
+		"flat_file":  "Microsoft.SqlServer.Dts.Pipeline.FlatFileDestinationAdapter",
+		"sql_server": "Microsoft.SqlServer.Dts.Pipeline.SqlServerDestinationAdapter",
+		"excel":      "Microsoft.SqlServer.Dts.Pipeline.ExcelDestinationAdapter",
+		"raw_file":   "Microsoft.SqlServer.Dts.Pipeline.RawFileDestinationAdapter",
+	}
+
+	componentClassID, exists := destinationTypeMap[destinationType]
+	if !exists {
+		return mcp.NewToolResultError(fmt.Sprintf("Unknown destination type: %s. Supported types: ole_db, flat_file, sql_server, excel, raw_file", destinationType)), nil
+	}
+
+	// Map destination types to display names
+	destinationNameMap := map[string]string{
+		"ole_db":     "OLE DB Destination",
+		"flat_file":  "Flat File Destination",
+		"sql_server": "SQL Server Destination",
+		"excel":      "Excel Destination",
+		"raw_file":   "Raw File Destination",
+	}
+
+	displayName := destinationNameMap[destinationType]
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString(fmt.Sprintf("%s Analysis:\n\n", displayName))
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == componentClassID {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Input Columns
+					result.WriteString("Input Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString(fmt.Sprintf("No %s components found in this package.\n", displayName))
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
 func main() {
 	// Command line flags
 	httpMode := flag.Bool("http", false, "Run in HTTP streaming mode")
@@ -230,6 +430,18 @@ func main() {
 		return handleAnalyzeMessageQueueTasks(ctx, request, packageDirectory)
 	})
 
+	// Tool to analyze Script Tasks
+	analyzeScriptTaskTool := mcp.NewTool("analyze_script_task",
+		mcp.WithDescription("Analyze Script Tasks in a DTSX file, including script code, variables, and task configuration"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeScriptTaskTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeScriptTask(ctx, request, packageDirectory)
+	})
+
 	// Tool to detect hard-coded values
 	detectHardcodedValuesTool := mcp.NewTool("detect_hardcoded_values",
 		mcp.WithDescription("Detect hard-coded values in a DTSX file, such as embedded literals in connection strings, messages, or expressions"),
@@ -272,6 +484,362 @@ func main() {
 	)
 	s.AddTool(analyzeDataFlowTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAnalyzeDataFlow(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze data flow components with detailed configurations
+	analyzeDataFlowDetailedTool := mcp.NewTool("analyze_data_flow_detailed",
+		mcp.WithDescription("Provide detailed analysis of Data Flow components including configurations, properties, inputs/outputs, and data mappings"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeDataFlowDetailedTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeDataFlowDetailed(ctx, request, packageDirectory)
+	})
+
+	// Unified tool to analyze source components
+	analyzeSourceTool := mcp.NewTool("analyze_source",
+		mcp.WithDescription("Analyze source components in a DTSX file by type (unified interface for all source types)"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set, or absolute path)"),
+		),
+		mcp.WithString("source_type",
+			mcp.Required(),
+			mcp.Description("Type of source to analyze: ole_db, ado_net, odbc, flat_file, excel, access, xml, raw_file, cdc, sap_bw"),
+		),
+	)
+	s.AddTool(analyzeSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeSource(ctx, request, packageDirectory)
+	})
+
+	// Unified tool to analyze destination components
+	analyzeDestinationTool := mcp.NewTool("analyze_destination",
+		mcp.WithDescription("Analyze destination components in a DTSX file by type (unified interface for all destination types)"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set, or absolute path)"),
+		),
+		mcp.WithString("destination_type",
+			mcp.Required(),
+			mcp.Description("Type of destination to analyze: ole_db, flat_file, sql_server, excel, raw_file"),
+		),
+	)
+	s.AddTool(analyzeDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeDestination(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze OLE DB Source components
+	analyzeOLEDBSourceTool := mcp.NewTool("analyze_ole_db_source",
+		mcp.WithDescription("Analyze OLE DB Source components in a DTSX file, extracting connection details, access mode, SQL commands, and output columns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeOLEDBSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeOLEDBSource(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Export Column destinations
+	analyzeExportColumnTool := mcp.NewTool("analyze_export_column",
+		mcp.WithDescription("Analyze Export Column destinations in a DTSX file, extracting file data columns, file path columns, and export settings"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeExportColumnTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeExportColumn(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Data Conversion transformations
+	analyzeDataConversionTool := mcp.NewTool("analyze_data_conversion",
+		mcp.WithDescription("Analyze Data Conversion transformations in a DTSX file, extracting input/output mappings and data type conversions"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeDataConversionTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeDataConversion(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze ADO.NET Source components
+	analyzeADONETSourceTool := mcp.NewTool("analyze_ado_net_source",
+		mcp.WithDescription("Analyze ADO.NET Source components in a DTSX file, extracting connection details and output columns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeADONETSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeADONETSource(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze ODBC Source components
+	analyzeODBCSourceTool := mcp.NewTool("analyze_odbc_source",
+		mcp.WithDescription("Analyze ODBC Source components in a DTSX file, extracting connection details and output columns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeODBCSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeODBCSource(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Flat File Source components
+	analyzeFlatFileSourceTool := mcp.NewTool("analyze_flat_file_source",
+		mcp.WithDescription("Analyze Flat File Source components in a DTSX file, extracting file connection details and output columns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeFlatFileSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeFlatFileSource(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Excel Source components
+	analyzeExcelSourceTool := mcp.NewTool("analyze_excel_source",
+		mcp.WithDescription("Analyze Excel Source components in a DTSX file, extracting Excel file details, sheet names, and output columns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeExcelSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeExcelSource(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Access Source components
+	analyzeAccessSourceTool := mcp.NewTool("analyze_access_source",
+		mcp.WithDescription("Analyze Access Source components in a DTSX file, extracting database connection details and output columns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeAccessSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeAccessSource(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze XML Source components
+	analyzeXMLSourceTool := mcp.NewTool("analyze_xml_source",
+		mcp.WithDescription("Analyze XML Source components in a DTSX file, extracting XML structure details and output columns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeXMLSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeXMLSource(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Raw File Source components
+	analyzeRawFileSourceTool := mcp.NewTool("analyze_raw_file_source",
+		mcp.WithDescription("Analyze Raw File Source components in a DTSX file, extracting file metadata and column structure"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeRawFileSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeRawFileSource(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze CDC Source components
+	analyzeCDCSourceTool := mcp.NewTool("analyze_cdc_source",
+		mcp.WithDescription("Analyze CDC Source components in a DTSX file, extracting CDC configuration and change tracking details"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeCDCSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeCDCSource(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze SAP BW Source components
+	analyzeSAPBWSourceTool := mcp.NewTool("analyze_sap_bw_source",
+		mcp.WithDescription("Analyze SAP BW Source components in a DTSX file, extracting SAP BW integration details and InfoObject mappings"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeSAPBWSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeSAPBWSource(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze OLE DB Destination components
+	analyzeOLEDBDestinationTool := mcp.NewTool("analyze_ole_db_destination",
+		mcp.WithDescription("Analyze OLE DB Destination components in a DTSX file, extracting target table mappings and bulk load settings"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeOLEDBDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeOLEDBDestination(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Flat File Destination components
+	analyzeFlatFileDestinationTool := mcp.NewTool("analyze_flat_file_destination",
+		mcp.WithDescription("Analyze Flat File Destination components in a DTSX file, extracting file format settings and column mappings"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeFlatFileDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeFlatFileDestination(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze SQL Server Destination components
+	analyzeSQLServerDestinationTool := mcp.NewTool("analyze_sql_server_destination",
+		mcp.WithDescription("Analyze SQL Server Destination components in a DTSX file, extracting bulk insert configuration and performance settings"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeSQLServerDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeSQLServerDestination(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Derived Column components
+	analyzeDerivedColumnTool := mcp.NewTool("analyze_derived_column",
+		mcp.WithDescription("Analyze Derived Column components in a DTSX file, extracting expressions and data transformations"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeDerivedColumnTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeDerivedColumn(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Lookup components
+	analyzeLookupTool := mcp.NewTool("analyze_lookup",
+		mcp.WithDescription("Analyze Lookup components in a DTSX file, extracting reference table joins and cache configuration"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeLookupTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeLookup(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Conditional Split components
+	analyzeConditionalSplitTool := mcp.NewTool("analyze_conditional_split",
+		mcp.WithDescription("Analyze Conditional Split components in a DTSX file, extracting split conditions and output configurations"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set, or absolute path)"),
+		),
+	)
+	s.AddTool(analyzeConditionalSplitTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeConditionalSplit(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Sort components
+	analyzeSortTool := mcp.NewTool("analyze_sort",
+		mcp.WithDescription("Analyze Sort transform components in a DTSX file, extracting sort keys and memory usage"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set, or absolute path)"),
+		),
+	)
+	s.AddTool(analyzeSortTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeSort(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Aggregate components
+	analyzeAggregateTool := mcp.NewTool("analyze_aggregate",
+		mcp.WithDescription("Analyze Aggregate transform components in a DTSX file, extracting aggregation operations and group by columns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set, or absolute path)"),
+		),
+	)
+	s.AddTool(analyzeAggregateTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeAggregate(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Merge Join components
+	analyzeMergeJoinTool := mcp.NewTool("analyze_merge_join",
+		mcp.WithDescription("Analyze Merge Join transform components in a DTSX file, extracting join type and key columns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set, or absolute path)"),
+		),
+	)
+	s.AddTool(analyzeMergeJoinTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeMergeJoin(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Union All components
+	analyzeUnionAllTool := mcp.NewTool("analyze_union_all",
+		mcp.WithDescription("Analyze Union All transform components in a DTSX file, extracting input/output column mappings"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set, or absolute path)"),
+		),
+	)
+	s.AddTool(analyzeUnionAllTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeUnionAll(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Multicast components
+	analyzeMulticastTool := mcp.NewTool("analyze_multicast",
+		mcp.WithDescription("Analyze Multicast transform components in a DTSX file, extracting output configurations"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set, or absolute path)"),
+		),
+	)
+	s.AddTool(analyzeMulticastTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeMulticast(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Script Component components
+	analyzeScriptComponentTool := mcp.NewTool("analyze_script_component",
+		mcp.WithDescription("Analyze Script Component transform components in a DTSX file, extracting script code and configuration"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set, or absolute path)"),
+		),
+	)
+	s.AddTool(analyzeScriptComponentTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeScriptComponent(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Excel Destination components
+	analyzeExcelDestinationTool := mcp.NewTool("analyze_excel_destination",
+		mcp.WithDescription("Analyze Excel Destination components in a DTSX file, extracting sheet configuration and data type mapping"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set, or absolute path)"),
+		),
+	)
+	s.AddTool(analyzeExcelDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeExcelDestination(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Raw File Destination components
+	analyzeRawFileDestinationTool := mcp.NewTool("analyze_raw_file_destination",
+		mcp.WithDescription("Analyze Raw File Destination components in a DTSX file, extracting file metadata and write options"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set, or absolute path)"),
+		),
+	)
+	s.AddTool(analyzeRawFileDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeRawFileDestination(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze event handlers
@@ -919,6 +1487,112 @@ func handleAnalyzeMessageQueueTasks(_ context.Context, request mcp.CallToolReque
 	return mcp.NewToolResultText(analysis), nil
 }
 
+func handleAnalyzeScriptTask(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	analysis := "Script Tasks Analysis:\n"
+	found := false
+
+	for i, task := range pkg.Executables.Tasks {
+		if strings.Contains(strings.ToLower(task.Name), "script") {
+			found = true
+			analysis += fmt.Sprintf("Task %d: %s\n", i+1, task.Name)
+
+			// Task description
+			for _, prop := range task.Properties {
+				if prop.Name == "Description" {
+					analysis += fmt.Sprintf("  Description: %s\n", strings.TrimSpace(prop.Value))
+				}
+			}
+
+			// Script task specific properties
+			scriptTaskData := task.ObjectData.ScriptTask.ScriptTaskData
+
+			// Extract script code
+			if scriptTaskData.ScriptProject.ScriptCode != "" {
+				analysis += "  Script Code:\n"
+				code := strings.TrimSpace(scriptTaskData.ScriptProject.ScriptCode)
+				code = strings.ReplaceAll(code, "&lt;", "<")
+				code = strings.ReplaceAll(code, "&gt;", ">")
+				code = strings.ReplaceAll(code, "&amp;", "&")
+				analysis += fmt.Sprintf("    %s\n", code)
+			} else {
+				analysis += "  Script Code: No script code found\n"
+			}
+
+			// Look for additional script task properties in the raw XML
+			// Since our struct is limited, we'll parse some additional properties from the raw data
+			rawData := string(data)
+			taskStart := strings.Index(rawData, fmt.Sprintf("<Executable Name=\"%s\"", task.Name))
+			if taskStart != -1 {
+				taskEnd := strings.Index(rawData[taskStart:], "</Executable>")
+				if taskEnd != -1 {
+					taskXML := rawData[taskStart : taskStart+taskEnd+len("</Executable>")]
+
+					// Extract ReadOnlyVariables
+					if strings.Contains(taskXML, "ReadOnlyVariables") {
+						roVars := extractPropertyValue(taskXML, "ReadOnlyVariables")
+						if roVars != "" {
+							analysis += fmt.Sprintf("  ReadOnly Variables: %s\n", roVars)
+						}
+					}
+
+					// Extract ReadWriteVariables
+					if strings.Contains(taskXML, "ReadWriteVariables") {
+						rwVars := extractPropertyValue(taskXML, "ReadWriteVariables")
+						if rwVars != "" {
+							analysis += fmt.Sprintf("  ReadWrite Variables: %s\n", rwVars)
+						}
+					}
+
+					// Extract EntryPoint
+					if strings.Contains(taskXML, "EntryPoint") {
+						entryPoint := extractPropertyValue(taskXML, "EntryPoint")
+						if entryPoint != "" {
+							analysis += fmt.Sprintf("  Entry Point: %s\n", entryPoint)
+						}
+					}
+
+					// Extract ScriptLanguage
+					if strings.Contains(taskXML, "ScriptLanguage") {
+						scriptLang := extractPropertyValue(taskXML, "ScriptLanguage")
+						if scriptLang != "" {
+							analysis += fmt.Sprintf("  Script Language: %s\n", scriptLang)
+						}
+					}
+				}
+			}
+
+			analysis += "\n"
+		}
+	}
+
+	if !found {
+		analysis += "No Script Tasks found in this package.\n"
+	}
+
+	return mcp.NewToolResultText(analysis), nil
+}
+
 func handleDetectHardcodedValues(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
@@ -1288,6 +1962,1959 @@ func handleAnalyzeDataFlow(_ context.Context, request mcp.CallToolRequest, packa
 			result.WriteString(fmt.Sprintf("  - %s: %s → %s\n", pathName, startID, endID))
 		}
 		result.WriteString("\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func extractComponentName(fullID string) string {
+	if idx := strings.LastIndex(fullID, "\\"); idx > 0 {
+		return fullID[idx+1:]
+	}
+	return fullID
+}
+
+func handleAnalyzeDataFlowDetailed(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Detailed Data Flow Analysis:\n\n")
+
+	// Find the data flow task
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			found = true
+			result.WriteString(fmt.Sprintf("Data Flow Task: %s\n", task.Name))
+			result.WriteString(fmt.Sprintf("Description: %s\n\n", task.Description))
+
+			// Get components
+			components := task.ObjectData.DataFlow.Components.Components
+			if len(components) == 0 {
+				result.WriteString("No components found.\n")
+				break
+			}
+
+			result.WriteString("Components:\n")
+			for _, comp := range components {
+				result.WriteString(fmt.Sprintf("\nComponent: %s\n", comp.Name))
+				result.WriteString(fmt.Sprintf("  Type: %s\n", getComponentType(comp.ComponentClassID)))
+				if comp.Description != "" {
+					result.WriteString(fmt.Sprintf("  Description: %s\n", comp.Description))
+				}
+
+				// Properties
+				if len(comp.ObjectData.PipelineComponent.Properties.Properties) > 0 {
+					result.WriteString("  Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("    %s: %s\n", prop.Name, prop.Value))
+					}
+				}
+
+				// Inputs
+				if len(comp.Inputs.Inputs) > 0 {
+					result.WriteString("  Inputs:\n")
+					for _, input := range comp.Inputs.Inputs {
+						result.WriteString(fmt.Sprintf("    Input: %s\n", input.Name))
+						if len(input.InputColumns.Columns) > 0 {
+							result.WriteString("      Columns:\n")
+							for _, col := range input.InputColumns.Columns {
+								result.WriteString(fmt.Sprintf("        %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+				}
+
+				// Outputs
+				if len(comp.Outputs.Outputs) > 0 {
+					result.WriteString("  Outputs:\n")
+					for _, output := range comp.Outputs.Outputs {
+						result.WriteString(fmt.Sprintf("    Output: %s", output.Name))
+						if output.IsErrorOut {
+							result.WriteString(" (Error Output)")
+						}
+						result.WriteString("\n")
+						if len(output.OutputColumns.Columns) > 0 {
+							result.WriteString("      Columns:\n")
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("        %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+				}
+			}
+
+			// Data Paths
+			paths := task.ObjectData.DataFlow.Paths.Paths
+			if len(paths) > 0 {
+				result.WriteString("\nData Paths:\n")
+				for _, path := range paths {
+					result.WriteString(fmt.Sprintf("  %s: %s → %s\n", path.Name, extractComponentName(path.StartID), extractComponentName(path.EndID)))
+				}
+			}
+
+			break
+		}
+	}
+
+	if !found {
+		result.WriteString("No Data Flow Tasks found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeOLEDBSource(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("OLE DB Source Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.OLEDBSource" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Connections
+					result.WriteString("Connections:\n")
+					// Note: Connections are not in the struct yet, but we can add later
+
+					// Outputs
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No OLE DB Source components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeExportColumn(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Export Column Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.Extractor" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Inputs
+					result.WriteString("Input Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Export Column components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeDataConversion(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Data Conversion Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.DataConvert" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Inputs
+					result.WriteString("Input Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+
+					// Outputs
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Data Conversion components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeADONETSource(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("ADO.NET Source Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.DataReaderSourceAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Outputs
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No ADO.NET Source components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeODBCSource(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("ODBC Source Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.OdbcSourceAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Outputs
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No ODBC Source components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeFlatFileSource(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Flat File Source Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.FlatFileSourceAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Outputs
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Flat File Source components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeExcelSource(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Excel Source Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.ExcelSourceAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Outputs
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Excel Source components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeAccessSource(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Access Source Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.AccessSourceAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Outputs
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Access Source components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeXMLSource(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("XML Source Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.XmlSourceAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Outputs
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No XML Source components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeRawFileSource(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Raw File Source Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.RawFileSourceAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Outputs
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Raw File Source components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeCDCSource(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("CDC Source Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.CdcSourceAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Outputs
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No CDC Source components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeSAPBWSource(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("SAP BW Source Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.SapBwSourceAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Outputs
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No SAP BW Source components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeOLEDBDestination(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("OLE DB Destination Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.OLEDBDestinationAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Inputs
+					result.WriteString("Input Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No OLE DB Destination components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeFlatFileDestination(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Flat File Destination Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.FlatFileDestinationAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Inputs
+					result.WriteString("Input Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Flat File Destination components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeSQLServerDestination(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("SQL Server Destination Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.SqlServerDestinationAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Inputs
+					result.WriteString("Input Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No SQL Server Destination components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeDerivedColumn(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Derived Column Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.DerivedColumn" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Inputs and Outputs
+					result.WriteString("Input/Output Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  Input: %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  Output: %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Derived Column components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeLookup(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Lookup Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.Lookup" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Inputs and Outputs
+					result.WriteString("Input/Output Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  Input: %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  Output: %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Lookup components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeConditionalSplit(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Conditional Split Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.ConditionalSplit" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Inputs and Outputs
+					result.WriteString("Input/Output Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  Input: %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							result.WriteString(fmt.Sprintf("  Output: %s\n", output.Name))
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("    %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Conditional Split components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeSort(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Sort Transform Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.Sort" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Inputs and Outputs
+					result.WriteString("Input/Output Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  Input: %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							result.WriteString(fmt.Sprintf("  Output: %s\n", output.Name))
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("    %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Sort components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeAggregate(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Aggregate Transform Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.Aggregate" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Inputs and Outputs
+					result.WriteString("Input/Output Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  Input: %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							result.WriteString(fmt.Sprintf("  Output: %s\n", output.Name))
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("    %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Aggregate components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeMergeJoin(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Merge Join Transform Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.MergeJoin" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Inputs and Outputs
+					result.WriteString("Input/Output Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  Input: %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							result.WriteString(fmt.Sprintf("  Output: %s\n", output.Name))
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("    %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Merge Join components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeUnionAll(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Union All Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.UnionAll" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						if isKeyProperty(prop.Name) {
+							result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+						}
+					}
+
+					// Inputs and Outputs
+					result.WriteString("Input/Output Columns:\n")
+					inputCount := 0
+					for _, input := range comp.Inputs.Inputs {
+						inputCount++
+						result.WriteString(fmt.Sprintf("  Input %d:\n", inputCount))
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("    %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							result.WriteString("  Output:\n")
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("    %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Union All components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeMulticast(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Multicast Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.Multicast" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						if isKeyProperty(prop.Name) {
+							result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+						}
+					}
+
+					// Inputs and Outputs
+					result.WriteString("Input/Output Configuration:\n")
+					for _, input := range comp.Inputs.Inputs {
+						result.WriteString("  Input:\n")
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("    %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					outputCount := 0
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							outputCount++
+							result.WriteString(fmt.Sprintf("  Output %d:\n", outputCount))
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("    %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString(fmt.Sprintf("Total Outputs: %d\n", outputCount))
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Multicast components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeScriptComponent(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Script Component Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.ScriptComponent" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						if isKeyProperty(prop.Name) || prop.Name == "ScriptLanguage" || prop.Name == "ReadOnlyVariables" || prop.Name == "ReadWriteVariables" {
+							result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+						}
+					}
+
+					// Script code (if available in properties)
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						if prop.Name == "SourceCode" || prop.Name == "ScriptCode" {
+							result.WriteString("Script Code:\n")
+							result.WriteString(fmt.Sprintf("  %s\n", prop.Value))
+						}
+					}
+
+					// Inputs and Outputs
+					result.WriteString("Input/Output Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						result.WriteString("  Input:\n")
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("    %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							result.WriteString("  Output:\n")
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("    %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Script Component components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeExcelDestination(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Excel Destination Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.ExcelDestinationAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Inputs and Outputs
+					result.WriteString("Input/Output Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  Input: %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							result.WriteString(fmt.Sprintf("  Output: %s\n", output.Name))
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("    %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Excel Destination components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeRawFileDestination(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Raw File Destination Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.RawFileDestinationAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Inputs and Outputs
+					result.WriteString("Input/Output Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  Input: %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							result.WriteString(fmt.Sprintf("  Output: %s\n", output.Name))
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("    %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Raw File Destination components found in this package.\n")
 	}
 
 	return mcp.NewToolResultText(result.String()), nil
@@ -2901,6 +5528,17 @@ func isKeyProperty(propName string) bool {
 		}
 	}
 	return false
+}
+
+func extractPropertyValue(xmlContent, propertyName string) string {
+	// Look for property in the format: <Property Name="PropertyName">Value</Property>
+	pattern := fmt.Sprintf(`<Property Name="%s">(.*?)</Property>`, propertyName)
+	re := regexp.MustCompile(pattern)
+	matches := re.FindStringSubmatch(xmlContent)
+	if len(matches) > 1 {
+		return strings.TrimSpace(matches[1])
+	}
+	return ""
 }
 
 // runHTTPServer starts an HTTP server with streaming capabilities

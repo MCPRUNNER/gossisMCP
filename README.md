@@ -1,11 +1,11 @@
 # SSIS DTSX Analyzer MCP Server
 
-This is a comprehensive Model Context Protocol (MCP) server written in Go that provides 22 advanced tools for analyzing SSIS (SQL Server Integration Services) DTSX files. It offers detailed insights into package structure, logging configurations, task analysis, and best practices validation.
+This is a comprehensive Model Context Protocol (MCP) server written in Go that provides 52 advanced tools for analyzing SSIS (SQL Server Integration Services) DTSX files. It offers detailed insights into package structure, data flow components (10 source types, 10 transform types, 6 destination types), control flow tasks, logging configurations, performance metrics, and best practices validation.
 
 ## Features
 
 - **Package Analysis**: Parse DTSX files and extract comprehensive package information
-- **Data Flow Analysis**: Analyze components within Data Flow Tasks (sources, transformations, destinations, data paths, and component properties)
+- **Unified Analysis Interfaces**: Streamlined `analyze_source` and `analyze_destination` tools provide type-based analysis for all supported component types, reducing API complexity while maintaining full functionality
 - **Event Handler Analysis**: Analyze event handlers (OnError, OnWarning, OnPreExecute, etc.) with their tasks, variables, and precedence constraints
 - **Precedence Constraint Analysis**: Extract and analyze precedence constraints with expression resolution
 - **Connection Management**: Extract and analyze connection manager details with expression resolution
@@ -18,7 +18,8 @@ This is a comprehensive Model Context Protocol (MCP) server written in Go that p
 - **Package Comparison**: Compare two DTSX files and highlight differences
 - **Code Quality Metrics**: Calculate maintainability metrics (complexity, duplication, etc.)
 - **Read Text File Integration**: Read configuration or data from text files referenced by SSIS packages
-- **Script Code Analysis**: Extract C#/VB.NET code from Script Tasks
+- **Script Code Analysis**: Extract C#/VB.NET code from Script Tasks and Script Components
+- **Script Task Analysis**: Comprehensive analysis of Script Tasks including variables, entry points, and configuration
 - **Logging Configuration**: Detailed analysis of logging providers, events, and destinations
 - **Best Practices Validation**: Check SSIS packages for best practices and potential issues
 - **Hard-coded Value Detection**: Identify embedded literals in connection strings, messages, and expressions
@@ -205,72 +206,254 @@ This configuration provides both HTTP and stdio transport options. The HTTP tran
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-11. **detect_hardcoded_values**
+11. **analyze_script_task**
+
+    - Description: Analyze Script Tasks in a DTSX file, including script code, variables, and task configuration
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+12. **detect_hardcoded_values**
 
     - Description: Detect hard-coded values in a DTSX file, such as embedded literals in connection strings, messages, or expressions
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-12. **analyze_logging_configuration**
+13. **analyze_logging_configuration**
 
     - Description: Analyze detailed logging configuration in a DTSX file, including log providers, events, and destinations
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-13. **list_packages**
+14. **list_packages**
 
     - Description: Recursively list all DTSX packages found in the package directory
     - Parameters: None (uses the configured package directory)
 
-14. **analyze_data_flow**
+15. **analyze_data_flow**
 
     - Description: Analyze Data Flow components in a DTSX file, including sources, transformations, destinations, and data paths
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-15. **analyze_event_handlers**
+16. **analyze_data_flow_detailed**
+
+    - Description: Provide detailed analysis of Data Flow components including configurations, properties, inputs/outputs, and data mappings
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+17. **analyze_source**
+
+    - Description: Analyze source components in a DTSX file by type (unified interface for all source types)
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+      - `source_type` (string, required): Type of source to analyze: ole_db, ado_net, odbc, flat_file, excel, access, xml, raw_file, cdc, sap_bw
+
+18. **analyze_destination**
+
+    - Description: Analyze destination components in a DTSX file by type (unified interface for all destination types)
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+      - `destination_type` (string, required): Type of destination to analyze: ole_db, flat_file, sql_server, excel, raw_file
+
+19. **analyze_ole_db_source**
+
+    - Description: Analyze OLE DB Source components in a DTSX file, extracting connection details, access mode, SQL commands, and output columns
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+20. **analyze_export_column**
+
+    - Description: Analyze Export Column destinations in a DTSX file, extracting file data columns, file path columns, and export settings
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+21. **analyze_data_conversion**
+
+    - Description: Analyze Data Conversion transformations in a DTSX file, extracting input/output mappings and data type conversions
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+22. **analyze_ado_net_source**
+
+    - Description: Analyze ADO.NET Source components in a DTSX file, extracting connection details and output columns
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+23. **analyze_odbc_source**
+
+    - Description: Analyze ODBC Source components in a DTSX file, extracting connection details and output columns
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+24. **analyze_flat_file_source**
+
+    - Description: Analyze Flat File Source components in a DTSX file, extracting file connection details and output columns
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+25. **analyze_excel_source**
+
+    - Description: Analyze Excel Source components in a DTSX file, extracting Excel file details, sheet names, and output columns
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+26. **analyze_access_source**
+
+    - Description: Analyze Access Source components in a DTSX file, extracting database connection details and output columns
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+27. **analyze_xml_source**
+
+    - Description: Analyze XML Source components in a DTSX file, extracting XML structure details and output columns
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+28. **analyze_raw_file_source**
+
+    - Description: Analyze Raw File Source components in a DTSX file, extracting file metadata and column structure
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+29. **analyze_cdc_source**
+
+    - Description: Analyze CDC Source components in a DTSX file, extracting CDC configuration and change tracking details
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+30. **analyze_sap_bw_source**
+
+    - Description: Analyze SAP BW Source components in a DTSX file, extracting SAP BW integration details and InfoObject mappings
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+31. **analyze_ole_db_destination**
+
+    - Description: Analyze OLE DB Destination components in a DTSX file, extracting target table mappings and bulk load settings
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+32. **analyze_flat_file_destination**
+
+    - Description: Analyze Flat File Destination components in a DTSX file, extracting file format settings and column mappings
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+33. **analyze_sql_server_destination**
+
+    - Description: Analyze SQL Server Destination components in a DTSX file, extracting bulk insert configuration and performance settings
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+34. **analyze_derived_column**
+
+    - Description: Analyze Derived Column components in a DTSX file, extracting expressions and data transformations
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+35. **analyze_lookup**
+
+    - Description: Analyze Lookup components in a DTSX file, extracting reference table joins and cache configuration
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+36. **analyze_conditional_split**
+
+    - Description: Analyze Conditional Split components in a DTSX file, extracting split conditions and output configurations
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+37. **analyze_sort**
+
+    - Description: Analyze Sort transform components in a DTSX file, extracting sort keys and memory usage
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+38. **analyze_aggregate**
+
+    - Description: Analyze Aggregate transform components in a DTSX file, extracting aggregation operations and group by columns
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+39. **analyze_merge_join**
+
+    - Description: Analyze Merge Join transform components in a DTSX file, extracting join type and key columns
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+40. **analyze_union_all**
+
+    - Description: Analyze Union All transform components in a DTSX file, extracting input/output column mappings
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+41. **analyze_multicast**
+
+    - Description: Analyze Multicast transform components in a DTSX file, extracting output configurations
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+42. **analyze_script_component**
+
+    - Description: Analyze Script Component transform components in a DTSX file, extracting script code and configuration
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+43. **analyze_excel_destination**
+
+    - Description: Analyze Excel Destination components in a DTSX file, extracting sheet configuration and data type mapping
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+44. **analyze_raw_file_destination**
+
+    - Description: Analyze Raw File Destination components in a DTSX file, extracting file metadata and write options
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
+
+45. **analyze_event_handlers**
 
     - Description: Analyze event handlers in a DTSX file, including OnError, OnWarning, OnPreExecute, and other event types with their associated tasks, variables, and precedence constraints
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-16. **analyze_package_dependencies**
+46. **analyze_package_dependencies**
 
     - Description: Analyze relationships between packages, shared connections, and variables across multiple DTSX files
     - Parameters: None (analyzes all DTSX files in the package directory)
 
-17. **analyze_configurations**
+47. **analyze_configurations**
 
     - Description: Analyze package configurations (XML, SQL Server, environment variable configs)
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-18. **analyze_performance_metrics**
+48. **analyze_performance_metrics**
 
     - Description: Analyze data flow performance settings (buffer sizes, engine threads, etc.) to identify bottlenecks and optimization opportunities
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-19. **detect_security_issues**
+49. **detect_security_issues**
 
     - Description: Detect potential security issues (hardcoded credentials, sensitive data exposure)
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-20. **compare_packages**
+50. **compare_packages**
 
     - Description: Compare two DTSX files and highlight differences
     - Parameters:
       - `file_path1` (string, required): Path to the first DTSX file (relative to package directory if set, or absolute path)
       - `file_path2` (string, required): Path to the second DTSX file (relative to package directory if set, or absolute path)
 
-21. **analyze_code_quality**
+51. **analyze_code_quality**
 
     - Description: Calculate maintainability metrics (complexity, duplication, etc.) to assess package quality and technical debt
     - Parameters:
       - `file_path` (string, required): Path to the DTSX file (relative to package directory if set, or absolute path)
 
-22. **read_text_file**
+52. **read_text_file**
 
     - Description: Read configuration or data from text files referenced by SSIS packages
     - Parameters:
@@ -409,13 +592,16 @@ To modify or extend the server:
 
 ## Implementation Status
 
-All recommended missing features from the original feature request have been successfully implemented, transforming this server from a basic DTSX parser into a comprehensive SSIS analysis platform. The server now includes:
+All recommended missing features from the original feature request have been successfully implemented and significantly expanded, transforming this server from a basic DTSX parser into a comprehensive SSIS analysis platform. The server now includes:
 
 - ✅ **10 High/Medium Priority Features**: Data flow analysis, event handlers, parameters, dependencies, configurations, performance metrics
 - ✅ **5 Lower Priority Features**: Security analysis, package comparison, code quality metrics, text file integration
+- ✅ **Unified Analysis Interfaces**: Streamlined source and destination analysis with type-based dispatch
+- ✅ **Expanded Component Coverage**: Analysis tools for 10 source types, 10 transform types, and 6 destination types
+- ✅ **Advanced Task Analysis**: Comprehensive Script Task analysis with variables, entry points, and configuration
 - 🔄 **1 Remaining Feature**: SSIS Catalog Integration (database connectivity to SSISDB for deployed package analysis)
 
-The server has evolved from supporting basic package parsing to providing enterprise-grade SSIS development and maintenance capabilities.
+The server has evolved from supporting basic package parsing to providing enterprise-grade SSIS development and maintenance capabilities with 52 specialized analysis tools.
 
 ## License
 
