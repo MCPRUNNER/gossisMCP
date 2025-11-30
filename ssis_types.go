@@ -49,9 +49,12 @@ type Executables struct {
 }
 
 type Task struct {
-	Name       string         `xml:"ObjectName,attr"`
-	Properties []Property     `xml:"Property"`
-	ObjectData TaskObjectData `xml:"ObjectData"`
+	Name         string         `xml:"ObjectName,attr"`
+	CreationName string         `xml:"CreationName,attr"`
+	Description  string         `xml:"Description,attr"`
+	RefId        string         `xml:"refId,attr"`
+	Properties   []Property     `xml:"Property"`
+	ObjectData   TaskObjectData `xml:"ObjectData"`
 }
 
 type TaskObjectData struct {
@@ -86,12 +89,12 @@ type ScriptProject struct {
 }
 
 type DataFlowDetails struct {
-	Components DataFlowComponents `xml:"Components"`
-	Paths      DataFlowPaths      `xml:"Paths"`
+	Components DataFlowComponents `xml:"components"`
+	Paths      DataFlowPaths      `xml:"paths"`
 }
 
 type DataFlowComponents struct {
-	Components []DataFlowComponent `xml:"Component"`
+	Components []DataFlowComponent `xml:"component"`
 }
 
 type DataFlowComponent struct {
@@ -102,21 +105,21 @@ type DataFlowComponent struct {
 	UsesDispositions         bool                `xml:"usesDispositions,attr"`
 	ValidateExternalMetadata bool                `xml:"validateExternalMetadata,attr"`
 	Version                  int                 `xml:"version,attr"`
-	ObjectData               ComponentObjectData `xml:"ObjectData"`
-	Inputs                   ComponentInputs     `xml:"Inputs"`
-	Outputs                  ComponentOutputs    `xml:"Outputs"`
+	ObjectData               ComponentObjectData `xml:"objectData"`
+	Inputs                   ComponentInputs     `xml:"inputs"`
+	Outputs                  ComponentOutputs    `xml:"outputs"`
 }
 
 type ComponentObjectData struct {
-	PipelineComponent PipelineComponent `xml:"PipelineComponent"`
+	PipelineComponent PipelineComponent `xml:"pipelineComponent"`
 }
 
 type PipelineComponent struct {
-	Properties ComponentProperties `xml:"Properties"`
+	Properties ComponentProperties `xml:"properties"`
 }
 
 type ComponentProperties struct {
-	Properties []ComponentProperty `xml:"Property"`
+	Properties []ComponentProperty `xml:"property"`
 }
 
 type ComponentProperty struct {
@@ -125,18 +128,18 @@ type ComponentProperty struct {
 }
 
 type ComponentInputs struct {
-	Inputs []ComponentInput `xml:"Input"`
+	Inputs []ComponentInput `xml:"input"`
 }
 
 type ComponentInput struct {
 	Name           string       `xml:"name,attr"`
 	HasSideEffects bool         `xml:"hasSideEffects,attr"`
 	IsSorted       bool         `xml:"isSorted,attr"`
-	InputColumns   InputColumns `xml:"InputColumns"`
+	InputColumns   InputColumns `xml:"inputColumns"`
 }
 
 type InputColumns struct {
-	Columns []InputColumn `xml:"InputColumn"`
+	Columns []InputColumn `xml:"inputColumn"`
 }
 
 type InputColumn struct {
@@ -149,7 +152,7 @@ type InputColumn struct {
 }
 
 type ComponentOutputs struct {
-	Outputs []ComponentOutput `xml:"Output"`
+	Outputs []ComponentOutput `xml:"output"`
 }
 
 type ComponentOutput struct {
@@ -157,11 +160,11 @@ type ComponentOutput struct {
 	HasSideEffects bool          `xml:"hasSideEffects,attr"`
 	IsErrorOut     bool          `xml:"isErrorOut,attr"`
 	Synchronous    bool          `xml:"synchronous,attr"`
-	OutputColumns  OutputColumns `xml:"OutputColumns"`
+	OutputColumns  OutputColumns `xml:"outputColumns"`
 }
 
 type OutputColumns struct {
-	Columns []OutputColumn `xml:"OutputColumn"`
+	Columns []OutputColumn `xml:"outputColumn"`
 }
 
 type OutputColumn struct {
