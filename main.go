@@ -319,6 +319,54 @@ func main() {
 		return handleAnalyzePerformanceMetrics(ctx, request, packageDirectory)
 	})
 
+	detectSecurityIssuesTool := mcp.NewTool("detect_security_issues",
+		mcp.WithDescription("Detect potential security issues (hardcoded credentials, sensitive data exposure)"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(detectSecurityIssuesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleDetectSecurityIssues(ctx, request, packageDirectory)
+	})
+
+	comparePackagesTool := mcp.NewTool("compare_packages",
+		mcp.WithDescription("Compare two DTSX files and highlight differences"),
+		mcp.WithString("file_path1",
+			mcp.Required(),
+			mcp.Description("Path to the first DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("file_path2",
+			mcp.Required(),
+			mcp.Description("Path to the second DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(comparePackagesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleComparePackages(ctx, request, packageDirectory)
+	})
+
+	analyzeCodeQualityTool := mcp.NewTool("analyze_code_quality",
+		mcp.WithDescription("Calculate maintainability metrics (complexity, duplication, etc.) to assess package quality and technical debt"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeCodeQualityTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeCodeQuality(ctx, request, packageDirectory)
+	})
+
+	readTextFileTool := mcp.NewTool("read_text_file",
+		mcp.WithDescription("Read configuration or data from text files referenced by SSIS packages"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the text file to read (relative to package directory if set, or absolute path)"),
+		),
+	)
+	s.AddTool(readTextFileTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleReadTextFile(ctx, request, packageDirectory)
+	})
+
 	if *httpMode {
 		// Run in HTTP streaming mode
 		runHTTPServer(s, *httpPort)
@@ -1691,6 +1739,1011 @@ func handleAnalyzePerformanceMetrics(ctx context.Context, request mcp.CallToolRe
 	result.WriteString("• Monitor AutoAdjustBufferSize for optimal memory usage\n")
 
 	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleDetectSecurityIssues(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := ioutil.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("🔒 Security Issues Analysis:\n\n")
+
+	issuesFound := false
+
+	// Check connection managers for hardcoded credentials
+	result.WriteString("🔗 Connection Managers:\n")
+	connIssues := analyzeConnectionSecurity(pkg.ConnectionMgr.Connections)
+	if len(connIssues) > 0 {
+		issuesFound = true
+		for _, issue := range connIssues {
+			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+		}
+	} else {
+		result.WriteString("No security issues found in connection managers.\n")
+	}
+	result.WriteString("\n")
+
+	// Check variables for sensitive data
+	result.WriteString("📊 Variables:\n")
+	varIssues := analyzeVariableSecurity(pkg.Variables.Vars)
+	if len(varIssues) > 0 {
+		issuesFound = true
+		for _, issue := range varIssues {
+			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+		}
+	} else {
+		result.WriteString("No security issues found in variables.\n")
+	}
+	result.WriteString("\n")
+
+	// Check script tasks for hardcoded credentials
+	result.WriteString("📜 Script Tasks:\n")
+	scriptIssues := analyzeScriptSecurity(pkg.Executables.Tasks)
+	if len(scriptIssues) > 0 {
+		issuesFound = true
+		for _, issue := range scriptIssues {
+			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+		}
+	} else {
+		result.WriteString("No security issues found in script tasks.\n")
+	}
+	result.WriteString("\n")
+
+	// Check expressions for sensitive data
+	result.WriteString("🔍 Expressions:\n")
+	exprIssues := analyzeExpressionSecurity(pkg.Executables.Tasks, pkg.Variables.Vars)
+	if len(exprIssues) > 0 {
+		issuesFound = true
+		for _, issue := range exprIssues {
+			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+		}
+	} else {
+		result.WriteString("No security issues found in expressions.\n")
+	}
+	result.WriteString("\n")
+
+	if !issuesFound {
+		result.WriteString("✅ No security issues detected in this package.\n\n")
+		result.WriteString("💡 Security Best Practices:\n")
+		result.WriteString("• Use package parameters or environment variables for credentials\n")
+		result.WriteString("• Avoid hardcoded passwords in connection strings\n")
+		result.WriteString("• Use SSIS package protection levels for sensitive data\n")
+		result.WriteString("• Consider using Azure Key Vault or similar for credential management\n")
+	} else {
+		result.WriteString("🚨 Security Recommendations:\n")
+		result.WriteString("• Replace hardcoded credentials with parameters or expressions\n")
+		result.WriteString("• Use SSIS package configurations for sensitive connection properties\n")
+		result.WriteString("• Implement proper package protection and encryption\n")
+		result.WriteString("• Review and audit access to sensitive data\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleComparePackages(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath1, err := request.RequireString("file_path1")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	filePath2, err := request.RequireString("file_path2")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve file paths
+	resolvedPath1 := resolveFilePath(filePath1, packageDirectory)
+	resolvedPath2 := resolveFilePath(filePath2, packageDirectory)
+
+	// Parse first package
+	data1, err := ioutil.ReadFile(resolvedPath1)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read first file: %v", err)), nil
+	}
+	data1 = []byte(strings.ReplaceAll(string(data1), "DTS:", ""))
+	var pkg1 SSISPackage
+	if err := xml.Unmarshal(data1, &pkg1); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse first file: %v", err)), nil
+	}
+
+	// Parse second package
+	data2, err := ioutil.ReadFile(resolvedPath2)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read second file: %v", err)), nil
+	}
+	data2 = []byte(strings.ReplaceAll(string(data2), "DTS:", ""))
+	var pkg2 SSISPackage
+	if err := xml.Unmarshal(data2, &pkg2); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse second file: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("📊 Package Comparison Report\n\n")
+	result.WriteString(fmt.Sprintf("File 1: %s\n", filepath.Base(resolvedPath1)))
+	result.WriteString(fmt.Sprintf("File 2: %s\n\n", filepath.Base(resolvedPath2)))
+
+	// Compare package properties
+	result.WriteString("📋 Package Properties:\n")
+	compareProperties(pkg1.Properties, pkg2.Properties, &result)
+
+	// Compare connections
+	result.WriteString("\n🔗 Connection Managers:\n")
+	compareConnections(pkg1.ConnectionMgr.Connections, pkg2.ConnectionMgr.Connections, &result)
+
+	// Compare variables
+	result.WriteString("\n📊 Variables:\n")
+	compareVariables(pkg1.Variables.Vars, pkg2.Variables.Vars, &result)
+
+	// Compare parameters
+	result.WriteString("\n⚙️ Parameters:\n")
+	compareParameters(pkg1.Parameters.Params, pkg2.Parameters.Params, &result)
+
+	// Compare configurations
+	result.WriteString("\n🔧 Configurations:\n")
+	compareConfigurations(pkg1.Configurations.Configs, pkg2.Configurations.Configs, &result)
+
+	// Compare tasks
+	result.WriteString("\n🎯 Tasks:\n")
+	compareTasks(pkg1.Executables.Tasks, pkg2.Executables.Tasks, &result)
+
+	// Compare event handlers
+	result.WriteString("\n🚨 Event Handlers:\n")
+	compareEventHandlers(pkg1.EventHandlers.EventHandlers, pkg2.EventHandlers.EventHandlers, &result)
+
+	// Compare precedence constraints
+	result.WriteString("\n🔀 Precedence Constraints:\n")
+	comparePrecedenceConstraints(pkg1.PrecedenceConstraints.Constraints, pkg2.PrecedenceConstraints.Constraints, &result)
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeCodeQuality(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := ioutil.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("📊 Code Quality Metrics Analysis\n\n")
+	result.WriteString(fmt.Sprintf("Package: %s\n\n", filepath.Base(resolvedPath)))
+
+	// Structural Complexity Metrics
+	result.WriteString("🏗️ Structural Complexity:\n")
+	structuralScore := calculateStructuralComplexity(pkg)
+	result.WriteString(fmt.Sprintf("• Package Size Score: %d/10 (Tasks: %d, Connections: %d, Variables: %d)\n",
+		structuralScore, len(pkg.Executables.Tasks), len(pkg.ConnectionMgr.Connections), len(pkg.Variables.Vars)))
+	result.WriteString(fmt.Sprintf("• Control Flow Complexity: %d/10 (Precedence Constraints: %d)\n",
+		calculateControlFlowComplexity(pkg), len(pkg.PrecedenceConstraints.Constraints)))
+
+	// Script Complexity Metrics
+	result.WriteString("\n📜 Script Complexity:\n")
+	scriptMetrics := analyzeScriptComplexity(pkg.Executables.Tasks)
+	result.WriteString(fmt.Sprintf("• Script Tasks: %d\n", scriptMetrics.ScriptTaskCount))
+	result.WriteString(fmt.Sprintf("• Total Script Lines: %d\n", scriptMetrics.TotalLines))
+	result.WriteString(fmt.Sprintf("• Average Script Complexity: %.1f/10\n", scriptMetrics.AverageComplexity))
+	if scriptMetrics.ScriptTaskCount > 0 {
+		result.WriteString(fmt.Sprintf("• Script Quality Score: %d/10\n", scriptMetrics.QualityScore))
+	}
+
+	// Expression Complexity Metrics
+	result.WriteString("\n🔍 Expression Complexity:\n")
+	expressionMetrics := analyzeExpressionComplexity(pkg)
+	result.WriteString(fmt.Sprintf("• Total Expressions: %d\n", expressionMetrics.TotalExpressions))
+	result.WriteString(fmt.Sprintf("• Average Expression Length: %.1f characters\n", expressionMetrics.AverageLength))
+	result.WriteString(fmt.Sprintf("• Expression Complexity Score: %d/10\n", expressionMetrics.ComplexityScore))
+
+	// Variable Usage Metrics
+	result.WriteString("\n📊 Variable Usage:\n")
+	variableMetrics := analyzeVariableUsage(pkg)
+	result.WriteString(fmt.Sprintf("• Total Variables: %d\n", variableMetrics.TotalVariables))
+	result.WriteString(fmt.Sprintf("• Variables with Expressions: %d\n", variableMetrics.ExpressionsCount))
+	result.WriteString(fmt.Sprintf("• Variable Usage Score: %d/10\n", variableMetrics.UsageScore))
+
+	// Overall Maintainability Score
+	result.WriteString("\n🎯 Overall Maintainability Score:\n")
+	overallScore := calculateOverallScore(structuralScore, scriptMetrics.QualityScore, expressionMetrics.ComplexityScore, variableMetrics.UsageScore)
+	result.WriteString(fmt.Sprintf("• Composite Score: %d/10\n", overallScore))
+	result.WriteString(fmt.Sprintf("• Rating: %s\n", getMaintainabilityRating(overallScore)))
+
+	// Recommendations
+	result.WriteString("\n💡 Recommendations:\n")
+	addQualityRecommendations(&result, overallScore, structuralScore, scriptMetrics, expressionMetrics, variableMetrics)
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleReadTextFile(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := ioutil.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("📄 Text File Analysis\n\n")
+	result.WriteString(fmt.Sprintf("File: %s\n", filepath.Base(resolvedPath)))
+	result.WriteString(fmt.Sprintf("Path: %s\n\n", resolvedPath))
+
+	content := string(data)
+	lines := strings.Split(content, "\n")
+	result.WriteString("📊 File Statistics:\n")
+	result.WriteString(fmt.Sprintf("• Total Lines: %d\n", len(lines)))
+	result.WriteString(fmt.Sprintf("• Total Characters: %d\n", len(content)))
+	result.WriteString(fmt.Sprintf("• File Size: %d bytes\n\n", len(data)))
+
+	// Detect file type and parse accordingly
+	ext := strings.ToLower(filepath.Ext(resolvedPath))
+	switch ext {
+	case ".bat", ".cmd":
+		result.WriteString("🔧 Batch File Analysis:\n")
+		analyzeBatchFile(content, &result)
+	case ".config", ".cfg":
+		result.WriteString("⚙️ Configuration File Analysis:\n")
+		analyzeConfigFile(content, &result)
+	case ".sql":
+		result.WriteString("🗄️ SQL File Analysis:\n")
+		analyzeSQLFile(content, &result)
+	default:
+		result.WriteString("📝 Text File Content:\n")
+		analyzeGenericTextFile(content, &result)
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func analyzeBatchFile(content string, result *strings.Builder) {
+	lines := strings.Split(content, "\n")
+	var variables []string
+	var commands []string
+	var calls []string
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "REM") || strings.HasPrefix(line, "::") {
+			continue
+		}
+
+		upperLine := strings.ToUpper(line)
+		if strings.HasPrefix(upperLine, "SET ") {
+			variables = append(variables, line)
+		} else if strings.HasPrefix(upperLine, "CALL ") {
+			calls = append(calls, line)
+		} else if !strings.HasPrefix(upperLine, "ECHO ") && !strings.HasPrefix(upperLine, "@") {
+			commands = append(commands, line)
+		}
+	}
+
+	result.WriteString(fmt.Sprintf("• Variables Set: %d\n", len(variables)))
+	if len(variables) > 0 {
+		result.WriteString("  Variables:\n")
+		for _, v := range variables {
+			result.WriteString(fmt.Sprintf("    %s\n", v))
+		}
+	}
+
+	result.WriteString(fmt.Sprintf("• Function Calls: %d\n", len(calls)))
+	if len(calls) > 0 {
+		result.WriteString("  Calls:\n")
+		for _, c := range calls {
+			result.WriteString(fmt.Sprintf("    %s\n", c))
+		}
+	}
+
+	result.WriteString(fmt.Sprintf("• Executable Commands: %d\n", len(commands)))
+	if len(commands) > 0 {
+		result.WriteString("  Commands:\n")
+		for i, c := range commands {
+			if i >= 10 { // Limit output
+				result.WriteString(fmt.Sprintf("    ... and %d more\n", len(commands)-10))
+				break
+			}
+			result.WriteString(fmt.Sprintf("    %s\n", c))
+		}
+	}
+}
+
+func analyzeConfigFile(content string, result *strings.Builder) {
+	lines := strings.Split(content, "\n")
+	var keyValues []string
+	var sections []string
+
+	currentSection := ""
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+			continue
+		}
+
+		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+			currentSection = line
+			sections = append(sections, line)
+		} else if strings.Contains(line, "=") {
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				key := strings.TrimSpace(parts[0])
+				value := strings.TrimSpace(parts[1])
+				if currentSection != "" {
+					keyValues = append(keyValues, fmt.Sprintf("[%s] %s = %s", currentSection, key, value))
+				} else {
+					keyValues = append(keyValues, fmt.Sprintf("%s = %s", key, value))
+				}
+			}
+		}
+	}
+
+	result.WriteString(fmt.Sprintf("• Configuration Sections: %d\n", len(sections)))
+	if len(sections) > 0 {
+		result.WriteString("  Sections:\n")
+		for _, s := range sections {
+			result.WriteString(fmt.Sprintf("    %s\n", s))
+		}
+	}
+
+	result.WriteString(fmt.Sprintf("• Key-Value Pairs: %d\n", len(keyValues)))
+	if len(keyValues) > 0 {
+		result.WriteString("  Settings:\n")
+		for i, kv := range keyValues {
+			if i >= 20 { // Limit output
+				result.WriteString(fmt.Sprintf("    ... and %d more\n", len(keyValues)-20))
+				break
+			}
+			result.WriteString(fmt.Sprintf("    %s\n", kv))
+		}
+	}
+}
+
+func analyzeSQLFile(content string, result *strings.Builder) {
+	upperContent := strings.ToUpper(content)
+
+	// Count different types of SQL statements
+	selectCount := strings.Count(upperContent, "SELECT ")
+	insertCount := strings.Count(upperContent, "INSERT ")
+	updateCount := strings.Count(upperContent, "UPDATE ")
+	deleteCount := strings.Count(upperContent, "DELETE ")
+	createCount := strings.Count(upperContent, "CREATE ")
+
+	result.WriteString("• SQL Statement Counts:\n")
+	result.WriteString(fmt.Sprintf("  - SELECT statements: %d\n", selectCount))
+	result.WriteString(fmt.Sprintf("  - INSERT statements: %d\n", insertCount))
+	result.WriteString(fmt.Sprintf("  - UPDATE statements: %d\n", updateCount))
+	result.WriteString(fmt.Sprintf("  - DELETE statements: %d\n", deleteCount))
+	result.WriteString(fmt.Sprintf("  - CREATE statements: %d\n", createCount))
+
+	// Check for potential SSIS-related patterns
+	if strings.Contains(upperContent, "EXECUTE") || strings.Contains(upperContent, "SP_") {
+		result.WriteString("• Contains stored procedure calls\n")
+	}
+
+	if strings.Contains(upperContent, "BULK INSERT") {
+		result.WriteString("• Contains bulk operations\n")
+	}
+}
+
+func analyzeGenericTextFile(content string, result *strings.Builder) {
+	lines := strings.Split(content, "\n")
+	nonEmptyLines := 0
+	totalWords := 0
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			nonEmptyLines++
+			words := strings.Fields(line)
+			totalWords += len(words)
+		}
+	}
+
+	result.WriteString(fmt.Sprintf("• Non-empty Lines: %d\n", nonEmptyLines))
+	result.WriteString(fmt.Sprintf("• Total Words: %d\n", totalWords))
+	result.WriteString(fmt.Sprintf("• Average Words per Line: %.1f\n\n", float64(totalWords)/float64(nonEmptyLines)))
+
+	// Show first 20 lines
+	result.WriteString("📄 Content Preview (first 20 lines):\n")
+	for i, line := range lines {
+		if i >= 20 {
+			if len(lines) > 20 {
+				result.WriteString(fmt.Sprintf("... (%d more lines)\n", len(lines)-20))
+			}
+			break
+		}
+		result.WriteString(fmt.Sprintf("%4d: %s\n", i+1, strings.TrimRight(line, "\r\n")))
+	}
+}
+
+type ScriptComplexityMetrics struct {
+	ScriptTaskCount   int
+	TotalLines        int
+	AverageComplexity float64
+	QualityScore      int
+}
+
+type ExpressionComplexityMetrics struct {
+	TotalExpressions int
+	AverageLength    float64
+	ComplexityScore  int
+}
+
+type VariableUsageMetrics struct {
+	TotalVariables   int
+	ExpressionsCount int
+	UsageScore       int
+}
+
+func calculateStructuralComplexity(pkg SSISPackage) int {
+	taskCount := len(pkg.Executables.Tasks)
+	connCount := len(pkg.ConnectionMgr.Connections)
+	varCount := len(pkg.Variables.Vars)
+
+	// Score based on size (smaller packages are easier to maintain)
+	sizeScore := 10
+	if taskCount > 50 || connCount > 20 || varCount > 100 {
+		sizeScore = 3
+	} else if taskCount > 30 || connCount > 10 || varCount > 50 {
+		sizeScore = 5
+	} else if taskCount > 15 || connCount > 5 || varCount > 25 {
+		sizeScore = 7
+	}
+
+	return sizeScore
+}
+
+func calculateControlFlowComplexity(pkg SSISPackage) int {
+	constraintCount := len(pkg.PrecedenceConstraints.Constraints)
+
+	// Score based on control flow complexity
+	if constraintCount > 100 {
+		return 2
+	} else if constraintCount > 50 {
+		return 4
+	} else if constraintCount > 25 {
+		return 6
+	} else if constraintCount > 10 {
+		return 8
+	}
+	return 10
+}
+
+func analyzeScriptComplexity(tasks []Task) ScriptComplexityMetrics {
+	var metrics ScriptComplexityMetrics
+	totalComplexity := 0.0
+
+	for _, task := range tasks {
+		if getTaskType(task) == "Script Task" {
+			metrics.ScriptTaskCount++
+			scriptCode := task.ObjectData.ScriptTask.ScriptTaskData.ScriptProject.ScriptCode
+
+			// Count lines
+			lines := strings.Split(scriptCode, "\n")
+			metrics.TotalLines += len(lines)
+
+			// Calculate complexity (simplified)
+			complexity := calculateScriptComplexity(scriptCode)
+			totalComplexity += complexity
+		}
+	}
+
+	if metrics.ScriptTaskCount > 0 {
+		metrics.AverageComplexity = totalComplexity / float64(metrics.ScriptTaskCount)
+		metrics.QualityScore = int(10 - metrics.AverageComplexity/2) // Scale to 0-10
+		if metrics.QualityScore < 1 {
+			metrics.QualityScore = 1
+		}
+	} else {
+		metrics.QualityScore = 10 // No scripts = good
+	}
+
+	return metrics
+}
+
+func calculateScriptComplexity(scriptCode string) float64 {
+	complexity := 1.0
+
+	// Count control structures
+	complexity += float64(strings.Count(scriptCode, "if "))
+	complexity += float64(strings.Count(scriptCode, "for "))
+	complexity += float64(strings.Count(scriptCode, "while "))
+	complexity += float64(strings.Count(scriptCode, "foreach "))
+	complexity += float64(strings.Count(scriptCode, "try "))
+	complexity += float64(strings.Count(scriptCode, "catch "))
+
+	// Count method calls (approximate)
+	complexity += float64(strings.Count(scriptCode, "(")) * 0.1
+
+	// Length factor
+	complexity += float64(len(scriptCode)) / 1000.0
+
+	return complexity
+}
+
+func analyzeExpressionComplexity(pkg SSISPackage) ExpressionComplexityMetrics {
+	var metrics ExpressionComplexityMetrics
+	totalLength := 0
+
+	// Check task expressions
+	for _, task := range pkg.Executables.Tasks {
+		for _, prop := range task.Properties {
+			if strings.Contains(prop.Name, "Expression") || prop.Name == "Expression" {
+				metrics.TotalExpressions++
+				totalLength += len(prop.Value)
+			}
+		}
+	}
+
+	// Check variable expressions
+	for _, variable := range pkg.Variables.Vars {
+		if variable.Expression != "" {
+			metrics.TotalExpressions++
+			totalLength += len(variable.Expression)
+		}
+	}
+
+	if metrics.TotalExpressions > 0 {
+		metrics.AverageLength = float64(totalLength) / float64(metrics.TotalExpressions)
+	}
+
+	// Score based on expression complexity
+	if metrics.TotalExpressions > 50 || metrics.AverageLength > 200 {
+		metrics.ComplexityScore = 3
+	} else if metrics.TotalExpressions > 25 || metrics.AverageLength > 100 {
+		metrics.ComplexityScore = 5
+	} else if metrics.TotalExpressions > 10 || metrics.AverageLength > 50 {
+		metrics.ComplexityScore = 7
+	} else {
+		metrics.ComplexityScore = 9
+	}
+
+	return metrics
+}
+
+func analyzeVariableUsage(pkg SSISPackage) VariableUsageMetrics {
+	var metrics VariableUsageMetrics
+
+	metrics.TotalVariables = len(pkg.Variables.Vars)
+
+	for _, variable := range pkg.Variables.Vars {
+		if variable.Expression != "" {
+			metrics.ExpressionsCount++
+		}
+	}
+
+	// Score based on variable usage patterns
+	expressionRatio := float64(metrics.ExpressionsCount) / float64(metrics.TotalVariables)
+	if expressionRatio > 0.8 {
+		metrics.UsageScore = 7 // Good use of expressions
+	} else if expressionRatio > 0.5 {
+		metrics.UsageScore = 8
+	} else if expressionRatio > 0.3 {
+		metrics.UsageScore = 9
+	} else {
+		metrics.UsageScore = 6 // Could use more expressions
+	}
+
+	return metrics
+}
+
+func calculateOverallScore(structural, script, expression, variable int) int {
+	// Weighted average
+	weights := []float64{0.3, 0.3, 0.2, 0.2}
+	scores := []int{structural, script, expression, variable}
+
+	total := 0.0
+	for i, score := range scores {
+		total += float64(score) * weights[i]
+	}
+
+	return int(total + 0.5) // Round to nearest
+}
+
+func getMaintainabilityRating(score int) string {
+	switch {
+	case score >= 9:
+		return "Excellent"
+	case score >= 7:
+		return "Good"
+	case score >= 5:
+		return "Fair"
+	case score >= 3:
+		return "Poor"
+	default:
+		return "Critical"
+	}
+}
+
+func addQualityRecommendations(result *strings.Builder, overallScore int, structuralScore int, scriptMetrics ScriptComplexityMetrics, expressionMetrics ExpressionComplexityMetrics, variableMetrics VariableUsageMetrics) {
+	if overallScore < 5 {
+		result.WriteString("• Consider breaking down large packages into smaller, focused packages\n")
+		result.WriteString("• Review and simplify complex expressions\n")
+		result.WriteString("• Refactor overly complex script tasks\n")
+		result.WriteString("• Implement proper error handling and logging\n")
+	} else if overallScore < 7 {
+		result.WriteString("• Consider using more expressions for dynamic configuration\n")
+		result.WriteString("• Review script task complexity and consider alternatives\n")
+		result.WriteString("• Document complex expressions and logic\n")
+	} else {
+		result.WriteString("• Package quality is good - continue best practices\n")
+		result.WriteString("• Consider adding more comprehensive error handling\n")
+		result.WriteString("• Regular code reviews recommended\n")
+	}
+
+	if structuralScore < 5 {
+		result.WriteString("• Package is very large - consider splitting into multiple packages\n")
+	}
+
+	if scriptMetrics.QualityScore < 5 {
+		result.WriteString("• Script tasks are complex - consider using built-in SSIS components instead\n")
+	}
+
+	if expressionMetrics.ComplexityScore < 5 {
+		result.WriteString("• Expressions are very complex - consider using variables or script tasks\n")
+	}
+
+	if variableMetrics.UsageScore < 5 {
+		result.WriteString("• Limited use of expressions - consider parameterizing more values\n")
+	}
+}
+
+func compareProperties(props1, props2 []Property, result *strings.Builder) {
+	propMap1 := make(map[string]string)
+	propMap2 := make(map[string]string)
+
+	for _, p := range props1 {
+		propMap1[p.Name] = p.Value
+	}
+	for _, p := range props2 {
+		propMap2[p.Name] = p.Value
+	}
+
+	// Added properties
+	for name, value := range propMap2 {
+		if _, exists := propMap1[name]; !exists {
+			result.WriteString(fmt.Sprintf("  ➕ Added: %s = %s\n", name, value))
+		}
+	}
+
+	// Removed properties
+	for name, value := range propMap1 {
+		if _, exists := propMap2[name]; !exists {
+			result.WriteString(fmt.Sprintf("  ➖ Removed: %s = %s\n", name, value))
+		}
+	}
+
+	// Modified properties
+	for name, value1 := range propMap1 {
+		if value2, exists := propMap2[name]; exists && value1 != value2 {
+			result.WriteString(fmt.Sprintf("  ✏️ Modified: %s\n", name))
+			result.WriteString(fmt.Sprintf("    File 1: %s\n", value1))
+			result.WriteString(fmt.Sprintf("    File 2: %s\n", value2))
+		}
+	}
+
+	if len(propMap1) == len(propMap2) && len(propMap1) > 0 {
+		result.WriteString("  ✅ No differences found\n")
+	}
+}
+
+func compareConnections(conns1, conns2 []Connection, result *strings.Builder) {
+	connMap1 := make(map[string]Connection)
+	connMap2 := make(map[string]Connection)
+
+	for _, c := range conns1 {
+		connMap1[c.Name] = c
+	}
+	for _, c := range conns2 {
+		connMap2[c.Name] = c
+	}
+
+	// Added connections
+	for name := range connMap2 {
+		if _, exists := connMap1[name]; !exists {
+			result.WriteString(fmt.Sprintf("  ➕ Added: %s\n", name))
+		}
+	}
+
+	// Removed connections
+	for name := range connMap1 {
+		if _, exists := connMap2[name]; !exists {
+			result.WriteString(fmt.Sprintf("  ➖ Removed: %s\n", name))
+		}
+	}
+
+	// Modified connections
+	for name, conn1 := range connMap1 {
+		if conn2, exists := connMap2[name]; exists {
+			connStr1 := conn1.ObjectData.ConnectionMgr.ConnectionString
+			connStr2 := conn2.ObjectData.ConnectionMgr.ConnectionString
+			if connStr1 == "" {
+				connStr1 = conn1.ObjectData.MsmqConnMgr.ConnectionString
+			}
+			if connStr2 == "" {
+				connStr2 = conn2.ObjectData.MsmqConnMgr.ConnectionString
+			}
+			if connStr1 != connStr2 {
+				result.WriteString(fmt.Sprintf("  ✏️ Modified: %s\n", name))
+				result.WriteString(fmt.Sprintf("    File 1: %s\n", connStr1))
+				result.WriteString(fmt.Sprintf("    File 2: %s\n", connStr2))
+			}
+		}
+	}
+
+	if len(conns1) == len(conns2) && len(conns1) > 0 {
+		result.WriteString("  ✅ No differences found\n")
+	}
+}
+
+func compareVariables(vars1, vars2 []Variable, result *strings.Builder) {
+	varMap1 := make(map[string]Variable)
+	varMap2 := make(map[string]Variable)
+
+	for _, v := range vars1 {
+		varMap1[v.Name] = v
+	}
+	for _, v := range vars2 {
+		varMap2[v.Name] = v
+	}
+
+	// Added variables
+	for name := range varMap2 {
+		if _, exists := varMap1[name]; !exists {
+			result.WriteString(fmt.Sprintf("  ➕ Added: %s\n", name))
+		}
+	}
+
+	// Removed variables
+	for name := range varMap1 {
+		if _, exists := varMap2[name]; !exists {
+			result.WriteString(fmt.Sprintf("  ➖ Removed: %s\n", name))
+		}
+	}
+
+	// Modified variables
+	for name, var1 := range varMap1 {
+		if var2, exists := varMap2[name]; exists {
+			if var1.Value != var2.Value || var1.Expression != var2.Expression {
+				result.WriteString(fmt.Sprintf("  ✏️ Modified: %s\n", name))
+				result.WriteString(fmt.Sprintf("    File 1: Value='%s', Expression='%s'\n", var1.Value, var1.Expression))
+				result.WriteString(fmt.Sprintf("    File 2: Value='%s', Expression='%s'\n", var2.Value, var2.Expression))
+			}
+		}
+	}
+
+	if len(vars1) == len(vars2) && len(vars1) > 0 {
+		result.WriteString("  ✅ No differences found\n")
+	}
+}
+
+func compareParameters(params1, params2 []Parameter, result *strings.Builder) {
+	paramMap1 := make(map[string]Parameter)
+	paramMap2 := make(map[string]Parameter)
+
+	for _, p := range params1 {
+		paramMap1[p.Name] = p
+	}
+	for _, p := range params2 {
+		paramMap2[p.Name] = p
+	}
+
+	// Added parameters
+	for name := range paramMap2 {
+		if _, exists := paramMap1[name]; !exists {
+			result.WriteString(fmt.Sprintf("  ➕ Added: %s\n", name))
+		}
+	}
+
+	// Removed parameters
+	for name := range paramMap1 {
+		if _, exists := paramMap2[name]; !exists {
+			result.WriteString(fmt.Sprintf("  ➖ Removed: %s\n", name))
+		}
+	}
+
+	// Modified parameters
+	for name, param1 := range paramMap1 {
+		if param2, exists := paramMap2[name]; exists {
+			if param1.DataType != param2.DataType || param1.Value != param2.Value {
+				result.WriteString(fmt.Sprintf("  ✏️ Modified: %s\n", name))
+				result.WriteString(fmt.Sprintf("    File 1: Type='%s', Value='%s'\n", param1.DataType, param1.Value))
+				result.WriteString(fmt.Sprintf("    File 2: Type='%s', Value='%s'\n", param2.DataType, param2.Value))
+			}
+		}
+	}
+
+	if len(params1) == len(params2) && len(params1) > 0 {
+		result.WriteString("  ✅ No differences found\n")
+	}
+}
+
+func compareConfigurations(configs1, configs2 []Configuration, result *strings.Builder) {
+	if len(configs1) != len(configs2) {
+		result.WriteString(fmt.Sprintf("  📊 Count changed: %d → %d\n", len(configs1), len(configs2)))
+	} else if len(configs1) > 0 {
+		result.WriteString("  ✅ No differences found\n")
+	}
+}
+
+func compareTasks(tasks1, tasks2 []Task, result *strings.Builder) {
+	taskMap1 := make(map[string]Task)
+	taskMap2 := make(map[string]Task)
+
+	for _, t := range tasks1 {
+		taskMap1[t.Name] = t
+	}
+	for _, t := range tasks2 {
+		taskMap2[t.Name] = t
+	}
+
+	// Added tasks
+	for name := range taskMap2 {
+		if _, exists := taskMap1[name]; !exists {
+			result.WriteString(fmt.Sprintf("  ➕ Added: %s\n", name))
+		}
+	}
+
+	// Removed tasks
+	for name := range taskMap1 {
+		if _, exists := taskMap2[name]; !exists {
+			result.WriteString(fmt.Sprintf("  ➖ Removed: %s\n", name))
+		}
+	}
+
+	// Modified tasks (simplified - just check if properties differ in count)
+	for name, task1 := range taskMap1 {
+		if task2, exists := taskMap2[name]; exists {
+			if len(task1.Properties) != len(task2.Properties) {
+				result.WriteString(fmt.Sprintf("  ✏️ Modified: %s (property count changed: %d → %d)\n", name, len(task1.Properties), len(task2.Properties)))
+			}
+		}
+	}
+
+	if len(tasks1) == len(tasks2) && len(tasks1) > 0 {
+		result.WriteString("  ✅ No differences found\n")
+	}
+}
+
+func compareEventHandlers(handlers1, handlers2 []EventHandler, result *strings.Builder) {
+	if len(handlers1) != len(handlers2) {
+		result.WriteString(fmt.Sprintf("  📊 Count changed: %d → %d\n", len(handlers1), len(handlers2)))
+	} else if len(handlers1) > 0 {
+		result.WriteString("  ✅ No differences found\n")
+	}
+}
+
+func comparePrecedenceConstraints(constraints1, constraints2 []PrecedenceConstraint, result *strings.Builder) {
+	if len(constraints1) != len(constraints2) {
+		result.WriteString(fmt.Sprintf("  📊 Count changed: %d → %d\n", len(constraints1), len(constraints2)))
+	} else if len(constraints1) > 0 {
+		result.WriteString("  ✅ No differences found\n")
+	}
+}
+
+func analyzeConnectionSecurity(connections []Connection) []string {
+	var issues []string
+
+	for _, conn := range connections {
+		connStr := conn.ObjectData.ConnectionMgr.ConnectionString
+		if connStr == "" {
+			connStr = conn.ObjectData.MsmqConnMgr.ConnectionString
+		}
+		connStrLower := strings.ToLower(connStr)
+		// Check for password patterns in connection string
+		if strings.Contains(connStrLower, "password=") || strings.Contains(connStrLower, "pwd=") ||
+			strings.Contains(connStrLower, "user id=") || strings.Contains(connStrLower, "uid=") {
+			issues = append(issues, fmt.Sprintf("Connection '%s' contains potential credentials in connection string", conn.Name))
+		}
+		// Check for integrated security=false which might indicate SQL auth
+		if strings.Contains(connStrLower, "integrated security=false") ||
+			strings.Contains(connStrLower, "trusted_connection=false") {
+			issues = append(issues, fmt.Sprintf("Connection '%s' uses SQL Server authentication (consider Windows auth)", conn.Name))
+		}
+	}
+
+	return issues
+}
+
+func analyzeVariableSecurity(variables []Variable) []string {
+	var issues []string
+
+	sensitiveVarPatterns := []string{"password", "pwd", "secret", "key", "token", "credential"}
+
+	for _, variable := range variables {
+		varNameLower := strings.ToLower(variable.Name)
+		for _, pattern := range sensitiveVarPatterns {
+			if strings.Contains(varNameLower, pattern) {
+				// Check if the value looks like a real credential (not empty, not expression)
+				if variable.Value != "" && !strings.HasPrefix(variable.Value, "@") {
+					issues = append(issues, fmt.Sprintf("Variable '%s' contains sensitive data: %s", variable.Name, maskSensitiveValue(variable.Value)))
+				}
+			}
+		}
+	}
+
+	return issues
+}
+
+func analyzeScriptSecurity(tasks []Task) []string {
+	var issues []string
+
+	for _, task := range tasks {
+		if getTaskType(task) == "Script Task" {
+			// Check script project for hardcoded strings
+			scriptCode := task.ObjectData.ScriptTask.ScriptTaskData.ScriptProject.ScriptCode
+			if scriptCode != "" {
+				scriptLower := strings.ToLower(scriptCode)
+				// Check for common credential patterns in script code
+				if strings.Contains(scriptLower, "password") || strings.Contains(scriptLower, "pwd") ||
+					strings.Contains(scriptLower, "secret") || strings.Contains(scriptLower, "connectionstring") {
+					issues = append(issues, fmt.Sprintf("Script Task '%s' may contain hardcoded credentials in script code", task.Name))
+				}
+			}
+		}
+	}
+
+	return issues
+}
+
+func analyzeExpressionSecurity(tasks []Task, variables []Variable) []string {
+	var issues []string
+
+	for _, task := range tasks {
+		for _, prop := range task.Properties {
+			if prop.Name == "Expression" || strings.Contains(prop.Name, "Expression") {
+				expr := strings.ToLower(prop.Value)
+				// Check for hardcoded sensitive data in expressions
+				if strings.Contains(expr, "password") || strings.Contains(expr, "pwd") ||
+					strings.Contains(expr, "secret") || strings.Contains(expr, "key") {
+					issues = append(issues, fmt.Sprintf("Task '%s' expression may contain sensitive data", task.Name))
+				}
+			}
+		}
+	}
+
+	return issues
+}
+
+func maskSensitiveValue(value string) string {
+	if len(value) <= 4 {
+		return strings.Repeat("*", len(value))
+	}
+	return value[:2] + strings.Repeat("*", len(value)-4) + value[len(value)-2:]
 }
 
 func extractPerformanceProperties(properties []Property, category string) []PerformanceProperty {
