@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -378,7 +377,7 @@ func main() {
 	}
 }
 
-func handleParseDtsx(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleParseDtsx(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -387,7 +386,7 @@ func handleParseDtsx(ctx context.Context, request mcp.CallToolRequest, packageDi
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -420,7 +419,7 @@ func handleParseDtsx(ctx context.Context, request mcp.CallToolRequest, packageDi
 	return mcp.NewToolResultText(summary), nil
 }
 
-func handleExtractTasks(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleExtractTasks(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -429,7 +428,7 @@ func handleExtractTasks(ctx context.Context, request mcp.CallToolRequest, packag
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -467,7 +466,7 @@ func handleExtractTasks(ctx context.Context, request mcp.CallToolRequest, packag
 	return mcp.NewToolResultText(tasks), nil
 }
 
-func handleExtractConnections(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleExtractConnections(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -476,7 +475,7 @@ func handleExtractConnections(ctx context.Context, request mcp.CallToolRequest, 
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -510,7 +509,7 @@ func handleExtractConnections(ctx context.Context, request mcp.CallToolRequest, 
 	return mcp.NewToolResultText(connections), nil
 }
 
-func handleExtractPrecedenceConstraints(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleExtractPrecedenceConstraints(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -519,7 +518,7 @@ func handleExtractPrecedenceConstraints(ctx context.Context, request mcp.CallToo
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -556,13 +555,13 @@ func handleExtractPrecedenceConstraints(ctx context.Context, request mcp.CallToo
 	return mcp.NewToolResultText(constraints), nil
 }
 
-func handleValidateDtsx(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleValidateDtsx(_ context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -583,7 +582,7 @@ func handleValidateDtsx(ctx context.Context, request mcp.CallToolRequest) (*mcp.
 	return mcp.NewToolResultText("Validation: DTSX file structure is valid"), nil
 }
 
-func handleExtractVariables(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleExtractVariables(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -592,7 +591,7 @@ func handleExtractVariables(ctx context.Context, request mcp.CallToolRequest, pa
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -628,7 +627,7 @@ func handleExtractVariables(ctx context.Context, request mcp.CallToolRequest, pa
 	return mcp.NewToolResultText(variables), nil
 }
 
-func handleExtractParameters(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleExtractParameters(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -637,7 +636,7 @@ func handleExtractParameters(ctx context.Context, request mcp.CallToolRequest, p
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -673,7 +672,7 @@ func handleExtractParameters(ctx context.Context, request mcp.CallToolRequest, p
 	return mcp.NewToolResultText(result.String()), nil
 }
 
-func handleExtractScriptCode(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleExtractScriptCode(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -682,7 +681,7 @@ func handleExtractScriptCode(ctx context.Context, request mcp.CallToolRequest, p
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -725,7 +724,7 @@ func handleExtractScriptCode(ctx context.Context, request mcp.CallToolRequest, p
 	return mcp.NewToolResultText(scriptCode), nil
 }
 
-func handleValidateBestPractices(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleValidateBestPractices(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -734,7 +733,7 @@ func handleValidateBestPractices(ctx context.Context, request mcp.CallToolReques
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -782,7 +781,7 @@ func handleValidateBestPractices(ctx context.Context, request mcp.CallToolReques
 	return mcp.NewToolResultText(report), nil
 }
 
-func handleAskAboutDtsx(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleAskAboutDtsx(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -796,7 +795,7 @@ func handleAskAboutDtsx(ctx context.Context, request mcp.CallToolRequest, packag
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -867,7 +866,7 @@ func handleAskAboutDtsx(ctx context.Context, request mcp.CallToolRequest, packag
 	}
 }
 
-func handleAnalyzeMessageQueueTasks(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleAnalyzeMessageQueueTasks(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -876,7 +875,7 @@ func handleAnalyzeMessageQueueTasks(ctx context.Context, request mcp.CallToolReq
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -920,7 +919,7 @@ func handleAnalyzeMessageQueueTasks(ctx context.Context, request mcp.CallToolReq
 	return mcp.NewToolResultText(analysis), nil
 }
 
-func handleDetectHardcodedValues(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleDetectHardcodedValues(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -929,7 +928,7 @@ func handleDetectHardcodedValues(ctx context.Context, request mcp.CallToolReques
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -990,7 +989,7 @@ func handleDetectHardcodedValues(ctx context.Context, request mcp.CallToolReques
 	return mcp.NewToolResultText(report), nil
 }
 
-func handleAnalyzeLoggingConfiguration(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleAnalyzeLoggingConfiguration(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -999,7 +998,7 @@ func handleAnalyzeLoggingConfiguration(ctx context.Context, request mcp.CallTool
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -1118,7 +1117,7 @@ func extractSection(content, startTag, endTag string) string {
 	return content[start : start+end+len(endTag)]
 }
 
-func handleListPackages(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleListPackages(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	var packages []string
 
 	// Walk the package directory recursively to find .dtsx files
@@ -1153,7 +1152,7 @@ func handleListPackages(ctx context.Context, request mcp.CallToolRequest, packag
 	return mcp.NewToolResultText(result), nil
 }
 
-func handleAnalyzeDataFlow(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleAnalyzeDataFlow(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -1163,7 +1162,7 @@ func handleAnalyzeDataFlow(ctx context.Context, request mcp.CallToolRequest, pac
 	fullPath := resolveFilePath(filePath, packageDirectory)
 
 	// Read the DTSX file as string for analysis
-	data, err := ioutil.ReadFile(fullPath)
+	data, err := os.ReadFile(fullPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -1294,7 +1293,7 @@ func handleAnalyzeDataFlow(ctx context.Context, request mcp.CallToolRequest, pac
 	return mcp.NewToolResultText(result.String()), nil
 }
 
-func handleAnalyzeEventHandlers(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleAnalyzeEventHandlers(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -1304,7 +1303,7 @@ func handleAnalyzeEventHandlers(ctx context.Context, request mcp.CallToolRequest
 	fullPath := resolveFilePath(filePath, packageDirectory)
 
 	// Read and parse the DTSX file
-	data, err := ioutil.ReadFile(fullPath)
+	data, err := os.ReadFile(fullPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -1378,7 +1377,7 @@ func handleAnalyzeEventHandlers(ctx context.Context, request mcp.CallToolRequest
 	return mcp.NewToolResultText(result.String()), nil
 }
 
-func handleAnalyzePackageDependencies(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleAnalyzePackageDependencies(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	// Find all DTSX files in the package directory
 	var dtsxFiles []string
 	err := filepath.Walk(packageDirectory, func(path string, info os.FileInfo, err error) error {
@@ -1416,7 +1415,7 @@ func handleAnalyzePackageDependencies(ctx context.Context, request mcp.CallToolR
 
 	// Process each DTSX file
 	for _, filePath := range dtsxFiles {
-		data, err := ioutil.ReadFile(filePath)
+		data, err := os.ReadFile(filePath)
 		if err != nil {
 			continue // Skip files that can't be read
 		}
@@ -1528,7 +1527,7 @@ func handleAnalyzePackageDependencies(ctx context.Context, request mcp.CallToolR
 	return mcp.NewToolResultText(result.String()), nil
 }
 
-func handleAnalyzeConfigurations(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleAnalyzeConfigurations(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -1537,7 +1536,7 @@ func handleAnalyzeConfigurations(ctx context.Context, request mcp.CallToolReques
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -1644,7 +1643,7 @@ func handleAnalyzeConfigurations(ctx context.Context, request mcp.CallToolReques
 	return mcp.NewToolResultText(result.String()), nil
 }
 
-func handleAnalyzePerformanceMetrics(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleAnalyzePerformanceMetrics(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -1653,7 +1652,7 @@ func handleAnalyzePerformanceMetrics(ctx context.Context, request mcp.CallToolRe
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -1741,7 +1740,7 @@ func handleAnalyzePerformanceMetrics(ctx context.Context, request mcp.CallToolRe
 	return mcp.NewToolResultText(result.String()), nil
 }
 
-func handleDetectSecurityIssues(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleDetectSecurityIssues(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -1750,7 +1749,7 @@ func handleDetectSecurityIssues(ctx context.Context, request mcp.CallToolRequest
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -1838,7 +1837,7 @@ func handleDetectSecurityIssues(ctx context.Context, request mcp.CallToolRequest
 	return mcp.NewToolResultText(result.String()), nil
 }
 
-func handleComparePackages(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleComparePackages(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath1, err := request.RequireString("file_path1")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -1853,7 +1852,7 @@ func handleComparePackages(ctx context.Context, request mcp.CallToolRequest, pac
 	resolvedPath2 := resolveFilePath(filePath2, packageDirectory)
 
 	// Parse first package
-	data1, err := ioutil.ReadFile(resolvedPath1)
+	data1, err := os.ReadFile(resolvedPath1)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read first file: %v", err)), nil
 	}
@@ -1864,7 +1863,7 @@ func handleComparePackages(ctx context.Context, request mcp.CallToolRequest, pac
 	}
 
 	// Parse second package
-	data2, err := ioutil.ReadFile(resolvedPath2)
+	data2, err := os.ReadFile(resolvedPath2)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read second file: %v", err)), nil
 	}
@@ -1914,7 +1913,7 @@ func handleComparePackages(ctx context.Context, request mcp.CallToolRequest, pac
 	return mcp.NewToolResultText(result.String()), nil
 }
 
-func handleAnalyzeCodeQuality(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleAnalyzeCodeQuality(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -1923,7 +1922,7 @@ func handleAnalyzeCodeQuality(ctx context.Context, request mcp.CallToolRequest, 
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
@@ -1985,7 +1984,7 @@ func handleAnalyzeCodeQuality(ctx context.Context, request mcp.CallToolRequest, 
 	return mcp.NewToolResultText(result.String()), nil
 }
 
-func handleReadTextFile(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+func handleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -1994,7 +1993,7 @@ func handleReadTextFile(ctx context.Context, request mcp.CallToolRequest, packag
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
-	data, err := ioutil.ReadFile(resolvedPath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
 	}
