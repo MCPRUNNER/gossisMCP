@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"flag"
 	"fmt"
@@ -14,7 +15,182 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"gopkg.in/yaml.v3"
 )
+
+// Config represents the application configuration
+type Config struct {
+	Server   ServerConfig   `json:"server" yaml:"server"`
+	Packages PackageConfig  `json:"packages" yaml:"packages"`
+	Logging  LoggingConfig  `json:"logging" yaml:"logging"`
+}
+
+// ServerConfig holds server-related configuration
+type ServerConfig struct {
+	HTTPMode bool   `json:"http_mode" yaml:"http_mode"`
+	Port     string `json:"port" yaml:"port"`
+}
+
+// PackageConfig holds package directory configuration
+type PackageConfig struct {
+	Directory string `json:"directory" yaml:"directory"`
+}
+
+// LoggingConfig holds logging configuration
+type LoggingConfig struct {
+	Level  string `json:"level" yaml:"level"`
+	Format string `json:"format" yaml:"format"`
+}
+
+// DefaultConfig returns a default configuration
+func DefaultConfig() Config {
+	return Config{
+		Server: ServerConfig{
+			HTTPMode: false,
+			Port:     "8086",
+		},
+		Packages: PackageConfig{
+			Directory: "",
+		},
+		Logging: LoggingConfig{
+			Level:  "info",
+			Format: "text",
+		},
+	}
+}
+
+// LoadConfig loads configuration from file and environment variables
+func LoadConfig(configPath string) (Config, error) {
+	config := DefaultConfig()
+
+	// Load from config file if specified
+	if configPath != "" {
+		if err := loadConfigFile(configPath, &config); err != nil {
+			return config, fmt.Errorf("failed to load config file: %w", err)
+		}
+	}
+
+	// Load environment-specific overrides
+	if err := loadEnvironmentConfig(&config); err != nil {
+		return config, fmt.Errorf("failed to load environment config: %w", err)
+	}
+
+	// Validate configuration
+	if err := validateConfig(config); err != nil {
+		return config, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	return config, nil
+}
+
+// loadConfigFile loads configuration from JSON or YAML file
+func loadConfigFile(configPath string, config *Config) error {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	// Try JSON first
+	if err := json.Unmarshal(data, config); err != nil {
+		// Try YAML
+		if yamlErr := yaml.Unmarshal(data, config); yamlErr != nil {
+			return fmt.Errorf("failed to parse config as JSON or YAML: %v, %v", err, yamlErr)
+		}
+	}
+
+	return nil
+}
+
+// loadEnvironmentConfig loads configuration overrides from environment variables
+func loadEnvironmentConfig(config *Config) error {
+	// Server configuration
+	if port := os.Getenv("GOSSIS_HTTP_PORT"); port != "" {
+		config.Server.Port = port
+	}
+
+	// Package directory
+	if pkgDir := os.Getenv("GOSSIS_PKG_DIRECTORY"); pkgDir != "" {
+		config.Packages.Directory = pkgDir
+	}
+
+	// Logging configuration
+	if logLevel := os.Getenv("GOSSIS_LOG_LEVEL"); logLevel != "" {
+		config.Logging.Level = logLevel
+	}
+	if logFormat := os.Getenv("GOSSIS_LOG_FORMAT"); logFormat != "" {
+		config.Logging.Format = logFormat
+	}
+
+	return nil
+}
+
+// validateConfig validates the configuration
+func validateConfig(config Config) error {
+	// Validate port
+	if config.Server.Port != "" {
+		if port, err := strconv.Atoi(config.Server.Port); err != nil || port < 1 || port > 65535 {
+			return fmt.Errorf("invalid server port: %s", config.Server.Port)
+		}
+	}
+
+	// Validate package directory if specified
+	if config.Packages.Directory != "" {
+		if _, err := os.Stat(config.Packages.Directory); os.IsNotExist(err) {
+			return fmt.Errorf("package directory does not exist: %s", config.Packages.Directory)
+		}
+	}
+
+	// Validate log level
+	validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
+	if !validLevels[strings.ToLower(config.Logging.Level)] {
+		return fmt.Errorf("invalid log level: %s", config.Logging.Level)
+	}
+
+	// Validate log format
+	validFormats := map[string]bool{"text": true, "json": true}
+	if !validFormats[strings.ToLower(config.Logging.Format)] {
+		return fmt.Errorf("invalid log format: %s", config.Logging.Format)
+	}
+
+	return nil
+}
+
+// configureLogging configures the logging based on the configuration
+func configureLogging(config LoggingConfig) {
+	// Set log level (simplified - in a real implementation you'd use a proper logging library)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	if strings.ToLower(config.Level) == "debug" {
+		log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
+	}
+}
+
+// mergeConfigs merges two configurations (for future use with multiple config files)
+func mergeConfigs(base, override Config) Config {
+	result := base
+
+	// Merge server config
+	if override.Server.Port != "" {
+		result.Server.Port = override.Server.Port
+	}
+	if override.Server.HTTPMode {
+		result.Server.HTTPMode = override.Server.HTTPMode
+	}
+
+	// Merge package config
+	if override.Packages.Directory != "" {
+		result.Packages.Directory = override.Packages.Directory
+	}
+
+	// Merge logging config
+	if override.Logging.Level != "" {
+		result.Logging.Level = override.Logging.Level
+	}
+	if override.Logging.Format != "" {
+		result.Logging.Format = override.Logging.Format
+	}
+
+	return result
+}
 
 // resolveVariableExpressions resolves SSIS variable expressions by substituting variable references
 func resolveVariableExpressions(value string, variables []Variable, maxDepth int) string {
@@ -276,15 +452,36 @@ func main() {
 	httpMode := flag.Bool("http", false, "Run in HTTP streaming mode")
 	httpPort := flag.String("port", "8086", "HTTP server port")
 	pkgDir := flag.String("pkg-dir", "", "Root directory for SSIS packages (can also be set via GOSSIS_PKG_DIRECTORY env var, defaults to current working directory)")
+	configPath := flag.String("config", "", "Path to configuration file (JSON or YAML)")
 	flag.Parse()
 
-	// Determine package directory from flag or environment variable
-	packageDirectory := *pkgDir
+	// Load configuration
+	config, err := LoadConfig(*configPath)
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	// Override config with command line flags if provided
+	if *httpMode {
+		config.Server.HTTPMode = true
+	}
+	if *httpPort != "8086" {
+		config.Server.Port = *httpPort
+	}
+	if *pkgDir != "" {
+		config.Packages.Directory = *pkgDir
+	}
+
+	// Configure logging
+	configureLogging(config.Logging)
+
+	// Determine package directory from config, environment variable, or default
+	packageDirectory := config.Packages.Directory
 	if packageDirectory == "" {
 		packageDirectory = os.Getenv("GOSSIS_PKG_DIRECTORY")
 	}
 	if packageDirectory == "" {
-		// Default to current working directory if neither flag nor env var is set
+		// Default to current working directory if neither config nor env var is set
 		if cwd, err := os.Getwd(); err == nil {
 			packageDirectory = cwd
 		}
@@ -934,9 +1131,9 @@ func main() {
 		return handleReadTextFile(ctx, request, packageDirectory)
 	})
 
-	if *httpMode {
+	if config.Server.HTTPMode {
 		// Run in HTTP streaming mode
-		runHTTPServer(s, *httpPort)
+		runHTTPServer(s, config.Server.Port)
 	} else {
 		// Run in stdio mode (default)
 		if err := server.ServeStdio(s); err != nil {

@@ -84,6 +84,68 @@ This MCP server is designed to be used with MCP-compatible clients (like Claude 
 - `-http`: Run in HTTP streaming mode (default port 8086)
 - `-port`: HTTP server port (default: 8086)
 - `-pkg-dir`: Root directory for SSIS packages (can also be set via `GOSSIS_PKG_DIRECTORY` environment variable, defaults to current working directory)
+- `-config`: Path to configuration file (JSON or YAML format)
+
+### Configuration Files
+
+The server supports configuration files in JSON or YAML format for more advanced configuration management. Configuration files allow you to set server settings, package directories, and logging options.
+
+**Example JSON configuration (`config.json`):**
+
+```json
+{
+  "server": {
+    "http_mode": false,
+    "port": "8086"
+  },
+  "packages": {
+    "directory": "path/to/ssis/packages"
+  },
+  "logging": {
+    "level": "info",
+    "format": "text"
+  }
+}
+```
+
+**Example YAML configuration (`config.yaml`):**
+
+```yaml
+server:
+  http_mode: false
+  port: "8086"
+packages:
+  directory: "path/to/ssis/packages"
+logging:
+  level: "info"
+  format: "text"
+```
+
+**Configuration Options:**
+
+- `server.http_mode`: Whether to run in HTTP streaming mode (boolean)
+- `server.port`: HTTP server port (string)
+- `packages.directory`: Root directory for SSIS packages (string)
+- `logging.level`: Log level - "debug", "info", "warn", "error" (string)
+- `logging.format`: Log format - "text" or "json" (string)
+
+**Environment Variables:**
+
+You can override configuration values using environment variables:
+
+- `GOSSIS_HTTP_PORT`: Override server port
+- `GOSSIS_PKG_DIRECTORY`: Override package directory
+- `GOSSIS_LOG_LEVEL`: Override log level ("debug", "info", "warn", "error")
+- `GOSSIS_LOG_FORMAT`: Override log format ("text", "json")
+
+**Usage with configuration file:**
+
+```bash
+./ssis-analyzer.exe -config config.json
+./ssis-analyzer.exe -config config.yaml
+```
+
+Command line flags take precedence over configuration file settings and environment variables.
 
 ### Package Directory Feature
 
