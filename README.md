@@ -1,6 +1,6 @@
 # SSIS DTSX Analyzer MCP Server
 
-This is a comprehensive Model Context Protocol (MCP) server written in Go that provides 69 advanced tools for analyzing SSIS (SQL Server Integration Services) DTSX files. It offers detailed insights into package structure, data flow components (10 source types, 10 transform types, 6 destination types), control flow tasks, logging configurations, performance metrics, and best practices validation.
+This is a comprehensive Model Context Protocol (MCP) server written in Go that provides 80+ advanced tools for analyzing SSIS (SQL Server Integration Services) DTSX files. It offers detailed insights into package structure, data flow components (10 source types, 10 transform types, 6 destination types), control flow tasks, logging configurations, performance metrics, and best practices validation.
 
 ## Features
 
@@ -28,6 +28,148 @@ This is a comprehensive Model Context Protocol (MCP) server written in Go that p
 - **File Structure Validation**: Validate DTSX file structure and integrity
 - **Multiple Output Formats**: Support for text, JSON, CSV, HTML, and Markdown output formats
 - **HTTP Streaming Support**: Optional HTTP API with streaming responses for real-time output
+- **Plugin System**: Extensible architecture supporting custom analysis rules and community plugins
+
+## Plugin System
+
+The SSIS DTSX Analyzer includes a comprehensive plugin system that allows for extensibility and customization:
+
+### Features
+
+- **Custom Analysis Rules**: Create and install custom analysis rules for specific SSIS patterns
+- **Community Plugin Repository**: Access a marketplace of community-contributed plugins
+- **Plugin Management**: Install, uninstall, enable/disable, and update plugins
+- **Security Features**: Plugin signature verification and sandboxed execution
+- **Plugin Development**: Easy-to-use templates and APIs for creating new plugins
+
+### Plugin Management Tools
+
+The server provides several tools for managing plugins:
+
+- `list_plugins`: List all registered plugins (built-in and installed)
+- `install_plugin`: Install a plugin from the community marketplace
+- `uninstall_plugin`: Uninstall a plugin
+- `enable_plugin`: Enable or disable a plugin
+- `search_plugins`: Search for plugins in the marketplace
+- `update_plugin`: Update a plugin to the latest version
+- `create_custom_rule`: Create a custom analysis rule
+- `execute_custom_rule`: Execute a custom analysis rule on a DTSX file
+
+### Configuration
+
+Plugin system settings can be configured in the configuration file:
+
+```json
+{
+  "plugins": {
+    "plugin_dir": "./plugins",
+    "enabled_plugins": ["ssis-core-analysis"],
+    "community_registry": "https://registry.gossismcp.com",
+    "auto_update": true,
+    "security": {
+      "allow_network_access": false,
+      "allowed_domains": [],
+      "signature_required": true,
+      "trusted_publishers": ["gossisMCP"]
+    }
+  }
+}
+```
+
+### Plugin Development
+
+Plugins are Go modules that implement the plugin interface and are compiled as shared libraries (.so files on Linux/macOS, .dll on Windows). Here's how to create a custom plugin:
+
+1. **Create a new Go module:**
+
+```bash
+mkdir my-ssis-plugin
+cd my-ssis-plugin
+go mod init my-ssis-plugin
+```
+
+2. **Implement the plugin interface:**
+
+```go
+package main
+
+import (
+    "context"
+    "github.com/mark3labs/mcp-go/mcp"
+)
+
+// MyPlugin implements the plugin interface
+type MyPlugin struct{}
+
+// Metadata returns plugin metadata
+func (p *MyPlugin) Metadata() map[string]interface{} {
+    return map[string]interface{}{
+        "id": "my-custom-plugin",
+        "name": "My Custom SSIS Plugin",
+        "version": "1.0.0",
+        "description": "Custom analysis for specific SSIS patterns",
+        "author": "Your Name",
+        "category": "Analysis",
+        "tags": []string{"custom", "analysis"},
+    }
+}
+
+// Tools returns the tools provided by this plugin
+func (p *MyPlugin) Tools() []map[string]interface{} {
+    return []map[string]interface{}{
+        {
+            "name": "my_custom_analysis",
+            "description": "Perform custom analysis on DTSX files",
+            "parameters": []map[string]interface{}{
+                {
+                    "name": "file_path",
+                    "type": "string",
+                    "description": "Path to the DTSX file",
+                    "required": true,
+                },
+            },
+        },
+    }
+}
+
+// ExecuteTool executes a tool
+func (p *MyPlugin) ExecuteTool(ctx context.Context, name string, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+    switch name {
+    case "my_custom_analysis":
+        filePath := request.GetString("file_path", "")
+        // Perform your custom analysis here
+        result := map[string]interface{}{
+            "analysis": "Custom analysis result",
+            "file": filePath,
+        }
+        return &mcp.CallToolResult{
+            Content: []mcp.Content{
+                {
+                    Type: "text",
+                    Text: fmt.Sprintf("Analysis result: %+v", result),
+                },
+            },
+        }, nil
+    }
+    return nil, fmt.Errorf("unknown tool: %s", name)
+}
+
+// Export the plugin
+var Plugin MyPlugin
+
+func main() {
+    // Plugin entry point
+}
+```
+
+3. **Build the plugin:**
+
+```bash
+go build -buildmode=plugin -o my-plugin.so .
+```
+
+4. **Install the plugin:**
+   Use the `install_plugin` tool or manually place the .so/.dll file in the plugins directory.
 
 ## Prerequisites
 
@@ -642,7 +784,13 @@ All recommended missing features from the original feature request have been suc
 - ✅ **Advanced Task Analysis**: Comprehensive Script Task analysis with variables, entry points, and configuration
 - 🔄 **1 Remaining Feature**: SSIS Catalog Integration (database connectivity to SSISDB for deployed package analysis)
 
-The server has evolved from supporting basic package parsing to providing enterprise-grade SSIS development and maintenance capabilities with 69 specialized analysis tools.
+The server has evolved from supporting basic package parsing to providing enterprise-grade SSIS development and maintenance capabilities with 80+ specialized analysis tools.
+
+## Documentation
+
+- [Main README](README.md) - This file with comprehensive server documentation
+- [MSMQ Integration Examples](Documents/Query_EXAMPLES/MSMQ_README.md) - Detailed analysis of MSMQ message queue packages with architecture diagrams
+- [SSIS Feature Recommendations](Documents/EXAMPLE_QUERY.md) - Recommended features and implementation roadmap for SSIS packages
 
 ## License
 

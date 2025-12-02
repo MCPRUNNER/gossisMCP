@@ -25,6 +25,7 @@ type Config struct {
 	Server   ServerConfig  `json:"server" yaml:"server"`
 	Packages PackageConfig `json:"packages" yaml:"packages"`
 	Logging  LoggingConfig `json:"logging" yaml:"logging"`
+	Plugins  PluginConfig  `json:"plugins" yaml:"plugins"`
 }
 
 // ServerConfig holds server-related configuration
@@ -58,6 +59,7 @@ func DefaultConfig() Config {
 			Level:  "info",
 			Format: "text",
 		},
+		Plugins: DefaultPluginConfig(),
 	}
 }
 
@@ -1023,6 +1025,12 @@ func main() {
 		server.WithToolCapabilities(true),
 		server.WithResourceCapabilities(true, true),
 	)
+
+	// Initialize plugin system
+	pluginSystem := NewPluginSystem(config.Plugins)
+
+	// Register plugin management tools
+	pluginSystem.createPluginManagementTools(s)
 
 	// Register all tools...
 	// Tool to parse DTSX file and return summary
