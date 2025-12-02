@@ -1844,7 +1844,7 @@ func main() {
 		return handleComparePackages(ctx, request, packageDirectory)
 	})
 
-	analyzeCodeQualityTool := mcp.NewTool("analyze_code_quality",
+	analyzeCodeQualityTool := mcp.NewTool("mcp_ssis-analyzer_analyze_code_quality",
 		mcp.WithDescription("Calculate maintainability metrics (complexity, duplication, etc.) to assess package quality and technical debt"),
 		mcp.WithString("file_path",
 			mcp.Required(),
@@ -2082,6 +2082,7 @@ func main() {
 		mcp.WithArray("file_paths",
 			mcp.Required(),
 			mcp.Description("Array of DTSX file paths to analyze (relative to package directory if set)"),
+			mcp.WithStringItems(),
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
