@@ -20,9 +20,9 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Server   ServerConfig   `json:"server" yaml:"server"`
-	Packages PackageConfig  `json:"packages" yaml:"packages"`
-	Logging  LoggingConfig  `json:"logging" yaml:"logging"`
+	Server   ServerConfig  `json:"server" yaml:"server"`
+	Packages PackageConfig `json:"packages" yaml:"packages"`
+	Logging  LoggingConfig `json:"logging" yaml:"logging"`
 }
 
 // ServerConfig holds server-related configuration
