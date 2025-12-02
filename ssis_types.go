@@ -48,6 +48,87 @@ type Executables struct {
 	Tasks []Task `xml:"Executable"`
 }
 
+// GetAllExecutables returns all tasks and containers as a unified slice
+func (e *Executables) GetAllExecutables() []Task {
+	return e.Tasks
+}
+
+type Executable struct {
+	Name         string               `xml:"ObjectName,attr"`
+	CreationName string               `xml:"CreationName,attr"`
+	Description  string               `xml:"Description,attr"`
+	RefId        string               `xml:"refId,attr"`
+	Properties   []Property           `xml:"Property"`
+	ObjectData   ExecutableObjectData `xml:"ObjectData"`
+	Executables  *Executables         `xml:"Executables"` // For containers
+	Variables    Variables            `xml:"Variables"`   // For containers
+}
+
+type ExecutableObjectData struct {
+	// Task-specific data
+	Task       TaskDetails       `xml:"Task"`
+	ScriptTask ScriptTaskDetails `xml:"ScriptTask"`
+	DataFlow   DataFlowDetails   `xml:"pipeline"`
+
+	// Container-specific data
+	SequenceContainer    SequenceContainerDetails    `xml:"SequenceContainer"`
+	ForLoopContainer     ForLoopContainerDetails     `xml:"ForLoopContainer"`
+	ForeachLoopContainer ForeachLoopContainerDetails `xml:"ForeachLoopContainer"`
+}
+
+type SequenceContainerDetails struct {
+	// Sequence containers don't have specific properties beyond the base container
+}
+
+type ForLoopContainerDetails struct {
+	ForLoop ForLoopDetails `xml:"ForLoop"`
+}
+
+type ForLoopDetails struct {
+	InitExpression   string `xml:"InitExpression"`
+	EvalExpression   string `xml:"EvalExpression"`
+	AssignExpression string `xml:"AssignExpression"`
+}
+
+type ForeachLoopContainerDetails struct {
+	ForeachLoop ForeachLoopDetails `xml:"ForeachLoop"`
+}
+
+type ForeachLoopDetails struct {
+	Enumerator           string                      `xml:"Enumerator,attr"`
+	CollectionEnumerator CollectionEnumeratorDetails `xml:"CollectionEnumerator"`
+	ItemEnumerator       ItemEnumeratorDetails       `xml:"ItemEnumerator"`
+	FileEnumerator       FileEnumeratorDetails       `xml:"FileEnumerator"`
+	VariableMappings     VariableMappings            `xml:"VariableMappings"`
+}
+
+type CollectionEnumeratorDetails struct {
+	Items []CollectionItem `xml:"Items>Item"`
+}
+
+type CollectionItem struct {
+	Value string `xml:",innerxml"`
+}
+
+type ItemEnumeratorDetails struct {
+	Items []CollectionItem `xml:"Items>Item"`
+}
+
+type FileEnumeratorDetails struct {
+	Folder   string `xml:"Folder"`
+	FileSpec string `xml:"FileSpec"`
+	Recurse  bool   `xml:"Recurse"`
+}
+
+type VariableMappings struct {
+	Mappings []VariableMapping `xml:"VariableMapping"`
+}
+
+type VariableMapping struct {
+	VariableName string `xml:"VariableName,attr"`
+	Index        int    `xml:"Index,attr"`
+}
+
 type Task struct {
 	Name         string         `xml:"ObjectName,attr"`
 	CreationName string         `xml:"CreationName,attr"`
