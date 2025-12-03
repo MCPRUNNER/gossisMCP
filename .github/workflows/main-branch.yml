@@ -12,6 +12,7 @@ on:
 jobs:
 
   build:
+
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -27,6 +28,7 @@ jobs:
     - name: Test
       run: go test -v $(go list ./... | grep -v plugins) -count=1
   deploy:
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
