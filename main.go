@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"context"
@@ -18,6 +18,8 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"gopkg.in/yaml.v3"
+
+	"github.com/MCPRUNNER/gossisMCP/pkg/formatter"
 )
 
 // Config represents the application configuration
@@ -451,505 +453,19 @@ func handleAnalyzeDestination(_ context.Context, request mcp.CallToolRequest, pa
 	return mcp.NewToolResultText(result.String()), nil
 }
 
-// Output Format System
+// Output Format System is now in pkg/formatter
 
-type OutputFormat string
-
-const (
-	FormatText     OutputFormat = "text"
-	FormatJSON     OutputFormat = "json"
-	FormatCSV      OutputFormat = "csv"
-	FormatHTML     OutputFormat = "html"
-	FormatMarkdown OutputFormat = "markdown"
-)
-
-type AnalysisResult struct {
-	ToolName  string                 `json:"tool_name"`
-	FilePath  string                 `json:"file_path"`
-	Timestamp string                 `json:"timestamp"`
-	Status    string                 `json:"status"`
-	Data      interface{}            `json:"data,omitempty"`
-	Error     string                 `json:"error,omitempty"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
-}
-
-type TableData struct {
-	Headers []string   `json:"headers"`
-	Rows    [][]string `json:"rows"`
-}
-
-type SectionData struct {
-	Title       string        `json:"title"`
-	Content     interface{}   `json:"content"`
-	Level       int           `json:"level,omitempty"`
-	Subsections []SectionData `json:"subsections,omitempty"`
-}
-
-type OutputFormatter interface {
-	Format(result *AnalysisResult) string
-	GetContentType() string
-}
-
-type TextFormatter struct{}
-
-func (f *TextFormatter) Format(result *AnalysisResult) string {
-	if result.Error != "" {
-		return fmt.Sprintf("Error: %s", result.Error)
-	}
-
-	var output strings.Builder
-	output.WriteString(fmt.Sprintf("%s Analysis Report\n", result.ToolName))
-	output.WriteString(fmt.Sprintf("File: %s\n", result.FilePath))
-	output.WriteString(fmt.Sprintf("Generated: %s\n\n", result.Timestamp))
-
-	f.formatData(&output, result.Data, 0)
-	return output.String()
-}
-
-func (f *TextFormatter) formatData(output *strings.Builder, data interface{}, level int) {
-	indent := strings.Repeat("  ", level)
-
-	switch v := data.(type) {
-	case string:
-		output.WriteString(indent + v + "\n")
-	case []string:
-		for _, item := range v {
-			output.WriteString(indent + "• " + item + "\n")
-		}
-	case map[string]interface{}:
-		for key, value := range v {
-			output.WriteString(fmt.Sprintf("%s%s:\n", indent, key))
-			f.formatData(output, value, level+1)
-		}
-	case []interface{}:
-		for i, item := range v {
-			output.WriteString(fmt.Sprintf("%s%d. ", indent, i+1))
-			f.formatData(output, item, level)
-		}
-	case *TableData:
-		f.formatTable(output, v, level)
-	case []SectionData:
-		for _, section := range v {
-			f.formatSection(output, &section, level)
-		}
-	default:
-		output.WriteString(fmt.Sprintf("%s%v\n", indent, v))
-	}
-}
-
-func (f *TextFormatter) formatTable(output *strings.Builder, table *TableData, level int) {
-	if len(table.Rows) == 0 {
-		output.WriteString("No data available.\n")
-		return
-	}
-
-	// Calculate column widths
-	colWidths := make([]int, len(table.Headers))
-	for i, header := range table.Headers {
-		colWidths[i] = len(header)
-	}
-	for _, row := range table.Rows {
-		for i, cell := range row {
-			if i < len(colWidths) && len(cell) > colWidths[i] {
-				colWidths[i] = len(cell)
-			}
-		}
-	}
-
-	indent := strings.Repeat("  ", level)
-
-	// Header
-	for i, header := range table.Headers {
-		output.WriteString(indent + fmt.Sprintf("%-*s  ", colWidths[i], header))
-	}
-	output.WriteString("\n")
-
-	// Separator
-	output.WriteString(indent)
-	for _, width := range colWidths {
-		output.WriteString(strings.Repeat("-", width) + "  ")
-	}
-	output.WriteString("\n")
-
-	// Rows
-	for _, row := range table.Rows {
-		output.WriteString(indent)
-		for i, cell := range row {
-			if i < len(colWidths) {
-				output.WriteString(fmt.Sprintf("%-*s  ", colWidths[i], cell))
-			}
-		}
-		output.WriteString("\n")
-	}
-}
-
-func (f *TextFormatter) formatSection(output *strings.Builder, section *SectionData, level int) {
-	indent := strings.Repeat("  ", level)
-	output.WriteString(fmt.Sprintf("%s%s\n", indent, section.Title))
-	output.WriteString(fmt.Sprintf("%s%s\n", indent, strings.Repeat("=", len(section.Title))))
-
-	f.formatData(output, section.Content, level)
-	output.WriteString("\n")
-
-	for _, subsection := range section.Subsections {
-		f.formatSection(output, &subsection, level+1)
-	}
-}
-
-func (f *TextFormatter) GetContentType() string {
-	return "text/plain"
-}
-
-type JSONFormatter struct{}
-
-func (f *JSONFormatter) Format(result *AnalysisResult) string {
-	jsonBytes, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return fmt.Sprintf("{\"error\": \"Failed to format JSON: %s\"}", err.Error())
-	}
-	return string(jsonBytes)
-}
-
-func (f *JSONFormatter) GetContentType() string {
-	return "application/json"
-}
-
-type CSVFormatter struct{}
-
-func (f *CSVFormatter) Format(result *AnalysisResult) string {
-	if result.Error != "" {
-		return fmt.Sprintf("Error,%s\n", result.Error)
-	}
-
-	var output strings.Builder
-
-	// Handle different data types
-	switch v := result.Data.(type) {
-	case *TableData:
-		return f.formatTableCSV(v)
-	case []SectionData:
-		return f.formatSectionsCSV(v)
-	default:
-		// Fallback to simple format
-		output.WriteString("Key,Value\n")
-		output.WriteString(fmt.Sprintf("Tool,%s\n", result.ToolName))
-		output.WriteString(fmt.Sprintf("File,%s\n", result.FilePath))
-		output.WriteString(fmt.Sprintf("Timestamp,%s\n", result.Timestamp))
-		output.WriteString(fmt.Sprintf("Status,%s\n", result.Status))
-		return output.String()
-	}
-}
-
-func (f *CSVFormatter) formatTableCSV(table *TableData) string {
-	var output strings.Builder
-
-	// Headers
-	for i, header := range table.Headers {
-		if i > 0 {
-			output.WriteString(",")
-		}
-		output.WriteString(f.escapeCSV(header))
-	}
-	output.WriteString("\n")
-
-	// Rows
-	for _, row := range table.Rows {
-		for i, cell := range row {
-			if i > 0 {
-				output.WriteString(",")
-			}
-			output.WriteString(f.escapeCSV(cell))
-		}
-		output.WriteString("\n")
-	}
-
-	return output.String()
-}
-
-func (f *CSVFormatter) formatSectionsCSV(sections []SectionData) string {
-	var output strings.Builder
-	output.WriteString("Section,Content\n")
-
-	for _, section := range sections {
-		f.formatSectionCSV(&output, &section, "")
-	}
-
-	return output.String()
-}
-
-func (f *CSVFormatter) formatSectionCSV(output *strings.Builder, section *SectionData, prefix string) {
-	sectionPath := section.Title
-	if prefix != "" {
-		sectionPath = prefix + " > " + section.Title
-	}
-
-	switch v := section.Content.(type) {
-	case string:
-		output.WriteString(fmt.Sprintf("%s,%s\n", f.escapeCSV(sectionPath), f.escapeCSV(v)))
-	case []string:
-		for _, item := range v {
-			output.WriteString(fmt.Sprintf("%s,%s\n", f.escapeCSV(sectionPath), f.escapeCSV(item)))
-		}
-	case map[string]interface{}:
-		for key, value := range v {
-			output.WriteString(fmt.Sprintf("%s,%s\n", f.escapeCSV(sectionPath+"."+key), f.escapeCSV(fmt.Sprintf("%v", value))))
-		}
-	}
-
-	for _, subsection := range section.Subsections {
-		f.formatSectionCSV(output, &subsection, sectionPath)
-	}
-}
-
-func (f *CSVFormatter) escapeCSV(s string) string {
-	if strings.ContainsAny(s, ",\"\n") {
-		return "\"" + strings.ReplaceAll(s, "\"", "\"\"") + "\""
-	}
-	return s
-}
-
-func (f *CSVFormatter) GetContentType() string {
-	return "text/csv"
-}
-
-type HTMLFormatter struct{}
-
-func (f *HTMLFormatter) Format(result *AnalysisResult) string {
-	var output strings.Builder
-
-	output.WriteString("<!DOCTYPE html>\n<html>\n<head>\n")
-	output.WriteString("<title>SSIS Analysis Report</title>\n")
-	output.WriteString("<style>\n")
-	output.WriteString("body { font-family: Arial, sans-serif; margin: 20px; }\n")
-	output.WriteString("h1 { color: #333; }\n")
-	output.WriteString("h2 { color: #666; margin-top: 30px; }\n")
-	output.WriteString("table { border-collapse: collapse; width: 100%; margin: 10px 0; }\n")
-	output.WriteString("th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }\n")
-	output.WriteString("th { background-color: #f2f2f2; }\n")
-	output.WriteString("tr:nth-child(even) { background-color: #f9f9f9; }\n")
-	output.WriteString(".error { color: red; }\n")
-	output.WriteString(".success { color: green; }\n")
-	output.WriteString("</style>\n")
-	output.WriteString("</head>\n<body>\n")
-
-	if result.Error != "" {
-		output.WriteString(fmt.Sprintf("<h1 class=\"error\">Error: %s</h1>\n", result.Error))
-	} else {
-		output.WriteString(fmt.Sprintf("<h1>%s Analysis Report</h1>\n", result.ToolName))
-		output.WriteString(fmt.Sprintf("<p><strong>File:</strong> %s</p>\n", result.FilePath))
-		output.WriteString(fmt.Sprintf("<p><strong>Generated:</strong> %s</p>\n", result.Timestamp))
-		output.WriteString(fmt.Sprintf("<p><strong>Status:</strong> <span class=\"success\">%s</span></p>\n", result.Status))
-
-		f.formatDataHTML(&output, result.Data, 1)
-	}
-
-	output.WriteString("</body>\n</html>\n")
-	return output.String()
-}
-
-func (f *HTMLFormatter) formatDataHTML(output *strings.Builder, data interface{}, level int) {
-	switch v := data.(type) {
-	case string:
-		output.WriteString(fmt.Sprintf("<p>%s</p>\n", v))
-	case []string:
-		output.WriteString("<ul>\n")
-		for _, item := range v {
-			output.WriteString(fmt.Sprintf("<li>%s</li>\n", item))
-		}
-		output.WriteString("</ul>\n")
-	case map[string]interface{}:
-		for key, value := range v {
-			output.WriteString(fmt.Sprintf("<h%d>%s</h%d>\n", level+1, key, level+1))
-			f.formatDataHTML(output, value, level+1)
-		}
-	case []interface{}:
-		output.WriteString("<ol>\n")
-		for _, item := range v {
-			output.WriteString("<li>")
-			f.formatDataHTML(output, item, level)
-			output.WriteString("</li>\n")
-		}
-		output.WriteString("</ol>\n")
-	case *TableData:
-		f.formatTableHTML(output, v)
-	case []SectionData:
-		for _, section := range v {
-			f.formatSectionHTML(output, &section, level)
-		}
-	}
-}
-
-func (f *HTMLFormatter) formatTableHTML(output *strings.Builder, table *TableData) {
-	output.WriteString("<table>\n<thead>\n<tr>\n")
-	for _, header := range table.Headers {
-		output.WriteString(fmt.Sprintf("<th>%s</th>\n", header))
-	}
-	output.WriteString("</tr>\n</thead>\n<tbody>\n")
-
-	for _, row := range table.Rows {
-		output.WriteString("<tr>\n")
-		for _, cell := range row {
-			output.WriteString(fmt.Sprintf("<td>%s</td>\n", cell))
-		}
-		output.WriteString("</tr>\n")
-	}
-
-	output.WriteString("</tbody>\n</table>\n")
-}
-
-func (f *HTMLFormatter) formatSectionHTML(output *strings.Builder, section *SectionData, level int) {
-	output.WriteString(fmt.Sprintf("<h%d>%s</h%d>\n", level+1, section.Title, level+1))
-	f.formatDataHTML(output, section.Content, level+1)
-
-	for _, subsection := range section.Subsections {
-		f.formatSectionHTML(output, &subsection, level+1)
-	}
-}
-
-func (f *HTMLFormatter) GetContentType() string {
-	return "text/html"
-}
-
-type MarkdownFormatter struct{}
-
-func (f *MarkdownFormatter) Format(result *AnalysisResult) string {
-	if result.Error != "" {
-		return fmt.Sprintf("# Error\n\n%s", result.Error)
-	}
-
-	var output strings.Builder
-	output.WriteString(fmt.Sprintf("# %s Analysis Report\n\n", result.ToolName))
-	output.WriteString(fmt.Sprintf("**File:** %s\n\n", result.FilePath))
-	output.WriteString(fmt.Sprintf("**Generated:** %s\n\n", result.Timestamp))
-	output.WriteString(fmt.Sprintf("**Status:** %s\n\n", result.Status))
-
-	f.formatDataMarkdown(&output, result.Data, 1)
-	return output.String()
-}
-
-func (f *MarkdownFormatter) formatDataMarkdown(output *strings.Builder, data interface{}, level int) {
-	switch v := data.(type) {
-	case string:
-		output.WriteString(v + "\n\n")
-	case []string:
-		for _, item := range v {
-			output.WriteString(fmt.Sprintf("- %s\n", item))
-		}
-		output.WriteString("\n")
-	case map[string]interface{}:
-		for key, value := range v {
-			output.WriteString(fmt.Sprintf("%s %s\n\n", strings.Repeat("#", level+1), key))
-			f.formatDataMarkdown(output, value, level+1)
-		}
-	case []interface{}:
-		for i, item := range v {
-			output.WriteString(fmt.Sprintf("%d. ", i+1))
-			f.formatDataMarkdown(output, item, level)
-		}
-	case *TableData:
-		f.formatTableMarkdown(output, v)
-	case []SectionData:
-		for _, section := range v {
-			f.formatSectionMarkdown(output, &section, level)
-		}
-	}
-}
-
-func (f *MarkdownFormatter) formatTableMarkdown(output *strings.Builder, table *TableData) {
-	if len(table.Rows) == 0 {
-		output.WriteString("No data available.\n\n")
-		return
-	}
-
-	// Headers
-	output.WriteString("|")
-	for _, header := range table.Headers {
-		output.WriteString(fmt.Sprintf(" %s |", header))
-	}
-	output.WriteString("\n|")
-
-	// Separator
-	for range table.Headers {
-		output.WriteString(" --- |")
-	}
-	output.WriteString("\n")
-
-	// Rows
-	for _, row := range table.Rows {
-		output.WriteString("|")
-		for _, cell := range row {
-			output.WriteString(fmt.Sprintf(" %s |", cell))
-		}
-		output.WriteString("\n")
-	}
-	output.WriteString("\n")
-}
-
-func (f *MarkdownFormatter) formatSectionMarkdown(output *strings.Builder, section *SectionData, level int) {
-	output.WriteString(fmt.Sprintf("%s %s\n\n", strings.Repeat("#", level+1), section.Title))
-	f.formatDataMarkdown(output, section.Content, level+1)
-
-	for _, subsection := range section.Subsections {
-		f.formatSectionMarkdown(output, &subsection, level+1)
-	}
-}
-
-func (f *MarkdownFormatter) GetContentType() string {
-	return "text/markdown"
-}
-
-// Global formatter registry
-var formatters = map[OutputFormat]OutputFormatter{
-	FormatText:     &TextFormatter{},
-	FormatJSON:     &JSONFormatter{},
-	FormatCSV:      &CSVFormatter{},
-	FormatHTML:     &HTMLFormatter{},
-	FormatMarkdown: &MarkdownFormatter{},
-}
-
-func getFormatter(format OutputFormat) OutputFormatter {
-	if formatter, exists := formatters[format]; exists {
-		return formatter
-	}
-	return formatters[FormatText] // Default to text
-}
-
-func createAnalysisResult(toolName, filePath string, data interface{}, err error) *AnalysisResult {
-	result := &AnalysisResult{
-		ToolName:  toolName,
-		FilePath:  filePath,
-		Timestamp: time.Now().Format("2006-01-02 15:04:05"),
-		Status:    "success",
-		Data:      data,
-		Metadata:  make(map[string]interface{}),
-	}
-
-	if err != nil {
-		result.Status = "error"
-		result.Error = err.Error()
-		result.Data = nil
-	}
-
-	return result
-}
-
-func formatAnalysisResult(result *AnalysisResult, format OutputFormat) string {
-	formatter := getFormatter(format)
-	return formatter.Format(result)
-}
-
-// Helper function to handle tool requests with format support
 func handleToolWithFormat(request mcp.CallToolRequest, toolName string, dataFunc func() (interface{}, error)) *mcp.CallToolResult {
 	// Get format parameter (default to "text")
 	formatStr := request.GetString("format", "text")
-	format := OutputFormat(formatStr)
+	format := formatter.OutputFormat(formatStr)
 
 	// Get file path for error reporting (may be empty for some tools)
 	filePath := request.GetString("file_path", "")
 
 	data, err := dataFunc()
-	result := createAnalysisResult(toolName, filePath, data, err)
-	return mcp.NewToolResultText(formatAnalysisResult(result, format))
+	result := formatter.CreateAnalysisResult(toolName, filePath, data, err)
+	return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format))
 }
 
 // Batch analysis data structures
@@ -2122,15 +1638,15 @@ func handleParseDtsx(_ context.Context, request mcp.CallToolRequest, packageDire
 
 	// Get format parameter (default to "text")
 	formatStr := request.GetString("format", "text")
-	format := OutputFormat(formatStr)
+	format := formatter.OutputFormat(formatStr)
 
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		result := createAnalysisResult("parse_dtsx", filePath, nil, err)
-		return mcp.NewToolResultText(formatAnalysisResult(result, format)), nil
+		result := formatter.CreateAnalysisResult("parse_dtsx", filePath, nil, err)
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	// Remove namespace prefixes for easier parsing
@@ -2139,8 +1655,8 @@ func handleParseDtsx(_ context.Context, request mcp.CallToolRequest, packageDire
 
 	var pkg SSISPackage
 	if err := xml.Unmarshal(data, &pkg); err != nil {
-		result := createAnalysisResult("parse_dtsx", filePath, nil, err)
-		return mcp.NewToolResultText(formatAnalysisResult(result, format)), nil
+		result := formatter.CreateAnalysisResult("parse_dtsx", filePath, nil, err)
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	// Create structured data for the result
@@ -2173,8 +1689,8 @@ func handleParseDtsx(_ context.Context, request mcp.CallToolRequest, packageDire
 	}
 	summaryData["variables"] = variables
 
-	result := createAnalysisResult("parse_dtsx", filePath, summaryData, nil)
-	return mcp.NewToolResultText(formatAnalysisResult(result, format)), nil
+	result := formatter.CreateAnalysisResult("parse_dtsx", filePath, summaryData, nil)
+	return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 }
 
 func handleExtractTasks(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
@@ -2879,16 +2395,16 @@ func handleAnalyzeLoggingConfiguration(_ context.Context, request mcp.CallToolRe
 
 	// Check if logging is configured at package level
 	if !strings.Contains(string(data), "LoggingOptions") {
-		report += "❌ No logging configuration found in this package.\n"
+		report += "âŒ No logging configuration found in this package.\n"
 		return mcp.NewToolResultText(report), nil
 	}
 
-	report += "✅ Logging is configured in this package.\n\n"
+	report += "âœ… Logging is configured in this package.\n\n"
 
 	// Extract log providers
 	logProvidersSection := extractSection(string(data), "<LogProviders>", "</LogProviders>")
 	if logProvidersSection != "" {
-		report += "📋 Log Providers:\n"
+		report += "ðŸ“‹ Log Providers:\n"
 		// Simple string extraction for log providers
 		if strings.Contains(logProvidersSection, `CreationName="Microsoft.LogProviderSQLServer"`) {
 			report += "  1. Type: SQL Server Log Provider\n"
@@ -2914,25 +2430,25 @@ func handleAnalyzeLoggingConfiguration(_ context.Context, request mcp.CallToolRe
 	// Extract package-level logging options
 	loggingOptionsSection := extractSection(string(data), "<LoggingOptions", "</LoggingOptions>")
 	if loggingOptionsSection != "" {
-		report += "⚙️ Package-Level Logging Settings:\n"
+		report += "âš™ï¸ Package-Level Logging Settings:\n"
 
 		// Extract logging mode
 		if strings.Contains(loggingOptionsSection, `LoggingMode="1"`) {
-			report += "  • Logging Mode: Enabled\n"
+			report += "  â€¢ Logging Mode: Enabled\n"
 		} else {
-			report += "  • Logging Mode: Disabled\n"
+			report += "  â€¢ Logging Mode: Disabled\n"
 		}
 
 		// Extract event filters
 		eventFilterMatch := regexp.MustCompile(`EventFilter">([^<]+)</`)
 		if matches := eventFilterMatch.FindStringSubmatch(loggingOptionsSection); len(matches) > 1 {
-			report += fmt.Sprintf("  • Events Logged: %s\n", matches[1])
+			report += fmt.Sprintf("  â€¢ Events Logged: %s\n", matches[1])
 		}
 
 		// Extract selected log providers
 		selectedProvidersMatch := regexp.MustCompile(`SelectedLogProvider[^}]*InstanceID="([^"]*)"`)
 		if matches := selectedProvidersMatch.FindAllStringSubmatch(loggingOptionsSection, -1); len(matches) > 0 {
-			report += "  • Selected Providers:\n"
+			report += "  â€¢ Selected Providers:\n"
 			for _, match := range matches {
 				if len(match) > 1 {
 					report += fmt.Sprintf("    - %s\n", match[1])
@@ -2946,23 +2462,23 @@ func handleAnalyzeLoggingConfiguration(_ context.Context, request mcp.CallToolRe
 	// Check for task-level logging overrides
 	taskLoggingCount := strings.Count(string(data), `<LoggingOptions`)
 	if taskLoggingCount > 1 {
-		report += "🔧 Task-Level Logging Overrides:\n"
-		report += fmt.Sprintf("  • %d tasks have custom logging settings\n", taskLoggingCount-1)
-		report += "  • Tasks inherit package-level logging unless explicitly overridden\n\n"
+		report += "ðŸ”§ Task-Level Logging Overrides:\n"
+		report += fmt.Sprintf("  â€¢ %d tasks have custom logging settings\n", taskLoggingCount-1)
+		report += "  â€¢ Tasks inherit package-level logging unless explicitly overridden\n\n"
 	}
 
 	// Provide recommendations
-	report += "💡 Recommendations:\n"
+	report += "ðŸ’¡ Recommendations:\n"
 	if strings.Contains(string(data), `LoggingMode="1"`) {
-		report += "  • ✅ Logging is properly enabled\n"
+		report += "  â€¢ âœ… Logging is properly enabled\n"
 		if strings.Contains(string(data), "OnError") {
-			report += "  • ✅ Error logging is configured\n"
+			report += "  â€¢ âœ… Error logging is configured\n"
 		}
 		if strings.Contains(string(data), "Microsoft.LogProviderSQLServer") {
-			report += "  • ✅ SQL Server logging provides good audit trail\n"
+			report += "  â€¢ âœ… SQL Server logging provides good audit trail\n"
 		}
 	} else {
-		report += "  • ⚠️ Consider enabling logging for better monitoring and troubleshooting\n"
+		report += "  â€¢ âš ï¸ Consider enabling logging for better monitoring and troubleshooting\n"
 	}
 
 	return mcp.NewToolResultText(report), nil
@@ -3149,7 +2665,7 @@ func handleAnalyzeDataFlow(_ context.Context, request mcp.CallToolRequest, packa
 				}
 			}
 
-			result.WriteString(fmt.Sprintf("  - %s: %s → %s\n", pathName, startID, endID))
+			result.WriteString(fmt.Sprintf("  - %s: %s â†’ %s\n", pathName, startID, endID))
 		}
 		result.WriteString("\n")
 	}
@@ -3267,7 +2783,7 @@ func handleAnalyzeDataFlowDetailed(_ context.Context, request mcp.CallToolReques
 			if len(paths) > 0 {
 				result.WriteString("\nData Paths:\n")
 				for _, path := range paths {
-					result.WriteString(fmt.Sprintf("  %s: %s → %s\n", path.Name, extractComponentName(path.StartID), extractComponentName(path.EndID)))
+					result.WriteString(fmt.Sprintf("  %s: %s â†’ %s\n", path.Name, extractComponentName(path.StartID), extractComponentName(path.EndID)))
 				}
 			}
 
@@ -5179,7 +4695,7 @@ func handleAnalyzeEventHandlers(_ context.Context, request mcp.CallToolRequest, 
 		if len(eh.PrecedenceConstraints.Constraints) > 0 {
 			result.WriteString(fmt.Sprintf("   Precedence Constraints (%d):\n", len(eh.PrecedenceConstraints.Constraints)))
 			for _, constraint := range eh.PrecedenceConstraints.Constraints {
-				result.WriteString(fmt.Sprintf("     - %s → %s", constraint.From, constraint.To))
+				result.WriteString(fmt.Sprintf("     - %s â†’ %s", constraint.From, constraint.To))
 				if constraint.Expression != "" {
 					resolvedExpr := resolveVariableExpressions(constraint.Expression, append(pkg.Variables.Vars, eh.Variables.Vars...), 10)
 					result.WriteString(fmt.Sprintf(" (Expression: %s)", resolvedExpr))
@@ -5297,12 +4813,12 @@ func handleAnalyzePackageDependencies(_ context.Context, request mcp.CallToolReq
 	result.WriteString(fmt.Sprintf("Package Dependency Analysis (%d packages scanned)\n\n", len(dtsxFiles)))
 
 	// Shared Connections
-	result.WriteString("🔗 Shared Connections:\n")
+	result.WriteString("ðŸ”— Shared Connections:\n")
 	sharedConnections := 0
 	for _, conn := range connections {
 		if len(conn.Packages) > 1 {
 			sharedConnections++
-			result.WriteString(fmt.Sprintf("• %s (used by %d packages):\n", conn.Name, len(conn.Packages)))
+			result.WriteString(fmt.Sprintf("â€¢ %s (used by %d packages):\n", conn.Name, len(conn.Packages)))
 			for _, pkg := range conn.Packages {
 				result.WriteString(fmt.Sprintf("  - %s\n", pkg))
 			}
@@ -5314,12 +4830,12 @@ func handleAnalyzePackageDependencies(_ context.Context, request mcp.CallToolReq
 	}
 
 	// Shared Variables
-	result.WriteString("📊 Shared Variables:\n")
+	result.WriteString("ðŸ“Š Shared Variables:\n")
 	sharedVariables := 0
 	for _, variable := range variables {
 		if len(variable.Packages) > 1 {
 			sharedVariables++
-			result.WriteString(fmt.Sprintf("• %s (used by %d packages):\n", variable.Name, len(variable.Packages)))
+			result.WriteString(fmt.Sprintf("â€¢ %s (used by %d packages):\n", variable.Name, len(variable.Packages)))
 			for _, pkg := range variable.Packages {
 				result.WriteString(fmt.Sprintf("  - %s\n", pkg))
 			}
@@ -5331,13 +4847,13 @@ func handleAnalyzePackageDependencies(_ context.Context, request mcp.CallToolReq
 	}
 
 	// Summary
-	result.WriteString("📈 Summary:\n")
-	result.WriteString(fmt.Sprintf("• Total packages analyzed: %d\n", len(dtsxFiles)))
-	result.WriteString(fmt.Sprintf("• Shared connections: %d\n", sharedConnections))
-	result.WriteString(fmt.Sprintf("• Shared variables: %d\n", sharedVariables))
+	result.WriteString("ðŸ“ˆ Summary:\n")
+	result.WriteString(fmt.Sprintf("â€¢ Total packages analyzed: %d\n", len(dtsxFiles)))
+	result.WriteString(fmt.Sprintf("â€¢ Shared connections: %d\n", sharedConnections))
+	result.WriteString(fmt.Sprintf("â€¢ Shared variables: %d\n", sharedVariables))
 
 	if sharedConnections > 0 || sharedVariables > 0 {
-		result.WriteString("\n💡 These shared resources indicate potential dependencies between packages.")
+		result.WriteString("\nðŸ’¡ These shared resources indicate potential dependencies between packages.")
 		result.WriteString("\n   Consider documenting these relationships for maintenance and deployment purposes.")
 	}
 
@@ -5371,7 +4887,7 @@ func handleAnalyzeConfigurations(_ context.Context, request mcp.CallToolRequest,
 
 	if len(pkg.Configurations.Configs) == 0 {
 		result.WriteString("No configurations found in this package.\n")
-		result.WriteString("\n💡 Note: Configurations were used in SSIS 2005-2008 for parameterization.")
+		result.WriteString("\nðŸ’¡ Note: Configurations were used in SSIS 2005-2008 for parameterization.")
 		result.WriteString(" Modern SSIS (2012+) uses Parameters instead.")
 		return mcp.NewToolResultText(result.String()), nil
 	}
@@ -5425,7 +4941,7 @@ func handleAnalyzeConfigurations(_ context.Context, request mcp.CallToolRequest,
 	}
 
 	// Summary and recommendations
-	result.WriteString("📋 Configuration Summary:\n")
+	result.WriteString("ðŸ“‹ Configuration Summary:\n")
 	xmlConfigs := 0
 	sqlConfigs := 0
 	envConfigs := 0
@@ -5442,20 +4958,20 @@ func handleAnalyzeConfigurations(_ context.Context, request mcp.CallToolRequest,
 	}
 
 	if xmlConfigs > 0 {
-		result.WriteString(fmt.Sprintf("• XML Configuration Files: %d\n", xmlConfigs))
+		result.WriteString(fmt.Sprintf("â€¢ XML Configuration Files: %d\n", xmlConfigs))
 	}
 	if sqlConfigs > 0 {
-		result.WriteString(fmt.Sprintf("• SQL Server Configurations: %d\n", sqlConfigs))
+		result.WriteString(fmt.Sprintf("â€¢ SQL Server Configurations: %d\n", sqlConfigs))
 	}
 	if envConfigs > 0 {
-		result.WriteString(fmt.Sprintf("• Environment Variable Configurations: %d\n", envConfigs))
+		result.WriteString(fmt.Sprintf("â€¢ Environment Variable Configurations: %d\n", envConfigs))
 	}
 
-	result.WriteString("\n💡 Recommendations:\n")
-	result.WriteString("• Consider migrating to SSIS 2012+ Parameters for better security and maintainability\n")
-	result.WriteString("• XML configurations should be stored in secure locations\n")
-	result.WriteString("• SQL Server configurations require appropriate database permissions\n")
-	result.WriteString("• Environment variables are machine-specific and may not work across environments\n")
+	result.WriteString("\nðŸ’¡ Recommendations:\n")
+	result.WriteString("â€¢ Consider migrating to SSIS 2012+ Parameters for better security and maintainability\n")
+	result.WriteString("â€¢ XML configurations should be stored in secure locations\n")
+	result.WriteString("â€¢ SQL Server configurations require appropriate database permissions\n")
+	result.WriteString("â€¢ Environment variables are machine-specific and may not work across environments\n")
 
 	return mcp.NewToolResultText(result.String()), nil
 }
@@ -5486,13 +5002,13 @@ func handleAnalyzePerformanceMetrics(_ context.Context, request mcp.CallToolRequ
 	result.WriteString("Performance Metrics Analysis:\n\n")
 
 	// Analyze package-level performance properties
-	result.WriteString("📦 Package-Level Performance Settings:\n")
+	result.WriteString("ðŸ“¦ Package-Level Performance Settings:\n")
 	packagePerfProps := extractPerformanceProperties(pkg.Properties, "package")
 	if len(packagePerfProps) > 0 {
 		for _, prop := range packagePerfProps {
-			result.WriteString(fmt.Sprintf("• %s: %s\n", prop.Name, prop.Value))
+			result.WriteString(fmt.Sprintf("â€¢ %s: %s\n", prop.Name, prop.Value))
 			if prop.Recommendation != "" {
-				result.WriteString(fmt.Sprintf("  💡 %s\n", prop.Recommendation))
+				result.WriteString(fmt.Sprintf("  ðŸ’¡ %s\n", prop.Recommendation))
 			}
 		}
 	} else {
@@ -5501,7 +5017,7 @@ func handleAnalyzePerformanceMetrics(_ context.Context, request mcp.CallToolRequ
 	result.WriteString("\n")
 
 	// Analyze data flow performance settings
-	result.WriteString("🔄 Data Flow Performance Analysis:\n")
+	result.WriteString("ðŸ”„ Data Flow Performance Analysis:\n")
 	dataFlowCount := 0
 
 	for _, task := range pkg.Executables.Tasks {
@@ -5514,9 +5030,9 @@ func handleAnalyzePerformanceMetrics(_ context.Context, request mcp.CallToolRequ
 			if len(taskPerfProps) > 0 {
 				result.WriteString("  Task Properties:\n")
 				for _, prop := range taskPerfProps {
-					result.WriteString(fmt.Sprintf("  • %s: %s\n", prop.Name, prop.Value))
+					result.WriteString(fmt.Sprintf("  â€¢ %s: %s\n", prop.Name, prop.Value))
 					if prop.Recommendation != "" {
-						result.WriteString(fmt.Sprintf("    💡 %s\n", prop.Recommendation))
+						result.WriteString(fmt.Sprintf("    ðŸ’¡ %s\n", prop.Recommendation))
 					}
 				}
 			}
@@ -5527,11 +5043,11 @@ func handleAnalyzePerformanceMetrics(_ context.Context, request mcp.CallToolRequ
 				for _, comp := range task.ObjectData.DataFlow.Components.Components {
 					compPerfProps := extractComponentPerformanceProperties(comp)
 					if len(compPerfProps) > 0 {
-						result.WriteString(fmt.Sprintf("    • %s (%s):\n", comp.Name, getComponentType(comp.ComponentClassID)))
+						result.WriteString(fmt.Sprintf("    â€¢ %s (%s):\n", comp.Name, getComponentType(comp.ComponentClassID)))
 						for _, prop := range compPerfProps {
 							result.WriteString(fmt.Sprintf("      - %s: %s\n", prop.Name, prop.Value))
 							if prop.Recommendation != "" {
-								result.WriteString(fmt.Sprintf("        💡 %s\n", prop.Recommendation))
+								result.WriteString(fmt.Sprintf("        ðŸ’¡ %s\n", prop.Recommendation))
 							}
 						}
 					}
@@ -5546,13 +5062,13 @@ func handleAnalyzePerformanceMetrics(_ context.Context, request mcp.CallToolRequ
 	}
 
 	// Performance recommendations
-	result.WriteString("🚀 Performance Optimization Recommendations:\n")
-	result.WriteString("• Increase DefaultBufferSize if processing large datasets (recommended: 10MB+)\n")
-	result.WriteString("• Adjust DefaultBufferMaxRows based on row size (recommended: 10,000-100,000)\n")
-	result.WriteString("• Increase EngineThreads for parallel processing (recommended: 2-4 per CPU core)\n")
-	result.WriteString("• Use BLOBTempStoragePath and BufferTempStoragePath for large datasets\n")
-	result.WriteString("• Consider MaxConcurrentExecutables for parallel task execution\n")
-	result.WriteString("• Monitor AutoAdjustBufferSize for optimal memory usage\n")
+	result.WriteString("ðŸš€ Performance Optimization Recommendations:\n")
+	result.WriteString("â€¢ Increase DefaultBufferSize if processing large datasets (recommended: 10MB+)\n")
+	result.WriteString("â€¢ Adjust DefaultBufferMaxRows based on row size (recommended: 10,000-100,000)\n")
+	result.WriteString("â€¢ Increase EngineThreads for parallel processing (recommended: 2-4 per CPU core)\n")
+	result.WriteString("â€¢ Use BLOBTempStoragePath and BufferTempStoragePath for large datasets\n")
+	result.WriteString("â€¢ Consider MaxConcurrentExecutables for parallel task execution\n")
+	result.WriteString("â€¢ Monitor AutoAdjustBufferSize for optimal memory usage\n")
 
 	return mcp.NewToolResultText(result.String()), nil
 }
@@ -5580,17 +5096,17 @@ func handleDetectSecurityIssues(_ context.Context, request mcp.CallToolRequest, 
 	}
 
 	var result strings.Builder
-	result.WriteString("🔒 Security Issues Analysis:\n\n")
+	result.WriteString("ðŸ”’ Security Issues Analysis:\n\n")
 
 	issuesFound := false
 
 	// Check connection managers for hardcoded credentials
-	result.WriteString("🔗 Connection Managers:\n")
+	result.WriteString("ðŸ”— Connection Managers:\n")
 	connIssues := analyzeConnectionSecurity(pkg.ConnectionMgr.Connections)
 	if len(connIssues) > 0 {
 		issuesFound = true
 		for _, issue := range connIssues {
-			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 		}
 	} else {
 		result.WriteString("No security issues found in connection managers.\n")
@@ -5598,12 +5114,12 @@ func handleDetectSecurityIssues(_ context.Context, request mcp.CallToolRequest, 
 	result.WriteString("\n")
 
 	// Check variables for sensitive data
-	result.WriteString("📊 Variables:\n")
+	result.WriteString("ðŸ“Š Variables:\n")
 	varIssues := analyzeVariableSecurity(pkg.Variables.Vars)
 	if len(varIssues) > 0 {
 		issuesFound = true
 		for _, issue := range varIssues {
-			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 		}
 	} else {
 		result.WriteString("No security issues found in variables.\n")
@@ -5611,12 +5127,12 @@ func handleDetectSecurityIssues(_ context.Context, request mcp.CallToolRequest, 
 	result.WriteString("\n")
 
 	// Check script tasks for hardcoded credentials
-	result.WriteString("📜 Script Tasks:\n")
+	result.WriteString("ðŸ“œ Script Tasks:\n")
 	scriptIssues := analyzeScriptSecurity(pkg.Executables.Tasks)
 	if len(scriptIssues) > 0 {
 		issuesFound = true
 		for _, issue := range scriptIssues {
-			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 		}
 	} else {
 		result.WriteString("No security issues found in script tasks.\n")
@@ -5624,12 +5140,12 @@ func handleDetectSecurityIssues(_ context.Context, request mcp.CallToolRequest, 
 	result.WriteString("\n")
 
 	// Check expressions for sensitive data
-	result.WriteString("🔍 Expressions:\n")
+	result.WriteString("ðŸ” Expressions:\n")
 	exprIssues := analyzeExpressionSecurity(pkg.Executables.Tasks, pkg.Variables.Vars)
 	if len(exprIssues) > 0 {
 		issuesFound = true
 		for _, issue := range exprIssues {
-			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 		}
 	} else {
 		result.WriteString("No security issues found in expressions.\n")
@@ -5637,18 +5153,18 @@ func handleDetectSecurityIssues(_ context.Context, request mcp.CallToolRequest, 
 	result.WriteString("\n")
 
 	if !issuesFound {
-		result.WriteString("✅ No security issues detected in this package.\n\n")
-		result.WriteString("💡 Security Best Practices:\n")
-		result.WriteString("• Use package parameters or environment variables for credentials\n")
-		result.WriteString("• Avoid hardcoded passwords in connection strings\n")
-		result.WriteString("• Use SSIS package protection levels for sensitive data\n")
-		result.WriteString("• Consider using Azure Key Vault or similar for credential management\n")
+		result.WriteString("âœ… No security issues detected in this package.\n\n")
+		result.WriteString("ðŸ’¡ Security Best Practices:\n")
+		result.WriteString("â€¢ Use package parameters or environment variables for credentials\n")
+		result.WriteString("â€¢ Avoid hardcoded passwords in connection strings\n")
+		result.WriteString("â€¢ Use SSIS package protection levels for sensitive data\n")
+		result.WriteString("â€¢ Consider using Azure Key Vault or similar for credential management\n")
 	} else {
-		result.WriteString("🚨 Security Recommendations:\n")
-		result.WriteString("• Replace hardcoded credentials with parameters or expressions\n")
-		result.WriteString("• Use SSIS package configurations for sensitive connection properties\n")
-		result.WriteString("• Implement proper package protection and encryption\n")
-		result.WriteString("• Review and audit access to sensitive data\n")
+		result.WriteString("ðŸš¨ Security Recommendations:\n")
+		result.WriteString("â€¢ Replace hardcoded credentials with parameters or expressions\n")
+		result.WriteString("â€¢ Use SSIS package configurations for sensitive connection properties\n")
+		result.WriteString("â€¢ Implement proper package protection and encryption\n")
+		result.WriteString("â€¢ Review and audit access to sensitive data\n")
 	}
 
 	return mcp.NewToolResultText(result.String()), nil
@@ -5691,40 +5207,40 @@ func handleComparePackages(_ context.Context, request mcp.CallToolRequest, packa
 	}
 
 	var result strings.Builder
-	result.WriteString("📊 Package Comparison Report\n\n")
+	result.WriteString("ðŸ“Š Package Comparison Report\n\n")
 	result.WriteString(fmt.Sprintf("File 1: %s\n", filepath.Base(resolvedPath1)))
 	result.WriteString(fmt.Sprintf("File 2: %s\n\n", filepath.Base(resolvedPath2)))
 
 	// Compare package properties
-	result.WriteString("📋 Package Properties:\n")
+	result.WriteString("ðŸ“‹ Package Properties:\n")
 	compareProperties(pkg1.Properties, pkg2.Properties, &result)
 
 	// Compare connections
-	result.WriteString("\n🔗 Connection Managers:\n")
+	result.WriteString("\nðŸ”— Connection Managers:\n")
 	compareConnections(pkg1.ConnectionMgr.Connections, pkg2.ConnectionMgr.Connections, &result)
 
 	// Compare variables
-	result.WriteString("\n📊 Variables:\n")
+	result.WriteString("\nðŸ“Š Variables:\n")
 	compareVariables(pkg1.Variables.Vars, pkg2.Variables.Vars, &result)
 
 	// Compare parameters
-	result.WriteString("\n⚙️ Parameters:\n")
+	result.WriteString("\nâš™ï¸ Parameters:\n")
 	compareParameters(pkg1.Parameters.Params, pkg2.Parameters.Params, &result)
 
 	// Compare configurations
-	result.WriteString("\n🔧 Configurations:\n")
+	result.WriteString("\nðŸ”§ Configurations:\n")
 	compareConfigurations(pkg1.Configurations.Configs, pkg2.Configurations.Configs, &result)
 
 	// Compare tasks
-	result.WriteString("\n🎯 Tasks:\n")
+	result.WriteString("\nðŸŽ¯ Tasks:\n")
 	compareTasks(pkg1.Executables.Tasks, pkg2.Executables.Tasks, &result)
 
 	// Compare event handlers
-	result.WriteString("\n🚨 Event Handlers:\n")
+	result.WriteString("\nðŸš¨ Event Handlers:\n")
 	compareEventHandlers(pkg1.EventHandlers.EventHandlers, pkg2.EventHandlers.EventHandlers, &result)
 
 	// Compare precedence constraints
-	result.WriteString("\n🔀 Precedence Constraints:\n")
+	result.WriteString("\nðŸ”€ Precedence Constraints:\n")
 	comparePrecedenceConstraints(pkg1.PrecedenceConstraints.Constraints, pkg2.PrecedenceConstraints.Constraints, &result)
 
 	return mcp.NewToolResultText(result.String()), nil
@@ -5753,49 +5269,49 @@ func handleAnalyzeCodeQuality(_ context.Context, request mcp.CallToolRequest, pa
 	}
 
 	var result strings.Builder
-	result.WriteString("📊 Code Quality Metrics Analysis\n\n")
+	result.WriteString("ðŸ“Š Code Quality Metrics Analysis\n\n")
 	result.WriteString(fmt.Sprintf("Package: %s\n\n", filepath.Base(resolvedPath)))
 
 	// Structural Complexity Metrics
-	result.WriteString("🏗️ Structural Complexity:\n")
+	result.WriteString("ðŸ—ï¸ Structural Complexity:\n")
 	structuralScore := calculateStructuralComplexity(pkg)
-	result.WriteString(fmt.Sprintf("• Package Size Score: %d/10 (Tasks: %d, Connections: %d, Variables: %d)\n",
+	result.WriteString(fmt.Sprintf("â€¢ Package Size Score: %d/10 (Tasks: %d, Connections: %d, Variables: %d)\n",
 		structuralScore, len(pkg.Executables.Tasks), len(pkg.ConnectionMgr.Connections), len(pkg.Variables.Vars)))
-	result.WriteString(fmt.Sprintf("• Control Flow Complexity: %d/10 (Precedence Constraints: %d)\n",
+	result.WriteString(fmt.Sprintf("â€¢ Control Flow Complexity: %d/10 (Precedence Constraints: %d)\n",
 		calculateControlFlowComplexity(pkg), len(pkg.PrecedenceConstraints.Constraints)))
 
 	// Script Complexity Metrics
-	result.WriteString("\n📜 Script Complexity:\n")
+	result.WriteString("\nðŸ“œ Script Complexity:\n")
 	scriptMetrics := analyzeScriptComplexity(pkg.Executables.Tasks)
-	result.WriteString(fmt.Sprintf("• Script Tasks: %d\n", scriptMetrics.ScriptTaskCount))
-	result.WriteString(fmt.Sprintf("• Total Script Lines: %d\n", scriptMetrics.TotalLines))
-	result.WriteString(fmt.Sprintf("• Average Script Complexity: %.1f/10\n", scriptMetrics.AverageComplexity))
+	result.WriteString(fmt.Sprintf("â€¢ Script Tasks: %d\n", scriptMetrics.ScriptTaskCount))
+	result.WriteString(fmt.Sprintf("â€¢ Total Script Lines: %d\n", scriptMetrics.TotalLines))
+	result.WriteString(fmt.Sprintf("â€¢ Average Script Complexity: %.1f/10\n", scriptMetrics.AverageComplexity))
 	if scriptMetrics.ScriptTaskCount > 0 {
-		result.WriteString(fmt.Sprintf("• Script Quality Score: %d/10\n", scriptMetrics.QualityScore))
+		result.WriteString(fmt.Sprintf("â€¢ Script Quality Score: %d/10\n", scriptMetrics.QualityScore))
 	}
 
 	// Expression Complexity Metrics
-	result.WriteString("\n🔍 Expression Complexity:\n")
+	result.WriteString("\nðŸ” Expression Complexity:\n")
 	expressionMetrics := analyzeExpressionComplexity(pkg)
-	result.WriteString(fmt.Sprintf("• Total Expressions: %d\n", expressionMetrics.TotalExpressions))
-	result.WriteString(fmt.Sprintf("• Average Expression Length: %.1f characters\n", expressionMetrics.AverageLength))
-	result.WriteString(fmt.Sprintf("• Expression Complexity Score: %d/10\n", expressionMetrics.ComplexityScore))
+	result.WriteString(fmt.Sprintf("â€¢ Total Expressions: %d\n", expressionMetrics.TotalExpressions))
+	result.WriteString(fmt.Sprintf("â€¢ Average Expression Length: %.1f characters\n", expressionMetrics.AverageLength))
+	result.WriteString(fmt.Sprintf("â€¢ Expression Complexity Score: %d/10\n", expressionMetrics.ComplexityScore))
 
 	// Variable Usage Metrics
-	result.WriteString("\n📊 Variable Usage:\n")
+	result.WriteString("\nðŸ“Š Variable Usage:\n")
 	variableMetrics := analyzeVariableUsage(pkg)
-	result.WriteString(fmt.Sprintf("• Total Variables: %d\n", variableMetrics.TotalVariables))
-	result.WriteString(fmt.Sprintf("• Variables with Expressions: %d\n", variableMetrics.ExpressionsCount))
-	result.WriteString(fmt.Sprintf("• Variable Usage Score: %d/10\n", variableMetrics.UsageScore))
+	result.WriteString(fmt.Sprintf("â€¢ Total Variables: %d\n", variableMetrics.TotalVariables))
+	result.WriteString(fmt.Sprintf("â€¢ Variables with Expressions: %d\n", variableMetrics.ExpressionsCount))
+	result.WriteString(fmt.Sprintf("â€¢ Variable Usage Score: %d/10\n", variableMetrics.UsageScore))
 
 	// Overall Maintainability Score
-	result.WriteString("\n🎯 Overall Maintainability Score:\n")
+	result.WriteString("\nðŸŽ¯ Overall Maintainability Score:\n")
 	overallScore := calculateOverallScore(structuralScore, scriptMetrics.QualityScore, expressionMetrics.ComplexityScore, variableMetrics.UsageScore)
-	result.WriteString(fmt.Sprintf("• Composite Score: %d/10\n", overallScore))
-	result.WriteString(fmt.Sprintf("• Rating: %s\n", getMaintainabilityRating(overallScore)))
+	result.WriteString(fmt.Sprintf("â€¢ Composite Score: %d/10\n", overallScore))
+	result.WriteString(fmt.Sprintf("â€¢ Rating: %s\n", getMaintainabilityRating(overallScore)))
 
 	// Recommendations
-	result.WriteString("\n💡 Recommendations:\n")
+	result.WriteString("\nðŸ’¡ Recommendations:\n")
 	addQualityRecommendations(&result, overallScore, structuralScore, scriptMetrics, expressionMetrics, variableMetrics)
 
 	return mcp.NewToolResultText(result.String()), nil
@@ -5816,31 +5332,31 @@ func handleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageD
 	}
 
 	var result strings.Builder
-	result.WriteString("📄 Text File Analysis\n\n")
+	result.WriteString("ðŸ“„ Text File Analysis\n\n")
 	result.WriteString(fmt.Sprintf("File: %s\n", filepath.Base(resolvedPath)))
 	result.WriteString(fmt.Sprintf("Path: %s\n\n", resolvedPath))
 
 	content := string(data)
 	lines := strings.Split(content, "\n")
-	result.WriteString("📊 File Statistics:\n")
-	result.WriteString(fmt.Sprintf("• Total Lines: %d\n", len(lines)))
-	result.WriteString(fmt.Sprintf("• Total Characters: %d\n", len(content)))
-	result.WriteString(fmt.Sprintf("• File Size: %d bytes\n\n", len(data)))
+	result.WriteString("ðŸ“Š File Statistics:\n")
+	result.WriteString(fmt.Sprintf("â€¢ Total Lines: %d\n", len(lines)))
+	result.WriteString(fmt.Sprintf("â€¢ Total Characters: %d\n", len(content)))
+	result.WriteString(fmt.Sprintf("â€¢ File Size: %d bytes\n\n", len(data)))
 
 	// Detect file type and parse accordingly
 	ext := strings.ToLower(filepath.Ext(resolvedPath))
 	switch ext {
 	case ".bat", ".cmd":
-		result.WriteString("🔧 Batch File Analysis:\n")
+		result.WriteString("ðŸ”§ Batch File Analysis:\n")
 		analyzeBatchFile(content, &result)
 	case ".config", ".cfg":
-		result.WriteString("⚙️ Configuration File Analysis:\n")
+		result.WriteString("âš™ï¸ Configuration File Analysis:\n")
 		analyzeConfigFile(content, &result)
 	case ".sql":
-		result.WriteString("🗄️ SQL File Analysis:\n")
+		result.WriteString("ðŸ—„ï¸ SQL File Analysis:\n")
 		analyzeSQLFile(content, &result)
 	default:
-		result.WriteString("📝 Text File Content:\n")
+		result.WriteString("ðŸ“ Text File Content:\n")
 		analyzeGenericTextFile(content, &result)
 	}
 
@@ -5869,7 +5385,7 @@ func analyzeBatchFile(content string, result *strings.Builder) {
 		}
 	}
 
-	result.WriteString(fmt.Sprintf("• Variables Set: %d\n", len(variables)))
+	result.WriteString(fmt.Sprintf("â€¢ Variables Set: %d\n", len(variables)))
 	if len(variables) > 0 {
 		result.WriteString("  Variables:\n")
 		for _, v := range variables {
@@ -5877,7 +5393,7 @@ func analyzeBatchFile(content string, result *strings.Builder) {
 		}
 	}
 
-	result.WriteString(fmt.Sprintf("• Function Calls: %d\n", len(calls)))
+	result.WriteString(fmt.Sprintf("â€¢ Function Calls: %d\n", len(calls)))
 	if len(calls) > 0 {
 		result.WriteString("  Calls:\n")
 		for _, c := range calls {
@@ -5885,7 +5401,7 @@ func analyzeBatchFile(content string, result *strings.Builder) {
 		}
 	}
 
-	result.WriteString(fmt.Sprintf("• Executable Commands: %d\n", len(commands)))
+	result.WriteString(fmt.Sprintf("â€¢ Executable Commands: %d\n", len(commands)))
 	if len(commands) > 0 {
 		result.WriteString("  Commands:\n")
 		for i, c := range commands {
@@ -5927,7 +5443,7 @@ func analyzeConfigFile(content string, result *strings.Builder) {
 		}
 	}
 
-	result.WriteString(fmt.Sprintf("• Configuration Sections: %d\n", len(sections)))
+	result.WriteString(fmt.Sprintf("â€¢ Configuration Sections: %d\n", len(sections)))
 	if len(sections) > 0 {
 		result.WriteString("  Sections:\n")
 		for _, s := range sections {
@@ -5935,7 +5451,7 @@ func analyzeConfigFile(content string, result *strings.Builder) {
 		}
 	}
 
-	result.WriteString(fmt.Sprintf("• Key-Value Pairs: %d\n", len(keyValues)))
+	result.WriteString(fmt.Sprintf("â€¢ Key-Value Pairs: %d\n", len(keyValues)))
 	if len(keyValues) > 0 {
 		result.WriteString("  Settings:\n")
 		for i, kv := range keyValues {
@@ -5958,7 +5474,7 @@ func analyzeSQLFile(content string, result *strings.Builder) {
 	deleteCount := strings.Count(upperContent, "DELETE ")
 	createCount := strings.Count(upperContent, "CREATE ")
 
-	result.WriteString("• SQL Statement Counts:\n")
+	result.WriteString("â€¢ SQL Statement Counts:\n")
 	result.WriteString(fmt.Sprintf("  - SELECT statements: %d\n", selectCount))
 	result.WriteString(fmt.Sprintf("  - INSERT statements: %d\n", insertCount))
 	result.WriteString(fmt.Sprintf("  - UPDATE statements: %d\n", updateCount))
@@ -5967,11 +5483,11 @@ func analyzeSQLFile(content string, result *strings.Builder) {
 
 	// Check for potential SSIS-related patterns
 	if strings.Contains(upperContent, "EXECUTE") || strings.Contains(upperContent, "SP_") {
-		result.WriteString("• Contains stored procedure calls\n")
+		result.WriteString("â€¢ Contains stored procedure calls\n")
 	}
 
 	if strings.Contains(upperContent, "BULK INSERT") {
-		result.WriteString("• Contains bulk operations\n")
+		result.WriteString("â€¢ Contains bulk operations\n")
 	}
 }
 
@@ -5989,12 +5505,12 @@ func analyzeGenericTextFile(content string, result *strings.Builder) {
 		}
 	}
 
-	result.WriteString(fmt.Sprintf("• Non-empty Lines: %d\n", nonEmptyLines))
-	result.WriteString(fmt.Sprintf("• Total Words: %d\n", totalWords))
-	result.WriteString(fmt.Sprintf("• Average Words per Line: %.1f\n\n", float64(totalWords)/float64(nonEmptyLines)))
+	result.WriteString(fmt.Sprintf("â€¢ Non-empty Lines: %d\n", nonEmptyLines))
+	result.WriteString(fmt.Sprintf("â€¢ Total Words: %d\n", totalWords))
+	result.WriteString(fmt.Sprintf("â€¢ Average Words per Line: %.1f\n\n", float64(totalWords)/float64(nonEmptyLines)))
 
 	// Show first 20 lines
-	result.WriteString("📄 Content Preview (first 20 lines):\n")
+	result.WriteString("ðŸ“„ Content Preview (first 20 lines):\n")
 	for i, line := range lines {
 		if i >= 20 {
 			if len(lines) > 20 {
@@ -6207,34 +5723,34 @@ func getMaintainabilityRating(score int) string {
 
 func addQualityRecommendations(result *strings.Builder, overallScore int, structuralScore int, scriptMetrics ScriptComplexityMetrics, expressionMetrics ExpressionComplexityMetrics, variableMetrics VariableUsageMetrics) {
 	if overallScore < 5 {
-		result.WriteString("• Consider breaking down large packages into smaller, focused packages\n")
-		result.WriteString("• Review and simplify complex expressions\n")
-		result.WriteString("• Refactor overly complex script tasks\n")
-		result.WriteString("• Implement proper error handling and logging\n")
+		result.WriteString("â€¢ Consider breaking down large packages into smaller, focused packages\n")
+		result.WriteString("â€¢ Review and simplify complex expressions\n")
+		result.WriteString("â€¢ Refactor overly complex script tasks\n")
+		result.WriteString("â€¢ Implement proper error handling and logging\n")
 	} else if overallScore < 7 {
-		result.WriteString("• Consider using more expressions for dynamic configuration\n")
-		result.WriteString("• Review script task complexity and consider alternatives\n")
-		result.WriteString("• Document complex expressions and logic\n")
+		result.WriteString("â€¢ Consider using more expressions for dynamic configuration\n")
+		result.WriteString("â€¢ Review script task complexity and consider alternatives\n")
+		result.WriteString("â€¢ Document complex expressions and logic\n")
 	} else {
-		result.WriteString("• Package quality is good - continue best practices\n")
-		result.WriteString("• Consider adding more comprehensive error handling\n")
-		result.WriteString("• Regular code reviews recommended\n")
+		result.WriteString("â€¢ Package quality is good - continue best practices\n")
+		result.WriteString("â€¢ Consider adding more comprehensive error handling\n")
+		result.WriteString("â€¢ Regular code reviews recommended\n")
 	}
 
 	if structuralScore < 5 {
-		result.WriteString("• Package is very large - consider splitting into multiple packages\n")
+		result.WriteString("â€¢ Package is very large - consider splitting into multiple packages\n")
 	}
 
 	if scriptMetrics.QualityScore < 5 {
-		result.WriteString("• Script tasks are complex - consider using built-in SSIS components instead\n")
+		result.WriteString("â€¢ Script tasks are complex - consider using built-in SSIS components instead\n")
 	}
 
 	if expressionMetrics.ComplexityScore < 5 {
-		result.WriteString("• Expressions are very complex - consider using variables or script tasks\n")
+		result.WriteString("â€¢ Expressions are very complex - consider using variables or script tasks\n")
 	}
 
 	if variableMetrics.UsageScore < 5 {
-		result.WriteString("• Limited use of expressions - consider parameterizing more values\n")
+		result.WriteString("â€¢ Limited use of expressions - consider parameterizing more values\n")
 	}
 }
 
@@ -6252,28 +5768,28 @@ func compareProperties(props1, props2 []Property, result *strings.Builder) {
 	// Added properties
 	for name, value := range propMap2 {
 		if _, exists := propMap1[name]; !exists {
-			result.WriteString(fmt.Sprintf("  ➕ Added: %s = %s\n", name, value))
+			result.WriteString(fmt.Sprintf("  âž• Added: %s = %s\n", name, value))
 		}
 	}
 
 	// Removed properties
 	for name, value := range propMap1 {
 		if _, exists := propMap2[name]; !exists {
-			result.WriteString(fmt.Sprintf("  ➖ Removed: %s = %s\n", name, value))
+			result.WriteString(fmt.Sprintf("  âž– Removed: %s = %s\n", name, value))
 		}
 	}
 
 	// Modified properties
 	for name, value1 := range propMap1 {
 		if value2, exists := propMap2[name]; exists && value1 != value2 {
-			result.WriteString(fmt.Sprintf("  ✏️ Modified: %s\n", name))
+			result.WriteString(fmt.Sprintf("  âœï¸ Modified: %s\n", name))
 			result.WriteString(fmt.Sprintf("    File 1: %s\n", value1))
 			result.WriteString(fmt.Sprintf("    File 2: %s\n", value2))
 		}
 	}
 
 	if len(propMap1) == len(propMap2) && len(propMap1) > 0 {
-		result.WriteString("  ✅ No differences found\n")
+		result.WriteString("  âœ… No differences found\n")
 	}
 }
 
@@ -6291,14 +5807,14 @@ func compareConnections(conns1, conns2 []Connection, result *strings.Builder) {
 	// Added connections
 	for name := range connMap2 {
 		if _, exists := connMap1[name]; !exists {
-			result.WriteString(fmt.Sprintf("  ➕ Added: %s\n", name))
+			result.WriteString(fmt.Sprintf("  âž• Added: %s\n", name))
 		}
 	}
 
 	// Removed connections
 	for name := range connMap1 {
 		if _, exists := connMap2[name]; !exists {
-			result.WriteString(fmt.Sprintf("  ➖ Removed: %s\n", name))
+			result.WriteString(fmt.Sprintf("  âž– Removed: %s\n", name))
 		}
 	}
 
@@ -6314,7 +5830,7 @@ func compareConnections(conns1, conns2 []Connection, result *strings.Builder) {
 				connStr2 = conn2.ObjectData.MsmqConnMgr.ConnectionString
 			}
 			if connStr1 != connStr2 {
-				result.WriteString(fmt.Sprintf("  ✏️ Modified: %s\n", name))
+				result.WriteString(fmt.Sprintf("  âœï¸ Modified: %s\n", name))
 				result.WriteString(fmt.Sprintf("    File 1: %s\n", connStr1))
 				result.WriteString(fmt.Sprintf("    File 2: %s\n", connStr2))
 			}
@@ -6322,7 +5838,7 @@ func compareConnections(conns1, conns2 []Connection, result *strings.Builder) {
 	}
 
 	if len(conns1) == len(conns2) && len(conns1) > 0 {
-		result.WriteString("  ✅ No differences found\n")
+		result.WriteString("  âœ… No differences found\n")
 	}
 }
 
@@ -6340,14 +5856,14 @@ func compareVariables(vars1, vars2 []Variable, result *strings.Builder) {
 	// Added variables
 	for name := range varMap2 {
 		if _, exists := varMap1[name]; !exists {
-			result.WriteString(fmt.Sprintf("  ➕ Added: %s\n", name))
+			result.WriteString(fmt.Sprintf("  âž• Added: %s\n", name))
 		}
 	}
 
 	// Removed variables
 	for name := range varMap1 {
 		if _, exists := varMap2[name]; !exists {
-			result.WriteString(fmt.Sprintf("  ➖ Removed: %s\n", name))
+			result.WriteString(fmt.Sprintf("  âž– Removed: %s\n", name))
 		}
 	}
 
@@ -6355,7 +5871,7 @@ func compareVariables(vars1, vars2 []Variable, result *strings.Builder) {
 	for name, var1 := range varMap1 {
 		if var2, exists := varMap2[name]; exists {
 			if var1.Value != var2.Value || var1.Expression != var2.Expression {
-				result.WriteString(fmt.Sprintf("  ✏️ Modified: %s\n", name))
+				result.WriteString(fmt.Sprintf("  âœï¸ Modified: %s\n", name))
 				result.WriteString(fmt.Sprintf("    File 1: Value='%s', Expression='%s'\n", var1.Value, var1.Expression))
 				result.WriteString(fmt.Sprintf("    File 2: Value='%s', Expression='%s'\n", var2.Value, var2.Expression))
 			}
@@ -6363,7 +5879,7 @@ func compareVariables(vars1, vars2 []Variable, result *strings.Builder) {
 	}
 
 	if len(vars1) == len(vars2) && len(vars1) > 0 {
-		result.WriteString("  ✅ No differences found\n")
+		result.WriteString("  âœ… No differences found\n")
 	}
 }
 
@@ -6381,14 +5897,14 @@ func compareParameters(params1, params2 []Parameter, result *strings.Builder) {
 	// Added parameters
 	for name := range paramMap2 {
 		if _, exists := paramMap1[name]; !exists {
-			result.WriteString(fmt.Sprintf("  ➕ Added: %s\n", name))
+			result.WriteString(fmt.Sprintf("  âž• Added: %s\n", name))
 		}
 	}
 
 	// Removed parameters
 	for name := range paramMap1 {
 		if _, exists := paramMap2[name]; !exists {
-			result.WriteString(fmt.Sprintf("  ➖ Removed: %s\n", name))
+			result.WriteString(fmt.Sprintf("  âž– Removed: %s\n", name))
 		}
 	}
 
@@ -6396,7 +5912,7 @@ func compareParameters(params1, params2 []Parameter, result *strings.Builder) {
 	for name, param1 := range paramMap1 {
 		if param2, exists := paramMap2[name]; exists {
 			if param1.DataType != param2.DataType || param1.Value != param2.Value {
-				result.WriteString(fmt.Sprintf("  ✏️ Modified: %s\n", name))
+				result.WriteString(fmt.Sprintf("  âœï¸ Modified: %s\n", name))
 				result.WriteString(fmt.Sprintf("    File 1: Type='%s', Value='%s'\n", param1.DataType, param1.Value))
 				result.WriteString(fmt.Sprintf("    File 2: Type='%s', Value='%s'\n", param2.DataType, param2.Value))
 			}
@@ -6404,15 +5920,15 @@ func compareParameters(params1, params2 []Parameter, result *strings.Builder) {
 	}
 
 	if len(params1) == len(params2) && len(params1) > 0 {
-		result.WriteString("  ✅ No differences found\n")
+		result.WriteString("  âœ… No differences found\n")
 	}
 }
 
 func compareConfigurations(configs1, configs2 []Configuration, result *strings.Builder) {
 	if len(configs1) != len(configs2) {
-		result.WriteString(fmt.Sprintf("  📊 Count changed: %d → %d\n", len(configs1), len(configs2)))
+		result.WriteString(fmt.Sprintf("  ðŸ“Š Count changed: %d â†’ %d\n", len(configs1), len(configs2)))
 	} else if len(configs1) > 0 {
-		result.WriteString("  ✅ No differences found\n")
+		result.WriteString("  âœ… No differences found\n")
 	}
 }
 
@@ -6430,14 +5946,14 @@ func compareTasks(tasks1, tasks2 []Task, result *strings.Builder) {
 	// Added tasks
 	for name := range taskMap2 {
 		if _, exists := taskMap1[name]; !exists {
-			result.WriteString(fmt.Sprintf("  ➕ Added: %s\n", name))
+			result.WriteString(fmt.Sprintf("  âž• Added: %s\n", name))
 		}
 	}
 
 	// Removed tasks
 	for name := range taskMap1 {
 		if _, exists := taskMap2[name]; !exists {
-			result.WriteString(fmt.Sprintf("  ➖ Removed: %s\n", name))
+			result.WriteString(fmt.Sprintf("  âž– Removed: %s\n", name))
 		}
 	}
 
@@ -6445,29 +5961,29 @@ func compareTasks(tasks1, tasks2 []Task, result *strings.Builder) {
 	for name, task1 := range taskMap1 {
 		if task2, exists := taskMap2[name]; exists {
 			if len(task1.Properties) != len(task2.Properties) {
-				result.WriteString(fmt.Sprintf("  ✏️ Modified: %s (property count changed: %d → %d)\n", name, len(task1.Properties), len(task2.Properties)))
+				result.WriteString(fmt.Sprintf("  âœï¸ Modified: %s (property count changed: %d â†’ %d)\n", name, len(task1.Properties), len(task2.Properties)))
 			}
 		}
 	}
 
 	if len(tasks1) == len(tasks2) && len(tasks1) > 0 {
-		result.WriteString("  ✅ No differences found\n")
+		result.WriteString("  âœ… No differences found\n")
 	}
 }
 
 func compareEventHandlers(handlers1, handlers2 []EventHandler, result *strings.Builder) {
 	if len(handlers1) != len(handlers2) {
-		result.WriteString(fmt.Sprintf("  📊 Count changed: %d → %d\n", len(handlers1), len(handlers2)))
+		result.WriteString(fmt.Sprintf("  ðŸ“Š Count changed: %d â†’ %d\n", len(handlers1), len(handlers2)))
 	} else if len(handlers1) > 0 {
-		result.WriteString("  ✅ No differences found\n")
+		result.WriteString("  âœ… No differences found\n")
 	}
 }
 
 func comparePrecedenceConstraints(constraints1, constraints2 []PrecedenceConstraint, result *strings.Builder) {
 	if len(constraints1) != len(constraints2) {
-		result.WriteString(fmt.Sprintf("  📊 Count changed: %d → %d\n", len(constraints1), len(constraints2)))
+		result.WriteString(fmt.Sprintf("  ðŸ“Š Count changed: %d â†’ %d\n", len(constraints1), len(constraints2)))
 	} else if len(constraints1) > 0 {
-		result.WriteString("  ✅ No differences found\n")
+		result.WriteString("  âœ… No differences found\n")
 	}
 }
 
@@ -7432,7 +6948,7 @@ func handleScanCredentials(_ context.Context, request mcp.CallToolRequest, packa
 	}
 
 	var result strings.Builder
-	result.WriteString("🔍 Advanced Credential Scanning Report:\n\n")
+	result.WriteString("ðŸ” Advanced Credential Scanning Report:\n\n")
 
 	issuesFound := false
 
@@ -7470,12 +6986,12 @@ func handleScanCredentials(_ context.Context, request mcp.CallToolRequest, packa
 	}
 
 	// Check connection strings with advanced pattern matching
-	result.WriteString("🔗 Connection String Analysis:\n")
+	result.WriteString("ðŸ”— Connection String Analysis:\n")
 	connIssues := scanConnectionCredentials(pkg.ConnectionMgr.Connections, credentialPatterns)
 	if len(connIssues) > 0 {
 		issuesFound = true
 		for _, issue := range connIssues {
-			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 		}
 	} else {
 		result.WriteString("No credential patterns detected in connection strings.\n")
@@ -7483,12 +6999,12 @@ func handleScanCredentials(_ context.Context, request mcp.CallToolRequest, packa
 	result.WriteString("\n")
 
 	// Check variables for credential patterns
-	result.WriteString("📊 Variable Analysis:\n")
+	result.WriteString("ðŸ“Š Variable Analysis:\n")
 	varIssues := scanVariableCredentials(pkg.Variables.Vars, credentialPatterns)
 	if len(varIssues) > 0 {
 		issuesFound = true
 		for _, issue := range varIssues {
-			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 		}
 	} else {
 		result.WriteString("No credential patterns detected in variables.\n")
@@ -7496,12 +7012,12 @@ func handleScanCredentials(_ context.Context, request mcp.CallToolRequest, packa
 	result.WriteString("\n")
 
 	// Check script tasks for embedded credentials
-	result.WriteString("📜 Script Task Analysis:\n")
+	result.WriteString("ðŸ“œ Script Task Analysis:\n")
 	scriptIssues := scanScriptCredentials(pkg.Executables.Tasks, credentialPatterns)
 	if len(scriptIssues) > 0 {
 		issuesFound = true
 		for _, issue := range scriptIssues {
-			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 		}
 	} else {
 		result.WriteString("No credential patterns detected in script tasks.\n")
@@ -7509,12 +7025,12 @@ func handleScanCredentials(_ context.Context, request mcp.CallToolRequest, packa
 	result.WriteString("\n")
 
 	// Check expressions for credential patterns
-	result.WriteString("🔍 Expression Analysis:\n")
+	result.WriteString("ðŸ” Expression Analysis:\n")
 	exprIssues := scanExpressionCredentials(pkg.Executables.Tasks, credentialPatterns)
 	if len(exprIssues) > 0 {
 		issuesFound = true
 		for _, issue := range exprIssues {
-			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 		}
 	} else {
 		result.WriteString("No credential patterns detected in expressions.\n")
@@ -7522,12 +7038,12 @@ func handleScanCredentials(_ context.Context, request mcp.CallToolRequest, packa
 	result.WriteString("\n")
 
 	// Check raw XML content for additional patterns
-	result.WriteString("📄 Raw Content Analysis:\n")
+	result.WriteString("ðŸ“„ Raw Content Analysis:\n")
 	rawIssues := scanRawContentCredentials(string(data), credentialPatterns)
 	if len(rawIssues) > 0 {
 		issuesFound = true
 		for _, issue := range rawIssues {
-			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 		}
 	} else {
 		result.WriteString("No credential patterns detected in raw content.\n")
@@ -7535,20 +7051,20 @@ func handleScanCredentials(_ context.Context, request mcp.CallToolRequest, packa
 	result.WriteString("\n")
 
 	if !issuesFound {
-		result.WriteString("✅ No credential patterns detected in this package.\n\n")
-		result.WriteString("💡 Credential Security Best Practices:\n")
-		result.WriteString("• Use SSIS parameters for all credentials\n")
-		result.WriteString("• Store sensitive data in environment variables or secure stores\n")
-		result.WriteString("• Use Azure Key Vault or similar for cloud credentials\n")
-		result.WriteString("• Implement proper package protection levels\n")
-		result.WriteString("• Regularly rotate credentials and keys\n")
+		result.WriteString("âœ… No credential patterns detected in this package.\n\n")
+		result.WriteString("ðŸ’¡ Credential Security Best Practices:\n")
+		result.WriteString("â€¢ Use SSIS parameters for all credentials\n")
+		result.WriteString("â€¢ Store sensitive data in environment variables or secure stores\n")
+		result.WriteString("â€¢ Use Azure Key Vault or similar for cloud credentials\n")
+		result.WriteString("â€¢ Implement proper package protection levels\n")
+		result.WriteString("â€¢ Regularly rotate credentials and keys\n")
 	} else {
-		result.WriteString("🚨 Critical Security Recommendations:\n")
-		result.WriteString("• Immediately replace all hardcoded credentials with secure alternatives\n")
-		result.WriteString("• Implement proper encryption for sensitive package elements\n")
-		result.WriteString("• Use SSIS package configurations or parameters\n")
-		result.WriteString("• Consider using managed identity or service principals\n")
-		result.WriteString("• Audit and monitor access to sensitive data\n")
+		result.WriteString("ðŸš¨ Critical Security Recommendations:\n")
+		result.WriteString("â€¢ Immediately replace all hardcoded credentials with secure alternatives\n")
+		result.WriteString("â€¢ Implement proper encryption for sensitive package elements\n")
+		result.WriteString("â€¢ Use SSIS package configurations or parameters\n")
+		result.WriteString("â€¢ Consider using managed identity or service principals\n")
+		result.WriteString("â€¢ Audit and monitor access to sensitive data\n")
 	}
 
 	return mcp.NewToolResultText(result.String()), nil
@@ -7577,10 +7093,10 @@ func handleDetectEncryption(_ context.Context, request mcp.CallToolRequest, pack
 	}
 
 	var result strings.Builder
-	result.WriteString("🔐 Encryption Detection & Recommendations:\n\n")
+	result.WriteString("ðŸ” Encryption Detection & Recommendations:\n\n")
 
 	// Check package protection level
-	result.WriteString("📦 Package Protection Level:\n")
+	result.WriteString("ðŸ“¦ Package Protection Level:\n")
 	protectionLevel := "Not specified"
 	for _, prop := range pkg.Properties {
 		if prop.Name == "ProtectionLevel" {
@@ -7591,32 +7107,32 @@ func handleDetectEncryption(_ context.Context, request mcp.CallToolRequest, pack
 
 	switch protectionLevel {
 	case "0", "DontSaveSensitive":
-		result.WriteString("⚠️  Protection Level: DontSaveSensitive - Sensitive data will not be saved\n")
+		result.WriteString("âš ï¸  Protection Level: DontSaveSensitive - Sensitive data will not be saved\n")
 		result.WriteString("   This is generally secure but requires runtime parameter input\n")
 	case "1", "EncryptSensitiveWithUserKey":
-		result.WriteString("⚠️  Protection Level: EncryptSensitiveWithUserKey - Uses current user key\n")
+		result.WriteString("âš ï¸  Protection Level: EncryptSensitiveWithUserKey - Uses current user key\n")
 		result.WriteString("   This may cause issues when deploying to different users/machines\n")
 	case "2", "EncryptSensitiveWithPassword":
-		result.WriteString("✅ Protection Level: EncryptSensitiveWithPassword - Uses password protection\n")
+		result.WriteString("âœ… Protection Level: EncryptSensitiveWithPassword - Uses password protection\n")
 		result.WriteString("   Good for deployment but requires secure password management\n")
 	case "3", "EncryptAllWithPassword":
-		result.WriteString("✅ Protection Level: EncryptAllWithPassword - Encrypts entire package\n")
+		result.WriteString("âœ… Protection Level: EncryptAllWithPassword - Encrypts entire package\n")
 		result.WriteString("   Maximum security but requires password for execution\n")
 	case "4", "EncryptAllWithUserKey":
-		result.WriteString("⚠️  Protection Level: EncryptAllWithUserKey - Uses current user key for all data\n")
+		result.WriteString("âš ï¸  Protection Level: EncryptAllWithUserKey - Uses current user key for all data\n")
 		result.WriteString("   May cause deployment issues across different users/machines\n")
 	default:
-		result.WriteString("❓ Protection Level: Unknown or not set\n")
+		result.WriteString("â“ Protection Level: Unknown or not set\n")
 		result.WriteString("   Consider setting an appropriate protection level\n")
 	}
 	result.WriteString("\n")
 
 	// Check for encrypted connection strings
-	result.WriteString("🔗 Connection Encryption:\n")
+	result.WriteString("ðŸ”— Connection Encryption:\n")
 	encryptionIssues := analyzeConnectionEncryption(pkg.ConnectionMgr.Connections)
 	if len(encryptionIssues) > 0 {
 		for _, issue := range encryptionIssues {
-			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 		}
 	} else {
 		result.WriteString("No encryption issues detected in connections.\n")
@@ -7624,11 +7140,11 @@ func handleDetectEncryption(_ context.Context, request mcp.CallToolRequest, pack
 	result.WriteString("\n")
 
 	// Check for sensitive data handling
-	result.WriteString("🔒 Sensitive Data Handling:\n")
+	result.WriteString("ðŸ”’ Sensitive Data Handling:\n")
 	sensitiveDataIssues := analyzeSensitiveDataHandling(pkg)
 	if len(sensitiveDataIssues) > 0 {
 		for _, issue := range sensitiveDataIssues {
-			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 		}
 	} else {
 		result.WriteString("No sensitive data handling issues detected.\n")
@@ -7636,14 +7152,14 @@ func handleDetectEncryption(_ context.Context, request mcp.CallToolRequest, pack
 	result.WriteString("\n")
 
 	// Provide encryption recommendations
-	result.WriteString("💡 Encryption Recommendations:\n")
-	result.WriteString("• Use EncryptSensitiveWithPassword for most scenarios\n")
-	result.WriteString("• Consider EncryptAllWithPassword for maximum security\n")
-	result.WriteString("• Use Azure Key Vault for cloud deployments\n")
-	result.WriteString("• Implement proper certificate management\n")
-	result.WriteString("• Use SSL/TLS for all external connections\n")
-	result.WriteString("• Consider column-level encryption for sensitive data\n")
-	result.WriteString("• Implement proper key rotation policies\n")
+	result.WriteString("ðŸ’¡ Encryption Recommendations:\n")
+	result.WriteString("â€¢ Use EncryptSensitiveWithPassword for most scenarios\n")
+	result.WriteString("â€¢ Consider EncryptAllWithPassword for maximum security\n")
+	result.WriteString("â€¢ Use Azure Key Vault for cloud deployments\n")
+	result.WriteString("â€¢ Implement proper certificate management\n")
+	result.WriteString("â€¢ Use SSL/TLS for all external connections\n")
+	result.WriteString("â€¢ Consider column-level encryption for sensitive data\n")
+	result.WriteString("â€¢ Implement proper key rotation policies\n")
 
 	return mcp.NewToolResultText(result.String()), nil
 }
@@ -7673,19 +7189,19 @@ func handleCheckCompliance(_ context.Context, request mcp.CallToolRequest, packa
 	}
 
 	var result strings.Builder
-	result.WriteString("⚖️  Compliance Check Report:\n")
+	result.WriteString("âš–ï¸  Compliance Check Report:\n")
 	result.WriteString(fmt.Sprintf("Standard: %s\n\n", strings.ToUpper(complianceStandard)))
 
 	issuesFound := false
 
 	// GDPR Compliance Patterns
 	if complianceStandard == "gdpr" || complianceStandard == "all" {
-		result.WriteString("🇪🇺 GDPR Compliance Analysis:\n")
+		result.WriteString("ðŸ‡ªðŸ‡º GDPR Compliance Analysis:\n")
 		gdprIssues := checkGDPRCompliance(pkg, string(data))
 		if len(gdprIssues) > 0 {
 			issuesFound = true
 			for _, issue := range gdprIssues {
-				result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+				result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 			}
 		} else {
 			result.WriteString("No GDPR compliance issues detected.\n")
@@ -7695,12 +7211,12 @@ func handleCheckCompliance(_ context.Context, request mcp.CallToolRequest, packa
 
 	// HIPAA Compliance Patterns
 	if complianceStandard == "hipaa" || complianceStandard == "all" {
-		result.WriteString("🏥 HIPAA Compliance Analysis:\n")
+		result.WriteString("ðŸ¥ HIPAA Compliance Analysis:\n")
 		hipaaIssues := checkHIPAACompliance(pkg, string(data))
 		if len(hipaaIssues) > 0 {
 			issuesFound = true
 			for _, issue := range hipaaIssues {
-				result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+				result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 			}
 		} else {
 			result.WriteString("No HIPAA compliance issues detected.\n")
@@ -7710,12 +7226,12 @@ func handleCheckCompliance(_ context.Context, request mcp.CallToolRequest, packa
 
 	// PCI DSS Compliance Patterns
 	if complianceStandard == "pci" || complianceStandard == "all" {
-		result.WriteString("💳 PCI DSS Compliance Analysis:\n")
+		result.WriteString("ðŸ’³ PCI DSS Compliance Analysis:\n")
 		pciIssues := checkPCICompliance(pkg, string(data))
 		if len(pciIssues) > 0 {
 			issuesFound = true
 			for _, issue := range pciIssues {
-				result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+				result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 			}
 		} else {
 			result.WriteString("No PCI DSS compliance issues detected.\n")
@@ -7725,12 +7241,12 @@ func handleCheckCompliance(_ context.Context, request mcp.CallToolRequest, packa
 
 	// General Data Protection Analysis
 	if complianceStandard == "all" {
-		result.WriteString("🔒 General Data Protection Analysis:\n")
+		result.WriteString("ðŸ”’ General Data Protection Analysis:\n")
 		generalIssues := checkGeneralDataProtection(pkg, string(data))
 		if len(generalIssues) > 0 {
 			issuesFound = true
 			for _, issue := range generalIssues {
-				result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+				result.WriteString(fmt.Sprintf("âš ï¸  %s\n", issue))
 			}
 		} else {
 			result.WriteString("No general data protection issues detected.\n")
@@ -7739,21 +7255,21 @@ func handleCheckCompliance(_ context.Context, request mcp.CallToolRequest, packa
 	}
 
 	if !issuesFound {
-		result.WriteString("✅ No compliance issues detected for the specified standards.\n\n")
-		result.WriteString("💡 Compliance Best Practices:\n")
-		result.WriteString("• Implement proper data classification and labeling\n")
-		result.WriteString("• Use encryption for sensitive data at rest and in transit\n")
-		result.WriteString("• Implement access controls and audit logging\n")
-		result.WriteString("• Regular security assessments and penetration testing\n")
-		result.WriteString("• Data minimization and purpose limitation principles\n")
-		result.WriteString("• Implement proper data retention and deletion policies\n")
+		result.WriteString("âœ… No compliance issues detected for the specified standards.\n\n")
+		result.WriteString("ðŸ’¡ Compliance Best Practices:\n")
+		result.WriteString("â€¢ Implement proper data classification and labeling\n")
+		result.WriteString("â€¢ Use encryption for sensitive data at rest and in transit\n")
+		result.WriteString("â€¢ Implement access controls and audit logging\n")
+		result.WriteString("â€¢ Regular security assessments and penetration testing\n")
+		result.WriteString("â€¢ Data minimization and purpose limitation principles\n")
+		result.WriteString("â€¢ Implement proper data retention and deletion policies\n")
 	} else {
-		result.WriteString("🚨 Compliance Remediation Required:\n")
-		result.WriteString("• Address all flagged compliance issues immediately\n")
-		result.WriteString("• Implement proper data protection measures\n")
-		result.WriteString("• Consult with compliance officers and legal teams\n")
-		result.WriteString("• Document compliance measures and controls\n")
-		result.WriteString("• Regular compliance audits and monitoring\n")
+		result.WriteString("ðŸš¨ Compliance Remediation Required:\n")
+		result.WriteString("â€¢ Address all flagged compliance issues immediately\n")
+		result.WriteString("â€¢ Implement proper data protection measures\n")
+		result.WriteString("â€¢ Consult with compliance officers and legal teams\n")
+		result.WriteString("â€¢ Document compliance measures and controls\n")
+		result.WriteString("â€¢ Regular compliance audits and monitoring\n")
 	}
 
 	return mcp.NewToolResultText(result.String()), nil
@@ -8086,7 +7602,7 @@ func handleOptimizeBufferSize(_ context.Context, request mcp.CallToolRequest, pa
 	}
 
 	var result strings.Builder
-	result.WriteString("🔄 Buffer Size Optimization Analysis:\n\n")
+	result.WriteString("ðŸ”„ Buffer Size Optimization Analysis:\n\n")
 
 	dataFlowCount := 0
 	totalComponents := 0
@@ -8094,14 +7610,14 @@ func handleOptimizeBufferSize(_ context.Context, request mcp.CallToolRequest, pa
 	for _, task := range pkg.Executables.Tasks {
 		if isDataFlowTask(task) {
 			dataFlowCount++
-			result.WriteString(fmt.Sprintf("📊 Data Flow Task: %s\n", task.Name))
+			result.WriteString(fmt.Sprintf("ðŸ“Š Data Flow Task: %s\n", task.Name))
 
 			// Analyze current buffer settings
 			bufferSettings := analyzeBufferSettings(task)
 			if len(bufferSettings) > 0 {
 				result.WriteString("  Current Buffer Settings:\n")
 				for _, setting := range bufferSettings {
-					result.WriteString(fmt.Sprintf("  • %s: %s\n", setting.Name, setting.Value))
+					result.WriteString(fmt.Sprintf("  â€¢ %s: %s\n", setting.Name, setting.Value))
 				}
 			} else {
 				result.WriteString("  No explicit buffer settings found (using defaults).\n")
@@ -8117,9 +7633,9 @@ func handleOptimizeBufferSize(_ context.Context, request mcp.CallToolRequest, pa
 				// Estimate buffer requirements based on component types
 				bufferRecommendations := generateBufferRecommendations(task.ObjectData.DataFlow.Components.Components, bufferSettings)
 				if len(bufferRecommendations) > 0 {
-					result.WriteString("  📈 Buffer Optimization Recommendations:\n")
+					result.WriteString("  ðŸ“ˆ Buffer Optimization Recommendations:\n")
 					for _, rec := range bufferRecommendations {
-						result.WriteString(fmt.Sprintf("    • %s\n", rec))
+						result.WriteString(fmt.Sprintf("    â€¢ %s\n", rec))
 					}
 				}
 			}
@@ -8128,20 +7644,20 @@ func handleOptimizeBufferSize(_ context.Context, request mcp.CallToolRequest, pa
 	}
 
 	if dataFlowCount == 0 {
-		result.WriteString("❌ No Data Flow Tasks found in this package.\n\n")
-		result.WriteString("💡 Buffer optimization is only applicable to Data Flow Tasks.\n")
+		result.WriteString("âŒ No Data Flow Tasks found in this package.\n\n")
+		result.WriteString("ðŸ’¡ Buffer optimization is only applicable to Data Flow Tasks.\n")
 	} else {
-		result.WriteString("🎯 Overall Buffer Optimization Summary:\n")
-		result.WriteString(fmt.Sprintf("• Analyzed %d Data Flow Task(s) with %d total components\n", dataFlowCount, totalComponents))
+		result.WriteString("ðŸŽ¯ Overall Buffer Optimization Summary:\n")
+		result.WriteString(fmt.Sprintf("â€¢ Analyzed %d Data Flow Task(s) with %d total components\n", dataFlowCount, totalComponents))
 
 		// General buffer optimization guidelines
-		result.WriteString("\n📋 General Buffer Optimization Guidelines:\n")
-		result.WriteString("• DefaultBufferSize: Start with 10MB, increase to 50MB+ for large datasets\n")
-		result.WriteString("• DefaultBufferMaxRows: 10,000-100,000 rows based on row size\n")
-		result.WriteString("• MaxBufferSize: Set to 100MB+ for very large datasets\n")
-		result.WriteString("• MinBufferSize: Keep at 64KB unless processing very small datasets\n")
-		result.WriteString("• AutoAdjustBufferSize: Enable for automatic optimization\n")
-		result.WriteString("• BufferTempStoragePath: Use fast SSD storage for spill operations\n")
+		result.WriteString("\nðŸ“‹ General Buffer Optimization Guidelines:\n")
+		result.WriteString("â€¢ DefaultBufferSize: Start with 10MB, increase to 50MB+ for large datasets\n")
+		result.WriteString("â€¢ DefaultBufferMaxRows: 10,000-100,000 rows based on row size\n")
+		result.WriteString("â€¢ MaxBufferSize: Set to 100MB+ for very large datasets\n")
+		result.WriteString("â€¢ MinBufferSize: Keep at 64KB unless processing very small datasets\n")
+		result.WriteString("â€¢ AutoAdjustBufferSize: Enable for automatic optimization\n")
+		result.WriteString("â€¢ BufferTempStoragePath: Use fast SSD storage for spill operations\n")
 	}
 
 	return mcp.NewToolResultText(result.String()), nil
@@ -8170,10 +7686,10 @@ func handleAnalyzeParallelProcessing(_ context.Context, request mcp.CallToolRequ
 	}
 
 	var result strings.Builder
-	result.WriteString("⚡ Parallel Processing Analysis:\n\n")
+	result.WriteString("âš¡ Parallel Processing Analysis:\n\n")
 
 	// Analyze package-level parallel settings
-	result.WriteString("📦 Package-Level Parallel Settings:\n")
+	result.WriteString("ðŸ“¦ Package-Level Parallel Settings:\n")
 	maxConcurrent := "Not set"
 	for _, prop := range pkg.Properties {
 		if prop.Name == "MaxConcurrentExecutables" {
@@ -8183,49 +7699,49 @@ func handleAnalyzeParallelProcessing(_ context.Context, request mcp.CallToolRequ
 	}
 
 	if maxConcurrent == "Not set" {
-		result.WriteString("• MaxConcurrentExecutables: Not configured (using SSIS default)\n")
-		result.WriteString("  ⚠️  Consider setting this to optimize parallel execution\n")
+		result.WriteString("â€¢ MaxConcurrentExecutables: Not configured (using SSIS default)\n")
+		result.WriteString("  âš ï¸  Consider setting this to optimize parallel execution\n")
 	} else {
-		result.WriteString(fmt.Sprintf("• MaxConcurrentExecutables: %s\n", maxConcurrent))
+		result.WriteString(fmt.Sprintf("â€¢ MaxConcurrentExecutables: %s\n", maxConcurrent))
 		if val, err := strconv.Atoi(maxConcurrent); err == nil && val < 4 {
-			result.WriteString("  💡 Consider increasing for better parallel utilization\n")
+			result.WriteString("  ðŸ’¡ Consider increasing for better parallel utilization\n")
 		}
 	}
 	result.WriteString("\n")
 
 	// Analyze task dependencies and parallel execution potential
-	result.WriteString("🔗 Task Execution Analysis:\n")
+	result.WriteString("ðŸ”— Task Execution Analysis:\n")
 	taskAnalysis := analyzeTaskParallelization(pkg.Executables.Tasks)
 	for _, analysis := range taskAnalysis {
-		result.WriteString(fmt.Sprintf("• %s\n", analysis))
+		result.WriteString(fmt.Sprintf("â€¢ %s\n", analysis))
 	}
 	result.WriteString("\n")
 
 	// Analyze data flow parallel processing
-	result.WriteString("🔄 Data Flow Parallel Processing:\n")
+	result.WriteString("ðŸ”„ Data Flow Parallel Processing:\n")
 	dataFlowAnalysis := analyzeDataFlowParallelization(pkg.Executables.Tasks)
 	for _, analysis := range dataFlowAnalysis {
-		result.WriteString(fmt.Sprintf("• %s\n", analysis))
+		result.WriteString(fmt.Sprintf("â€¢ %s\n", analysis))
 	}
 	result.WriteString("\n")
 
 	// Container analysis for parallel execution
-	result.WriteString("📁 Container Parallel Execution:\n")
+	result.WriteString("ðŸ“ Container Parallel Execution:\n")
 	containerAnalysis := analyzeContainerParallelization(pkg.Executables.Tasks)
 	for _, analysis := range containerAnalysis {
-		result.WriteString(fmt.Sprintf("• %s\n", analysis))
+		result.WriteString(fmt.Sprintf("â€¢ %s\n", analysis))
 	}
 	result.WriteString("\n")
 
 	// Performance recommendations
-	result.WriteString("🚀 Parallel Processing Optimization Recommendations:\n")
-	result.WriteString("• Set MaxConcurrentExecutables to 2-4 times the number of CPU cores\n")
-	result.WriteString("• Use Sequence Containers to group independent tasks\n")
-	result.WriteString("• Configure EngineThreads (2-10) based on data flow complexity\n")
-	result.WriteString("• Avoid unnecessary precedence constraints that block parallel execution\n")
-	result.WriteString("• Use For Loop containers for parallel processing of multiple files\n")
-	result.WriteString("• Consider partitioning large datasets for parallel processing\n")
-	result.WriteString("• Monitor CPU utilization to avoid over-subscription\n")
+	result.WriteString("ðŸš€ Parallel Processing Optimization Recommendations:\n")
+	result.WriteString("â€¢ Set MaxConcurrentExecutables to 2-4 times the number of CPU cores\n")
+	result.WriteString("â€¢ Use Sequence Containers to group independent tasks\n")
+	result.WriteString("â€¢ Configure EngineThreads (2-10) based on data flow complexity\n")
+	result.WriteString("â€¢ Avoid unnecessary precedence constraints that block parallel execution\n")
+	result.WriteString("â€¢ Use For Loop containers for parallel processing of multiple files\n")
+	result.WriteString("â€¢ Consider partitioning large datasets for parallel processing\n")
+	result.WriteString("â€¢ Monitor CPU utilization to avoid over-subscription\n")
 
 	return mcp.NewToolResultText(result.String()), nil
 }
@@ -8253,7 +7769,7 @@ func handleProfileMemoryUsage(_ context.Context, request mcp.CallToolRequest, pa
 	}
 
 	var result strings.Builder
-	result.WriteString("🧠 Memory Usage Profiling:\n\n")
+	result.WriteString("ðŸ§  Memory Usage Profiling:\n\n")
 
 	totalEstimatedMemory := int64(0)
 	dataFlowCount := 0
@@ -8261,7 +7777,7 @@ func handleProfileMemoryUsage(_ context.Context, request mcp.CallToolRequest, pa
 	for _, task := range pkg.Executables.Tasks {
 		if isDataFlowTask(task) {
 			dataFlowCount++
-			result.WriteString(fmt.Sprintf("📊 Data Flow Task: %s\n", task.Name))
+			result.WriteString(fmt.Sprintf("ðŸ“Š Data Flow Task: %s\n", task.Name))
 
 			// Analyze buffer memory usage
 			bufferMemory := estimateBufferMemoryUsage(task)
@@ -8275,9 +7791,9 @@ func handleProfileMemoryUsage(_ context.Context, request mcp.CallToolRequest, pa
 				result.WriteString("  Component Memory Analysis:\n")
 				componentMemory := analyzeComponentMemoryUsage(task.ObjectData.DataFlow.Components.Components)
 				for _, compMem := range componentMemory {
-					result.WriteString(fmt.Sprintf("    • %s: %s\n", compMem.Component, compMem.Estimate))
+					result.WriteString(fmt.Sprintf("    â€¢ %s: %s\n", compMem.Component, compMem.Estimate))
 					if compMem.Recommendation != "" {
-						result.WriteString(fmt.Sprintf("      💡 %s\n", compMem.Recommendation))
+						result.WriteString(fmt.Sprintf("      ðŸ’¡ %s\n", compMem.Recommendation))
 					}
 				}
 			}
@@ -8285,9 +7801,9 @@ func handleProfileMemoryUsage(_ context.Context, request mcp.CallToolRequest, pa
 			// Check for memory-intensive operations
 			memoryIssues := detectMemoryIntensiveOperations(task)
 			if len(memoryIssues) > 0 {
-				result.WriteString("  ⚠️  Memory-Intensive Operations:\n")
+				result.WriteString("  âš ï¸  Memory-Intensive Operations:\n")
 				for _, issue := range memoryIssues {
-					result.WriteString(fmt.Sprintf("    • %s\n", issue))
+					result.WriteString(fmt.Sprintf("    â€¢ %s\n", issue))
 				}
 			}
 			result.WriteString("\n")
@@ -8295,23 +7811,23 @@ func handleProfileMemoryUsage(_ context.Context, request mcp.CallToolRequest, pa
 	}
 
 	if dataFlowCount == 0 {
-		result.WriteString("❌ No Data Flow Tasks found in this package.\n\n")
-		result.WriteString("💡 Memory profiling is only applicable to Data Flow Tasks.\n")
+		result.WriteString("âŒ No Data Flow Tasks found in this package.\n\n")
+		result.WriteString("ðŸ’¡ Memory profiling is only applicable to Data Flow Tasks.\n")
 	} else {
-		result.WriteString("📈 Overall Memory Profile:\n")
-		result.WriteString(fmt.Sprintf("• Analyzed %d Data Flow Task(s)\n", dataFlowCount))
-		result.WriteString(fmt.Sprintf("• Estimated Total Buffer Memory: ~%s\n", formatBytes(totalEstimatedMemory)))
-		result.WriteString(fmt.Sprintf("• Recommended System Memory: ~%s+\n", formatBytes(totalEstimatedMemory*2)))
+		result.WriteString("ðŸ“ˆ Overall Memory Profile:\n")
+		result.WriteString(fmt.Sprintf("â€¢ Analyzed %d Data Flow Task(s)\n", dataFlowCount))
+		result.WriteString(fmt.Sprintf("â€¢ Estimated Total Buffer Memory: ~%s\n", formatBytes(totalEstimatedMemory)))
+		result.WriteString(fmt.Sprintf("â€¢ Recommended System Memory: ~%s+\n", formatBytes(totalEstimatedMemory*2)))
 
 		// Memory optimization recommendations
-		result.WriteString("\n🧠 Memory Optimization Recommendations:\n")
-		result.WriteString("• Monitor actual memory usage during execution\n")
-		result.WriteString("• Adjust DefaultBufferSize based on available RAM\n")
-		result.WriteString("• Use 64-bit SSIS for large memory requirements\n")
-		result.WriteString("• Consider data partitioning for very large datasets\n")
-		result.WriteString("• Use BLOBTempStoragePath for large object processing\n")
-		result.WriteString("• Optimize data types to reduce memory footprint\n")
-		result.WriteString("• Consider caching strategies for reference data\n")
+		result.WriteString("\nðŸ§  Memory Optimization Recommendations:\n")
+		result.WriteString("â€¢ Monitor actual memory usage during execution\n")
+		result.WriteString("â€¢ Adjust DefaultBufferSize based on available RAM\n")
+		result.WriteString("â€¢ Use 64-bit SSIS for large memory requirements\n")
+		result.WriteString("â€¢ Consider data partitioning for very large datasets\n")
+		result.WriteString("â€¢ Use BLOBTempStoragePath for large object processing\n")
+		result.WriteString("â€¢ Optimize data types to reduce memory footprint\n")
+		result.WriteString("â€¢ Consider caching strategies for reference data\n")
 	}
 
 	return mcp.NewToolResultText(result.String()), nil
@@ -8698,9 +8214,9 @@ func formatBatchSummaryAsText(summary BatchSummary) string {
 
 	output.WriteString("\nPackage Details:\n")
 	for _, pkg := range summary.PackageSummaries {
-		status := "✓"
+		status := "âœ“"
 		if !pkg.Success {
-			status = "✗"
+			status = "âœ—"
 		}
 		output.WriteString(fmt.Sprintf("%s %s (%v)\n", status, pkg.PackagePath, pkg.Duration))
 		if !pkg.Success {
@@ -8799,9 +8315,9 @@ func formatBatchSummaryAsHTML(summary BatchSummary) string {
         </tr>`)
 
 	for _, pkg := range summary.PackageSummaries {
-		status := `<span class="status-icon success">✓</span>`
+		status := `<span class="status-icon success">âœ“</span>`
 		if !pkg.Success {
-			status = `<span class="status-icon error">✗</span>`
+			status = `<span class="status-icon error">âœ—</span>`
 		}
 		errorCell := ""
 		if pkg.Error != "" {
@@ -8848,9 +8364,9 @@ func formatBatchSummaryAsMarkdown(summary BatchSummary) string {
 	output.WriteString("|--------------|--------|----------|-------|\n")
 
 	for _, pkg := range summary.PackageSummaries {
-		status := "✅"
+		status := "âœ…"
 		if !pkg.Success {
-			status = "❌"
+			status = "âŒ"
 		}
 		errorCell := ""
 		if pkg.Error != "" {
