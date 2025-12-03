@@ -35,6 +35,9 @@ jobs:
     - name: Test
       run: go test -v $(go list ./... | grep -v plugins) -count=1
   deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     needs: build
     runs-on: ubuntu-latest
     steps:
