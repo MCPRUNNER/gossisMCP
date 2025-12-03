@@ -19,7 +19,6 @@ func TestParseDtsxFile(t *testing.T) {
 		name        string
 		filePath    string
 		expectError bool
-		errorMsg    string
 	}{
 		{
 			name:     "valid DTSX file",
@@ -29,7 +28,6 @@ func TestParseDtsxFile(t *testing.T) {
 			name:        "nonexistent file",
 			filePath:    "testdata/NonExistent.dtsx",
 			expectError: true,
-			errorMsg:    "The system cannot find the file",
 		},
 	}
 
@@ -38,7 +36,7 @@ func TestParseDtsxFile(t *testing.T) {
 			data, err := os.ReadFile(tt.filePath)
 			if tt.expectError {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errorMsg)
+				assert.True(t, os.IsNotExist(err), "expected file not found error, got: %v", err)
 				return
 			}
 
