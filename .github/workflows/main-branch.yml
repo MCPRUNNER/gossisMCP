@@ -34,10 +34,8 @@ jobs:
 
     - name: Test
       run: go test -v $(go list ./... | grep -v plugins) -count=1
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  upload-artifact:
+
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -46,18 +44,7 @@ jobs:
         with:
           token: ${{ secrets.ACTION_PAT }}
           ref: 'main'
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          # Upload entire repository
-          path: '.'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
+ 
       - name: Upload Source Artifact
         uses: actions/upload-artifact@v4
         with:
