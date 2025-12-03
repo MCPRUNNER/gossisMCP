@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/xml"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -126,15 +127,19 @@ func TestSSISEmptyPackage(t *testing.T) {
 	assert.Empty(t, pkg.Executables.Tasks)
 }
 
-// TestSSISXMLParsingWithoutNamespace tests XML parsing without namespace
+// TestSSISXMLParsingWithoutNamespace tests XML parsing without namespace (simulating main.go behavior)
 func TestSSISXMLParsingWithoutNamespace(t *testing.T) {
-	dtsxContent := `<Executable>
+	// Start with namespaced XML like real DTSX files
+	dtsxContent := `<Executable xmlns="www.microsoft.com/SqlServer/Dts">
   <Variables>
     <Variable ObjectName="TestVar">
       <VariableValue DataType="3">123</VariableValue>
     </Variable>
   </Variables>
 </Executable>`
+
+	// Strip namespace like main.go does
+	dtsxContent = strings.ReplaceAll(dtsxContent, `xmlns="www.microsoft.com/SqlServer/Dts"`, "")
 
 	var pkg SSISPackage
 	err := xml.Unmarshal([]byte(dtsxContent), &pkg)
