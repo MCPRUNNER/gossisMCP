@@ -326,9 +326,9 @@ func TestSecurityPathTraversal(t *testing.T) {
 			// Should contain error message about file not found or access denied
 			assert.True(t,
 				strings.Contains(textContent.Text, "Error") ||
-				strings.Contains(textContent.Text, "cannot find") ||
-				strings.Contains(textContent.Text, "not found") ||
-				strings.Contains(textContent.Text, "access denied"),
+					strings.Contains(textContent.Text, "cannot find") ||
+					strings.Contains(textContent.Text, "not found") ||
+					strings.Contains(textContent.Text, "access denied"),
 				"Expected security error for %s, got: %s", attack.description, textContent.Text)
 
 			// Should NOT contain sensitive system information that could aid attacks
