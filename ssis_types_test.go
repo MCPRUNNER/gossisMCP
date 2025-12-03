@@ -126,8 +126,8 @@ func TestSSISEmptyPackage(t *testing.T) {
 	assert.Empty(t, pkg.Executables.Tasks)
 }
 
-// TestSSISNamespaceHandling tests XML namespace handling
-func TestSSISNamespaceHandling(t *testing.T) {
+// TestSSISXMLParsingWithoutNamespace tests XML parsing without namespace
+func TestSSISXMLParsingWithoutNamespace(t *testing.T) {
 	dtsxContent := `<Executable>
   <Variables>
     <Variable ObjectName="TestVar">
