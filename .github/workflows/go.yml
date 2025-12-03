@@ -22,7 +22,7 @@ jobs:
         go-version: '1.25.4'
 
     - name: Build
-      run: go build -v ./...
+      run: go build -v . # Build only the main package, exclude plugins directory
 
     - name: Test
       run: go test -v ./...
