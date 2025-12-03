@@ -128,7 +128,7 @@ func TestSSISEmptyPackage(t *testing.T) {
 
 // TestSSISNamespaceHandling tests XML namespace handling
 func TestSSISNamespaceHandling(t *testing.T) {
-	dtsxContent := `<Executable xmlns="www.microsoft.com/SqlServer/Dts">
+	dtsxContent := `<Executable>
   <Variables>
     <Variable ObjectName="TestVar">
       <VariableValue DataType="3">123</VariableValue>
