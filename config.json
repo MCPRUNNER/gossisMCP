@@ -1,0 +1,13 @@
+{
+  "server": {
+    "http_mode": false,
+    "port": "8086"
+  },
+  "packages": {
+    "directory": "Documents/SSIS_EXAMPLES"
+  },
+  "logging": {
+    "level": "info",
+    "format": "text"
+  }
+}

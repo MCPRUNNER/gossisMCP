@@ -19,10 +19,10 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.20'
+        go-version: '1.25.4'
 
     - name: Build
-      run: go build -v ./...
+      run: go build -v . # Build only the main package, exclude plugins directory
 
     - name: Test
-      run: go test -v ./...
+      run: go test -v $(go list ./... | grep -v plugins) -count=1

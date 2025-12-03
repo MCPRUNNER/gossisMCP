@@ -2,19 +2,199 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"flag"
 	"fmt"
+	"html"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"gopkg.in/yaml.v3"
 )
+
+// Config represents the application configuration
+type Config struct {
+	Server   ServerConfig  `json:"server" yaml:"server"`
+	Packages PackageConfig `json:"packages" yaml:"packages"`
+	Logging  LoggingConfig `json:"logging" yaml:"logging"`
+	Plugins  PluginConfig  `json:"plugins" yaml:"plugins"`
+}
+
+// ServerConfig holds server-related configuration
+type ServerConfig struct {
+	HTTPMode bool   `json:"http_mode" yaml:"http_mode"`
+	Port     string `json:"port" yaml:"port"`
+}
+
+// PackageConfig holds package directory configuration
+type PackageConfig struct {
+	Directory string `json:"directory" yaml:"directory"`
+}
+
+// LoggingConfig holds logging configuration
+type LoggingConfig struct {
+	Level  string `json:"level" yaml:"level"`
+	Format string `json:"format" yaml:"format"`
+}
+
+// DefaultConfig returns a default configuration
+func DefaultConfig() Config {
+	return Config{
+		Server: ServerConfig{
+			HTTPMode: false,
+			Port:     "8086",
+		},
+		Packages: PackageConfig{
+			Directory: "",
+		},
+		Logging: LoggingConfig{
+			Level:  "info",
+			Format: "text",
+		},
+		Plugins: DefaultPluginConfig(),
+	}
+}
+
+// LoadConfig loads configuration from file and environment variables
+func LoadConfig(configPath string) (Config, error) {
+	config := DefaultConfig()
+
+	// Load from config file if specified
+	if configPath != "" {
+		if err := loadConfigFile(configPath, &config); err != nil {
+			return config, fmt.Errorf("failed to load config file: %w", err)
+		}
+	}
+
+	// Load environment-specific overrides
+	if err := loadEnvironmentConfig(&config); err != nil {
+		return config, fmt.Errorf("failed to load environment config: %w", err)
+	}
+
+	// Validate configuration
+	if err := validateConfig(config); err != nil {
+		return config, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	return config, nil
+}
+
+// loadConfigFile loads configuration from JSON or YAML file
+func loadConfigFile(configPath string, config *Config) error {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	// Try JSON first
+	if err := json.Unmarshal(data, config); err != nil {
+		// Try YAML
+		if yamlErr := yaml.Unmarshal(data, config); yamlErr != nil {
+			return fmt.Errorf("failed to parse config as JSON or YAML: %v, %v", err, yamlErr)
+		}
+	}
+
+	return nil
+}
+
+// loadEnvironmentConfig loads configuration overrides from environment variables
+func loadEnvironmentConfig(config *Config) error {
+	// Server configuration
+	if port := os.Getenv("GOSSIS_HTTP_PORT"); port != "" {
+		config.Server.Port = port
+	}
+
+	// Package directory
+	if pkgDir := os.Getenv("GOSSIS_PKG_DIRECTORY"); pkgDir != "" {
+		config.Packages.Directory = pkgDir
+	}
+
+	// Logging configuration
+	if logLevel := os.Getenv("GOSSIS_LOG_LEVEL"); logLevel != "" {
+		config.Logging.Level = logLevel
+	}
+	if logFormat := os.Getenv("GOSSIS_LOG_FORMAT"); logFormat != "" {
+		config.Logging.Format = logFormat
+	}
+
+	return nil
+}
+
+// validateConfig validates the configuration
+func validateConfig(config Config) error {
+	// Validate port
+	if config.Server.Port != "" {
+		if port, err := strconv.Atoi(config.Server.Port); err != nil || port < 1 || port > 65535 {
+			return fmt.Errorf("invalid server port: %s", config.Server.Port)
+		}
+	}
+
+	// Validate package directory if specified
+	if config.Packages.Directory != "" {
+		if _, err := os.Stat(config.Packages.Directory); os.IsNotExist(err) {
+			return fmt.Errorf("package directory does not exist: %s", config.Packages.Directory)
+		}
+	}
+
+	// Validate log level
+	validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
+	if !validLevels[strings.ToLower(config.Logging.Level)] {
+		return fmt.Errorf("invalid log level: %s", config.Logging.Level)
+	}
+
+	// Validate log format
+	validFormats := map[string]bool{"text": true, "json": true}
+	if !validFormats[strings.ToLower(config.Logging.Format)] {
+		return fmt.Errorf("invalid log format: %s", config.Logging.Format)
+	}
+
+	return nil
+}
+
+// configureLogging configures the logging based on the configuration
+func configureLogging(config LoggingConfig) {
+	// Set log level (simplified - in a real implementation you'd use a proper logging library)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	if strings.ToLower(config.Level) == "debug" {
+		log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
+	}
+}
+
+// mergeConfigs merges two configurations (for future use with multiple config files)
+func mergeConfigs(base, override Config) Config {
+	result := base
+
+	// Merge server config
+	if override.Server.Port != "" {
+		result.Server.Port = override.Server.Port
+	}
+	if override.Server.HTTPMode {
+		result.Server.HTTPMode = override.Server.HTTPMode
+	}
+
+	// Merge package config
+	if override.Packages.Directory != "" {
+		result.Packages.Directory = override.Packages.Directory
+	}
+
+	// Merge logging config
+	if override.Logging.Level != "" {
+		result.Logging.Level = override.Logging.Level
+	}
+	if override.Logging.Format != "" {
+		result.Logging.Format = override.Logging.Format
+	}
+
+	return result
+}
 
 // resolveVariableExpressions resolves SSIS variable expressions by substituting variable references
 func resolveVariableExpressions(value string, variables []Variable, maxDepth int) string {
@@ -271,20 +451,561 @@ func handleAnalyzeDestination(_ context.Context, request mcp.CallToolRequest, pa
 	return mcp.NewToolResultText(result.String()), nil
 }
 
+// Output Format System
+
+type OutputFormat string
+
+const (
+	FormatText     OutputFormat = "text"
+	FormatJSON     OutputFormat = "json"
+	FormatCSV      OutputFormat = "csv"
+	FormatHTML     OutputFormat = "html"
+	FormatMarkdown OutputFormat = "markdown"
+)
+
+type AnalysisResult struct {
+	ToolName  string                 `json:"tool_name"`
+	FilePath  string                 `json:"file_path"`
+	Timestamp string                 `json:"timestamp"`
+	Status    string                 `json:"status"`
+	Data      interface{}            `json:"data,omitempty"`
+	Error     string                 `json:"error,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type TableData struct {
+	Headers []string   `json:"headers"`
+	Rows    [][]string `json:"rows"`
+}
+
+type SectionData struct {
+	Title       string        `json:"title"`
+	Content     interface{}   `json:"content"`
+	Level       int           `json:"level,omitempty"`
+	Subsections []SectionData `json:"subsections,omitempty"`
+}
+
+type OutputFormatter interface {
+	Format(result *AnalysisResult) string
+	GetContentType() string
+}
+
+type TextFormatter struct{}
+
+func (f *TextFormatter) Format(result *AnalysisResult) string {
+	if result.Error != "" {
+		return fmt.Sprintf("Error: %s", result.Error)
+	}
+
+	var output strings.Builder
+	output.WriteString(fmt.Sprintf("%s Analysis Report\n", result.ToolName))
+	output.WriteString(fmt.Sprintf("File: %s\n", result.FilePath))
+	output.WriteString(fmt.Sprintf("Generated: %s\n\n", result.Timestamp))
+
+	f.formatData(&output, result.Data, 0)
+	return output.String()
+}
+
+func (f *TextFormatter) formatData(output *strings.Builder, data interface{}, level int) {
+	indent := strings.Repeat("  ", level)
+
+	switch v := data.(type) {
+	case string:
+		output.WriteString(indent + v + "\n")
+	case []string:
+		for _, item := range v {
+			output.WriteString(indent + "• " + item + "\n")
+		}
+	case map[string]interface{}:
+		for key, value := range v {
+			output.WriteString(fmt.Sprintf("%s%s:\n", indent, key))
+			f.formatData(output, value, level+1)
+		}
+	case []interface{}:
+		for i, item := range v {
+			output.WriteString(fmt.Sprintf("%s%d. ", indent, i+1))
+			f.formatData(output, item, level)
+		}
+	case *TableData:
+		f.formatTable(output, v, level)
+	case []SectionData:
+		for _, section := range v {
+			f.formatSection(output, &section, level)
+		}
+	default:
+		output.WriteString(fmt.Sprintf("%s%v\n", indent, v))
+	}
+}
+
+func (f *TextFormatter) formatTable(output *strings.Builder, table *TableData, level int) {
+	if len(table.Rows) == 0 {
+		output.WriteString("No data available.\n")
+		return
+	}
+
+	// Calculate column widths
+	colWidths := make([]int, len(table.Headers))
+	for i, header := range table.Headers {
+		colWidths[i] = len(header)
+	}
+	for _, row := range table.Rows {
+		for i, cell := range row {
+			if i < len(colWidths) && len(cell) > colWidths[i] {
+				colWidths[i] = len(cell)
+			}
+		}
+	}
+
+	indent := strings.Repeat("  ", level)
+
+	// Header
+	for i, header := range table.Headers {
+		output.WriteString(indent + fmt.Sprintf("%-*s  ", colWidths[i], header))
+	}
+	output.WriteString("\n")
+
+	// Separator
+	output.WriteString(indent)
+	for _, width := range colWidths {
+		output.WriteString(strings.Repeat("-", width) + "  ")
+	}
+	output.WriteString("\n")
+
+	// Rows
+	for _, row := range table.Rows {
+		output.WriteString(indent)
+		for i, cell := range row {
+			if i < len(colWidths) {
+				output.WriteString(fmt.Sprintf("%-*s  ", colWidths[i], cell))
+			}
+		}
+		output.WriteString("\n")
+	}
+}
+
+func (f *TextFormatter) formatSection(output *strings.Builder, section *SectionData, level int) {
+	indent := strings.Repeat("  ", level)
+	output.WriteString(fmt.Sprintf("%s%s\n", indent, section.Title))
+	output.WriteString(fmt.Sprintf("%s%s\n", indent, strings.Repeat("=", len(section.Title))))
+
+	f.formatData(output, section.Content, level)
+	output.WriteString("\n")
+
+	for _, subsection := range section.Subsections {
+		f.formatSection(output, &subsection, level+1)
+	}
+}
+
+func (f *TextFormatter) GetContentType() string {
+	return "text/plain"
+}
+
+type JSONFormatter struct{}
+
+func (f *JSONFormatter) Format(result *AnalysisResult) string {
+	jsonBytes, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Sprintf("{\"error\": \"Failed to format JSON: %s\"}", err.Error())
+	}
+	return string(jsonBytes)
+}
+
+func (f *JSONFormatter) GetContentType() string {
+	return "application/json"
+}
+
+type CSVFormatter struct{}
+
+func (f *CSVFormatter) Format(result *AnalysisResult) string {
+	if result.Error != "" {
+		return fmt.Sprintf("Error,%s\n", result.Error)
+	}
+
+	var output strings.Builder
+
+	// Handle different data types
+	switch v := result.Data.(type) {
+	case *TableData:
+		return f.formatTableCSV(v)
+	case []SectionData:
+		return f.formatSectionsCSV(v)
+	default:
+		// Fallback to simple format
+		output.WriteString("Key,Value\n")
+		output.WriteString(fmt.Sprintf("Tool,%s\n", result.ToolName))
+		output.WriteString(fmt.Sprintf("File,%s\n", result.FilePath))
+		output.WriteString(fmt.Sprintf("Timestamp,%s\n", result.Timestamp))
+		output.WriteString(fmt.Sprintf("Status,%s\n", result.Status))
+		return output.String()
+	}
+}
+
+func (f *CSVFormatter) formatTableCSV(table *TableData) string {
+	var output strings.Builder
+
+	// Headers
+	for i, header := range table.Headers {
+		if i > 0 {
+			output.WriteString(",")
+		}
+		output.WriteString(f.escapeCSV(header))
+	}
+	output.WriteString("\n")
+
+	// Rows
+	for _, row := range table.Rows {
+		for i, cell := range row {
+			if i > 0 {
+				output.WriteString(",")
+			}
+			output.WriteString(f.escapeCSV(cell))
+		}
+		output.WriteString("\n")
+	}
+
+	return output.String()
+}
+
+func (f *CSVFormatter) formatSectionsCSV(sections []SectionData) string {
+	var output strings.Builder
+	output.WriteString("Section,Content\n")
+
+	for _, section := range sections {
+		f.formatSectionCSV(&output, &section, "")
+	}
+
+	return output.String()
+}
+
+func (f *CSVFormatter) formatSectionCSV(output *strings.Builder, section *SectionData, prefix string) {
+	sectionPath := section.Title
+	if prefix != "" {
+		sectionPath = prefix + " > " + section.Title
+	}
+
+	switch v := section.Content.(type) {
+	case string:
+		output.WriteString(fmt.Sprintf("%s,%s\n", f.escapeCSV(sectionPath), f.escapeCSV(v)))
+	case []string:
+		for _, item := range v {
+			output.WriteString(fmt.Sprintf("%s,%s\n", f.escapeCSV(sectionPath), f.escapeCSV(item)))
+		}
+	case map[string]interface{}:
+		for key, value := range v {
+			output.WriteString(fmt.Sprintf("%s,%s\n", f.escapeCSV(sectionPath+"."+key), f.escapeCSV(fmt.Sprintf("%v", value))))
+		}
+	}
+
+	for _, subsection := range section.Subsections {
+		f.formatSectionCSV(output, &subsection, sectionPath)
+	}
+}
+
+func (f *CSVFormatter) escapeCSV(s string) string {
+	if strings.ContainsAny(s, ",\"\n") {
+		return "\"" + strings.ReplaceAll(s, "\"", "\"\"") + "\""
+	}
+	return s
+}
+
+func (f *CSVFormatter) GetContentType() string {
+	return "text/csv"
+}
+
+type HTMLFormatter struct{}
+
+func (f *HTMLFormatter) Format(result *AnalysisResult) string {
+	var output strings.Builder
+
+	output.WriteString("<!DOCTYPE html>\n<html>\n<head>\n")
+	output.WriteString("<title>SSIS Analysis Report</title>\n")
+	output.WriteString("<style>\n")
+	output.WriteString("body { font-family: Arial, sans-serif; margin: 20px; }\n")
+	output.WriteString("h1 { color: #333; }\n")
+	output.WriteString("h2 { color: #666; margin-top: 30px; }\n")
+	output.WriteString("table { border-collapse: collapse; width: 100%; margin: 10px 0; }\n")
+	output.WriteString("th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }\n")
+	output.WriteString("th { background-color: #f2f2f2; }\n")
+	output.WriteString("tr:nth-child(even) { background-color: #f9f9f9; }\n")
+	output.WriteString(".error { color: red; }\n")
+	output.WriteString(".success { color: green; }\n")
+	output.WriteString("</style>\n")
+	output.WriteString("</head>\n<body>\n")
+
+	if result.Error != "" {
+		output.WriteString(fmt.Sprintf("<h1 class=\"error\">Error: %s</h1>\n", result.Error))
+	} else {
+		output.WriteString(fmt.Sprintf("<h1>%s Analysis Report</h1>\n", result.ToolName))
+		output.WriteString(fmt.Sprintf("<p><strong>File:</strong> %s</p>\n", result.FilePath))
+		output.WriteString(fmt.Sprintf("<p><strong>Generated:</strong> %s</p>\n", result.Timestamp))
+		output.WriteString(fmt.Sprintf("<p><strong>Status:</strong> <span class=\"success\">%s</span></p>\n", result.Status))
+
+		f.formatDataHTML(&output, result.Data, 1)
+	}
+
+	output.WriteString("</body>\n</html>\n")
+	return output.String()
+}
+
+func (f *HTMLFormatter) formatDataHTML(output *strings.Builder, data interface{}, level int) {
+	switch v := data.(type) {
+	case string:
+		output.WriteString(fmt.Sprintf("<p>%s</p>\n", v))
+	case []string:
+		output.WriteString("<ul>\n")
+		for _, item := range v {
+			output.WriteString(fmt.Sprintf("<li>%s</li>\n", item))
+		}
+		output.WriteString("</ul>\n")
+	case map[string]interface{}:
+		for key, value := range v {
+			output.WriteString(fmt.Sprintf("<h%d>%s</h%d>\n", level+1, key, level+1))
+			f.formatDataHTML(output, value, level+1)
+		}
+	case []interface{}:
+		output.WriteString("<ol>\n")
+		for _, item := range v {
+			output.WriteString("<li>")
+			f.formatDataHTML(output, item, level)
+			output.WriteString("</li>\n")
+		}
+		output.WriteString("</ol>\n")
+	case *TableData:
+		f.formatTableHTML(output, v)
+	case []SectionData:
+		for _, section := range v {
+			f.formatSectionHTML(output, &section, level)
+		}
+	}
+}
+
+func (f *HTMLFormatter) formatTableHTML(output *strings.Builder, table *TableData) {
+	output.WriteString("<table>\n<thead>\n<tr>\n")
+	for _, header := range table.Headers {
+		output.WriteString(fmt.Sprintf("<th>%s</th>\n", header))
+	}
+	output.WriteString("</tr>\n</thead>\n<tbody>\n")
+
+	for _, row := range table.Rows {
+		output.WriteString("<tr>\n")
+		for _, cell := range row {
+			output.WriteString(fmt.Sprintf("<td>%s</td>\n", cell))
+		}
+		output.WriteString("</tr>\n")
+	}
+
+	output.WriteString("</tbody>\n</table>\n")
+}
+
+func (f *HTMLFormatter) formatSectionHTML(output *strings.Builder, section *SectionData, level int) {
+	output.WriteString(fmt.Sprintf("<h%d>%s</h%d>\n", level+1, section.Title, level+1))
+	f.formatDataHTML(output, section.Content, level+1)
+
+	for _, subsection := range section.Subsections {
+		f.formatSectionHTML(output, &subsection, level+1)
+	}
+}
+
+func (f *HTMLFormatter) GetContentType() string {
+	return "text/html"
+}
+
+type MarkdownFormatter struct{}
+
+func (f *MarkdownFormatter) Format(result *AnalysisResult) string {
+	if result.Error != "" {
+		return fmt.Sprintf("# Error\n\n%s", result.Error)
+	}
+
+	var output strings.Builder
+	output.WriteString(fmt.Sprintf("# %s Analysis Report\n\n", result.ToolName))
+	output.WriteString(fmt.Sprintf("**File:** %s\n\n", result.FilePath))
+	output.WriteString(fmt.Sprintf("**Generated:** %s\n\n", result.Timestamp))
+	output.WriteString(fmt.Sprintf("**Status:** %s\n\n", result.Status))
+
+	f.formatDataMarkdown(&output, result.Data, 1)
+	return output.String()
+}
+
+func (f *MarkdownFormatter) formatDataMarkdown(output *strings.Builder, data interface{}, level int) {
+	switch v := data.(type) {
+	case string:
+		output.WriteString(v + "\n\n")
+	case []string:
+		for _, item := range v {
+			output.WriteString(fmt.Sprintf("- %s\n", item))
+		}
+		output.WriteString("\n")
+	case map[string]interface{}:
+		for key, value := range v {
+			output.WriteString(fmt.Sprintf("%s %s\n\n", strings.Repeat("#", level+1), key))
+			f.formatDataMarkdown(output, value, level+1)
+		}
+	case []interface{}:
+		for i, item := range v {
+			output.WriteString(fmt.Sprintf("%d. ", i+1))
+			f.formatDataMarkdown(output, item, level)
+		}
+	case *TableData:
+		f.formatTableMarkdown(output, v)
+	case []SectionData:
+		for _, section := range v {
+			f.formatSectionMarkdown(output, &section, level)
+		}
+	}
+}
+
+func (f *MarkdownFormatter) formatTableMarkdown(output *strings.Builder, table *TableData) {
+	if len(table.Rows) == 0 {
+		output.WriteString("No data available.\n\n")
+		return
+	}
+
+	// Headers
+	output.WriteString("|")
+	for _, header := range table.Headers {
+		output.WriteString(fmt.Sprintf(" %s |", header))
+	}
+	output.WriteString("\n|")
+
+	// Separator
+	for range table.Headers {
+		output.WriteString(" --- |")
+	}
+	output.WriteString("\n")
+
+	// Rows
+	for _, row := range table.Rows {
+		output.WriteString("|")
+		for _, cell := range row {
+			output.WriteString(fmt.Sprintf(" %s |", cell))
+		}
+		output.WriteString("\n")
+	}
+	output.WriteString("\n")
+}
+
+func (f *MarkdownFormatter) formatSectionMarkdown(output *strings.Builder, section *SectionData, level int) {
+	output.WriteString(fmt.Sprintf("%s %s\n\n", strings.Repeat("#", level+1), section.Title))
+	f.formatDataMarkdown(output, section.Content, level+1)
+
+	for _, subsection := range section.Subsections {
+		f.formatSectionMarkdown(output, &subsection, level+1)
+	}
+}
+
+func (f *MarkdownFormatter) GetContentType() string {
+	return "text/markdown"
+}
+
+// Global formatter registry
+var formatters = map[OutputFormat]OutputFormatter{
+	FormatText:     &TextFormatter{},
+	FormatJSON:     &JSONFormatter{},
+	FormatCSV:      &CSVFormatter{},
+	FormatHTML:     &HTMLFormatter{},
+	FormatMarkdown: &MarkdownFormatter{},
+}
+
+func getFormatter(format OutputFormat) OutputFormatter {
+	if formatter, exists := formatters[format]; exists {
+		return formatter
+	}
+	return formatters[FormatText] // Default to text
+}
+
+func createAnalysisResult(toolName, filePath string, data interface{}, err error) *AnalysisResult {
+	result := &AnalysisResult{
+		ToolName:  toolName,
+		FilePath:  filePath,
+		Timestamp: time.Now().Format("2006-01-02 15:04:05"),
+		Status:    "success",
+		Data:      data,
+		Metadata:  make(map[string]interface{}),
+	}
+
+	if err != nil {
+		result.Status = "error"
+		result.Error = err.Error()
+		result.Data = nil
+	}
+
+	return result
+}
+
+func formatAnalysisResult(result *AnalysisResult, format OutputFormat) string {
+	formatter := getFormatter(format)
+	return formatter.Format(result)
+}
+
+// Helper function to handle tool requests with format support
+func handleToolWithFormat(request mcp.CallToolRequest, toolName string, dataFunc func() (interface{}, error)) *mcp.CallToolResult {
+	// Get format parameter (default to "text")
+	formatStr := request.GetString("format", "text")
+	format := OutputFormat(formatStr)
+
+	// Get file path for error reporting (may be empty for some tools)
+	filePath := request.GetString("file_path", "")
+
+	data, err := dataFunc()
+	result := createAnalysisResult(toolName, filePath, data, err)
+	return mcp.NewToolResultText(formatAnalysisResult(result, format))
+}
+
+// Batch analysis data structures
+type BatchAnalysisResult struct {
+	PackagePath    string                 `json:"package_path"`
+	Success        bool                   `json:"success"`
+	Error          string                 `json:"error,omitempty"`
+	AnalysisResult map[string]interface{} `json:"analysis_result,omitempty"`
+	Duration       time.Duration          `json:"duration"`
+}
+
+type BatchSummary struct {
+	TotalPackages    int                   `json:"total_packages"`
+	Successful       int                   `json:"successful"`
+	Failed           int                   `json:"failed"`
+	TotalDuration    time.Duration         `json:"total_duration"`
+	AverageDuration  time.Duration         `json:"average_duration"`
+	Errors           []string              `json:"errors,omitempty"`
+	PackageSummaries []BatchAnalysisResult `json:"package_summaries"`
+}
+
 func main() {
 	// Command line flags
 	httpMode := flag.Bool("http", false, "Run in HTTP streaming mode")
 	httpPort := flag.String("port", "8086", "HTTP server port")
 	pkgDir := flag.String("pkg-dir", "", "Root directory for SSIS packages (can also be set via GOSSIS_PKG_DIRECTORY env var, defaults to current working directory)")
+	configPath := flag.String("config", "", "Path to configuration file (JSON or YAML)")
 	flag.Parse()
 
-	// Determine package directory from flag or environment variable
-	packageDirectory := *pkgDir
+	// Load configuration
+	config, err := LoadConfig(*configPath)
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	// Override config with command line flags if provided
+	if *httpMode {
+		config.Server.HTTPMode = true
+	}
+	if *httpPort != "8086" {
+		config.Server.Port = *httpPort
+	}
+	if *pkgDir != "" {
+		config.Packages.Directory = *pkgDir
+	}
+
+	// Configure logging
+	configureLogging(config.Logging)
+
+	// Determine package directory from config, environment variable, or default
+	packageDirectory := config.Packages.Directory
 	if packageDirectory == "" {
 		packageDirectory = os.Getenv("GOSSIS_PKG_DIRECTORY")
 	}
 	if packageDirectory == "" {
-		// Default to current working directory if neither flag nor env var is set
+		// Default to current working directory if neither config nor env var is set
 		if cwd, err := os.Getwd(); err == nil {
 			packageDirectory = cwd
 		}
@@ -305,6 +1026,12 @@ func main() {
 		server.WithResourceCapabilities(true, true),
 	)
 
+	// Initialize plugin system
+	pluginSystem := NewPluginSystem(config.Plugins)
+
+	// Register plugin management tools
+	pluginSystem.createPluginManagementTools(s)
+
 	// Register all tools...
 	// Tool to parse DTSX file and return summary
 	parseTool := mcp.NewTool("parse_dtsx",
@@ -312,6 +1039,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file to parse (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(parseTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -325,6 +1055,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(extractTasksTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleExtractTasks(ctx, request, packageDirectory)
@@ -336,6 +1069,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(extractConnectionsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -349,6 +1085,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(extractPrecedenceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleExtractPrecedenceConstraints(ctx, request, packageDirectory)
@@ -360,6 +1099,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(extractVariablesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -373,6 +1115,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(extractParametersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleExtractParameters(ctx, request, packageDirectory)
@@ -385,6 +1130,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(extractScriptTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleExtractScriptCode(ctx, request, packageDirectory)
@@ -396,6 +1144,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(validateBestPracticesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -413,6 +1164,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Question about the DTSX file"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(askTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAskAboutDtsx(ctx, request, packageDirectory)
@@ -424,6 +1178,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(analyzeMessageQueueTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -437,6 +1194,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(analyzeScriptTaskTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAnalyzeScriptTask(ctx, request, packageDirectory)
@@ -448,6 +1208,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(detectHardcodedValuesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -461,6 +1224,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(analyzeLoggingTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAnalyzeLoggingConfiguration(ctx, request, packageDirectory)
@@ -469,6 +1235,9 @@ func main() {
 	// Tool to list all DTSX packages in the package directory
 	listPackagesTool := mcp.NewTool("list_packages",
 		mcp.WithDescription("Recursively list all DTSX packages found in the package directory"),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(listPackagesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleListPackages(ctx, request, packageDirectory)
@@ -481,6 +1250,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(analyzeDataFlowTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAnalyzeDataFlow(ctx, request, packageDirectory)
@@ -492,6 +1264,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(analyzeDataFlowDetailedTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -509,6 +1284,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Type of source to analyze: ole_db, ado_net, odbc, flat_file, excel, access, xml, raw_file, cdc, sap_bw"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(analyzeSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAnalyzeSource(ctx, request, packageDirectory)
@@ -525,6 +1303,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Type of destination to analyze: ole_db, flat_file, sql_server, excel, raw_file"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(analyzeDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAnalyzeDestination(ctx, request, packageDirectory)
@@ -536,6 +1317,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(analyzeOLEDBSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -549,6 +1333,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(analyzeExportColumnTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAnalyzeExportColumn(ctx, request, packageDirectory)
@@ -560,6 +1347,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(analyzeDataConversionTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -573,6 +1363,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(analyzeADONETSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAnalyzeADONETSource(ctx, request, packageDirectory)
@@ -584,6 +1377,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(analyzeODBCSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -597,6 +1393,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(analyzeFlatFileSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAnalyzeFlatFileSource(ctx, request, packageDirectory)
@@ -608,6 +1407,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(analyzeExcelSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -621,6 +1423,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(analyzeAccessSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAnalyzeAccessSource(ctx, request, packageDirectory)
@@ -632,6 +1437,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(analyzeXMLSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -645,6 +1453,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(analyzeRawFileSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAnalyzeRawFileSource(ctx, request, packageDirectory)
@@ -656,6 +1467,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(analyzeCDCSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -669,6 +1483,9 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
 	)
 	s.AddTool(analyzeSAPBWSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAnalyzeSAPBWSource(ctx, request, packageDirectory)
@@ -680,6 +1497,9 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
 	)
 	s.AddTool(analyzeOLEDBDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -897,6 +1717,126 @@ func main() {
 		return handleDetectSecurityIssues(ctx, request, packageDirectory)
 	})
 
+	// Tool to analyze Pivot transformations
+	analyzePivotTool := mcp.NewTool("analyze_pivot",
+		mcp.WithDescription("Analyze Pivot transformations in a DTSX file, extracting pivot keys, set keys, and value columns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzePivotTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzePivot(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Unpivot transformations
+	analyzeUnpivotTool := mcp.NewTool("analyze_unpivot",
+		mcp.WithDescription("Analyze Unpivot transformations in a DTSX file, extracting pivot key values and destination columns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeUnpivotTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeUnpivot(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Term Extraction transformations
+	analyzeTermExtractionTool := mcp.NewTool("analyze_term_extraction",
+		mcp.WithDescription("Analyze Term Extraction transformations in a DTSX file, extracting term extraction settings and exclusion lists"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeTermExtractionTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeTermExtraction(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Fuzzy Lookup transformations
+	analyzeFuzzyLookupTool := mcp.NewTool("analyze_fuzzy_lookup",
+		mcp.WithDescription("Analyze Fuzzy Lookup transformations in a DTSX file, extracting reference table settings and similarity thresholds"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeFuzzyLookupTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeFuzzyLookup(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Fuzzy Grouping transformations
+	analyzeFuzzyGroupingTool := mcp.NewTool("analyze_fuzzy_grouping",
+		mcp.WithDescription("Analyze Fuzzy Grouping transformations in a DTSX file, extracting grouping keys and similarity thresholds"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeFuzzyGroupingTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeFuzzyGrouping(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Row Count transformations
+	analyzeRowCountTool := mcp.NewTool("analyze_row_count",
+		mcp.WithDescription("Analyze Row Count transformations in a DTSX file, extracting variable assignments and result storage"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeRowCountTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeRowCount(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Character Map transformations
+	analyzeCharacterMapTool := mcp.NewTool("analyze_character_map",
+		mcp.WithDescription("Analyze Character Map transformations in a DTSX file, extracting character mapping operations"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeCharacterMapTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeCharacterMap(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze Copy Column transformations
+	analyzeCopyColumnTool := mcp.NewTool("analyze_copy_column",
+		mcp.WithDescription("Analyze Copy Column transformations in a DTSX file, extracting column duplication settings"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeCopyColumnTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeCopyColumn(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze containers
+	analyzeContainersTool := mcp.NewTool("analyze_containers",
+		mcp.WithDescription("Analyze containers in a DTSX file, including Sequence, For Loop, and Foreach Loop containers with their properties and nested executables"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeContainersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeContainers(ctx, request, packageDirectory)
+	})
+
+	// Tool to analyze custom and third-party components
+	analyzeCustomComponentsTool := mcp.NewTool("analyze_custom_components",
+		mcp.WithDescription("Analyze custom and third-party components in a DTSX file, identifying non-standard components and their configurations"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(analyzeCustomComponentsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeCustomComponents(ctx, request, packageDirectory)
+	})
+
 	comparePackagesTool := mcp.NewTool("compare_packages",
 		mcp.WithDescription("Compare two DTSX files and highlight differences"),
 		mcp.WithString("file_path1",
@@ -912,7 +1852,7 @@ func main() {
 		return handleComparePackages(ctx, request, packageDirectory)
 	})
 
-	analyzeCodeQualityTool := mcp.NewTool("analyze_code_quality",
+	analyzeCodeQualityTool := mcp.NewTool("mcp_ssis-analyzer_analyze_code_quality",
 		mcp.WithDescription("Calculate maintainability metrics (complexity, duplication, etc.) to assess package quality and technical debt"),
 		mcp.WithString("file_path",
 			mcp.Required(),
@@ -934,9 +1874,238 @@ func main() {
 		return handleReadTextFile(ctx, request, packageDirectory)
 	})
 
-	if *httpMode {
+	// Advanced Security Features - Phase 2
+
+	// Tool for comprehensive credential scanning with pattern matching
+	scanCredentialsTool := mcp.NewTool("scan_credentials",
+		mcp.WithDescription("Perform comprehensive credential scanning with advanced pattern matching to detect hardcoded credentials, API keys, tokens, and sensitive data patterns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(scanCredentialsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleScanCredentials(ctx, request, packageDirectory)
+	})
+
+	// Tool for encryption detection and recommendations
+	detectEncryptionTool := mcp.NewTool("detect_encryption",
+		mcp.WithDescription("Detect encryption settings and provide recommendations for securing sensitive data in SSIS packages"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(detectEncryptionTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleDetectEncryption(ctx, request, packageDirectory)
+	})
+
+	// Tool for compliance checking (GDPR, HIPAA patterns)
+	checkComplianceTool := mcp.NewTool("check_compliance",
+		mcp.WithDescription("Check SSIS packages for compliance with GDPR, HIPAA, and other regulatory requirements by detecting sensitive data patterns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("compliance_standard",
+			mcp.Description("Compliance standard to check (gdpr, hipaa, pci, or 'all' for comprehensive check)"),
+		),
+	)
+	s.AddTool(checkComplianceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleCheckCompliance(ctx, request, packageDirectory)
+	})
+
+	// Performance Optimization Tools - Phase 2
+
+	// Tool for buffer size optimization recommendations
+	optimizeBufferSizeTool := mcp.NewTool("optimize_buffer_size",
+		mcp.WithDescription("Analyze and provide specific buffer size optimization recommendations for data flows based on data volume and processing patterns"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+	)
+	s.AddTool(optimizeBufferSizeTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleOptimizeBufferSize(ctx, request, packageDirectory)
+	})
+
+	// Tool for parallel processing analysis
+	analyzeParallelProcessingTool := mcp.NewTool("analyze_parallel_processing",
+		mcp.WithDescription("Analyze parallel processing capabilities and provide recommendations for optimizing concurrent execution in SSIS packages"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+	)
+	s.AddTool(analyzeParallelProcessingTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAnalyzeParallelProcessing(ctx, request, packageDirectory)
+	})
+
+	// Tool for memory usage profiling of data flows
+	profileMemoryUsageTool := mcp.NewTool("profile_memory_usage",
+		mcp.WithDescription("Profile memory usage patterns in data flows and provide recommendations for optimizing memory consumption"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+	)
+	s.AddTool(profileMemoryUsageTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleProfileMemoryUsage(ctx, request, packageDirectory)
+	})
+
+	// Batch Processing Tools
+
+	// Batch analysis handler
+	handleBatchAnalyze := func(ctx context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+		args, ok := request.Params.Arguments.(map[string]interface{})
+		if !ok {
+			return mcp.NewToolResultError("invalid arguments"), nil
+		}
+
+		filePaths, ok := args["file_paths"].([]interface{})
+		if !ok {
+			return mcp.NewToolResultError("file_paths parameter is required and must be an array"), nil
+		}
+
+		format := "text"
+		if f, ok := args["format"].(string); ok && f != "" {
+			format = f
+		}
+
+		maxConcurrency := 4 // Default concurrency limit (matches tool definition)
+		if mc, ok := args["max_concurrent"].(float64); ok && mc > 0 {
+			maxConcurrency = int(mc)
+		}
+
+		var paths []string
+		for _, p := range filePaths {
+			if pathStr, ok := p.(string); ok {
+				paths = append(paths, pathStr)
+			}
+		}
+
+		if len(paths) == 0 {
+			return mcp.NewToolResultError("no valid file paths provided"), nil
+		}
+
+		// Create semaphore for concurrency control
+		sem := make(chan struct{}, maxConcurrency)
+		results := make(chan BatchAnalysisResult, len(paths))
+		startTime := time.Now()
+
+		// Launch goroutines for parallel processing
+		for _, path := range paths {
+			go func(filePath string) {
+				sem <- struct{}{}        // Acquire semaphore
+				defer func() { <-sem }() // Release semaphore
+
+				result := BatchAnalysisResult{
+					PackagePath: filePath,
+				}
+				resultStart := time.Now()
+
+				// Perform analysis (simplified - you might want to call specific analysis functions)
+				analysisResult, err := performPackageAnalysis(filePath, packageDirectory)
+				result.Duration = time.Since(resultStart)
+
+				if err != nil {
+					result.Success = false
+					result.Error = err.Error()
+				} else {
+					result.Success = true
+					result.AnalysisResult = analysisResult
+				}
+
+				results <- result
+			}(path)
+		}
+
+		// Collect results
+		var batchResults []BatchAnalysisResult
+		for i := 0; i < len(paths); i++ {
+			select {
+			case result := <-results:
+				batchResults = append(batchResults, result)
+			case <-ctx.Done():
+				return mcp.NewToolResultError("batch analysis cancelled"), nil
+			}
+		}
+
+		// Calculate summary
+		totalDuration := time.Since(startTime)
+		successful := 0
+		failed := 0
+		var errors []string
+
+		for _, result := range batchResults {
+			if result.Success {
+				successful++
+			} else {
+				failed++
+				errors = append(errors, fmt.Sprintf("%s: %s", result.PackagePath, result.Error))
+			}
+		}
+
+		summary := BatchSummary{
+			TotalPackages:    len(paths),
+			Successful:       successful,
+			Failed:           failed,
+			TotalDuration:    totalDuration,
+			AverageDuration:  totalDuration / time.Duration(len(paths)),
+			Errors:           errors,
+			PackageSummaries: batchResults,
+		}
+
+		// Format output
+		var output string
+		switch format {
+		case "json":
+			jsonData, _ := json.MarshalIndent(summary, "", "  ")
+			output = string(jsonData)
+		case "csv":
+			output = formatBatchSummaryAsCSV(summary)
+		case "html":
+			output = formatBatchSummaryAsHTML(summary)
+		case "markdown":
+			output = formatBatchSummaryAsMarkdown(summary)
+		default:
+			output = formatBatchSummaryAsText(summary)
+		}
+
+		return mcp.NewToolResultText(output), nil
+	}
+
+	// Tool for batch analysis of multiple DTSX files
+	batchAnalyzeTool := mcp.NewTool("batch_analyze",
+		mcp.WithDescription("Analyze multiple DTSX files in parallel and provide aggregated results"),
+		mcp.WithArray("file_paths",
+			mcp.Required(),
+			mcp.Description("Array of DTSX file paths to analyze (relative to package directory if set)"),
+			mcp.WithStringItems(),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithNumber("max_concurrent",
+			mcp.Description("Maximum number of concurrent analyses (default: 4)"),
+		),
+	)
+	s.AddTool(batchAnalyzeTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleBatchAnalyze(ctx, request, packageDirectory)
+	})
+
+	if config.Server.HTTPMode {
 		// Run in HTTP streaming mode
-		runHTTPServer(s, *httpPort)
+		runHTTPServer(s, config.Server.Port)
 	} else {
 		// Run in stdio mode (default)
 		if err := server.ServeStdio(s); err != nil {
@@ -951,12 +2120,17 @@ func handleParseDtsx(_ context.Context, request mcp.CallToolRequest, packageDire
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
+	// Get format parameter (default to "text")
+	formatStr := request.GetString("format", "text")
+	format := OutputFormat(formatStr)
+
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+		result := createAnalysisResult("parse_dtsx", filePath, nil, err)
+		return mcp.NewToolResultText(formatAnalysisResult(result, format)), nil
 	}
 
 	// Remove namespace prefixes for easier parsing
@@ -965,26 +2139,42 @@ func handleParseDtsx(_ context.Context, request mcp.CallToolRequest, packageDire
 
 	var pkg SSISPackage
 	if err := xml.Unmarshal(data, &pkg); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+		result := createAnalysisResult("parse_dtsx", filePath, nil, err)
+		return mcp.NewToolResultText(formatAnalysisResult(result, format)), nil
 	}
 
-	summary := "Package Summary:\n"
-	summary += fmt.Sprintf("- Properties: %d\n", len(pkg.Properties))
-	summary += fmt.Sprintf("- Connections: %d\n", len(pkg.ConnectionMgr.Connections))
-	summary += fmt.Sprintf("- Tasks: %d\n", len(pkg.Executables.Tasks))
-	summary += fmt.Sprintf("- Variables: %d\n", len(pkg.Variables.Vars))
+	// Create structured data for the result
+	summaryData := map[string]interface{}{
+		"properties_count":  len(pkg.Properties),
+		"connections_count": len(pkg.ConnectionMgr.Connections),
+		"tasks_count":       len(pkg.Executables.Tasks),
+		"variables_count":   len(pkg.Variables.Vars),
+	}
 
+	// Add package properties
+	properties := make([]map[string]string, 0)
 	for _, prop := range pkg.Properties {
 		if prop.Name == "Name" || prop.Name == "Description" {
-			summary += fmt.Sprintf("  %s: %s\n", prop.Name, strings.TrimSpace(prop.Value))
+			properties = append(properties, map[string]string{
+				"name":  prop.Name,
+				"value": strings.TrimSpace(prop.Value),
+			})
 		}
 	}
+	summaryData["properties"] = properties
 
+	// Add variables
+	variables := make([]map[string]string, 0)
 	for _, v := range pkg.Variables.Vars {
-		summary += fmt.Sprintf("  Variable %s: %s\n", v.Name, v.Value)
+		variables = append(variables, map[string]string{
+			"name":  v.Name,
+			"value": v.Value,
+		})
 	}
+	summaryData["variables"] = variables
 
-	return mcp.NewToolResultText(summary), nil
+	result := createAnalysisResult("parse_dtsx", filePath, summaryData, nil)
+	return mcp.NewToolResultText(formatAnalysisResult(result, format)), nil
 }
 
 func handleExtractTasks(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
@@ -5480,16 +6670,20 @@ func getTaskType(task Task) string {
 func getComponentType(classID string) string {
 	// Map common SSIS component class IDs to readable names
 	switch {
-	case strings.Contains(classID, "OLEDBSource"):
+	case strings.Contains(classID, "OLEDBSource") || strings.Contains(classID, "Microsoft.OLEDBSource"):
 		return "OLE DB Source"
-	case strings.Contains(classID, "OLEDBDestination"):
+	case strings.Contains(classID, "OLEDBDestination") || strings.Contains(classID, "Microsoft.OLEDBDestination"):
 		return "OLE DB Destination"
-	case strings.Contains(classID, "FlatFileSource"):
+	case strings.Contains(classID, "FlatFileSource") || strings.Contains(classID, "Microsoft.FlatFileSource"):
 		return "Flat File Source"
 	case strings.Contains(classID, "FlatFileDestination"):
 		return "Flat File Destination"
+	case strings.Contains(classID, "DataConvert") || strings.Contains(classID, "Microsoft.DataConvert"):
+		return "Data Conversion"
 	case strings.Contains(classID, "Lookup"):
 		return "Lookup"
+	case strings.Contains(classID, "FuzzyLookup"):
+		return "Fuzzy Lookup"
 	case strings.Contains(classID, "Sort"):
 		return "Sort"
 	case strings.Contains(classID, "Aggregate"):
@@ -5504,6 +6698,36 @@ func getComponentType(classID string) string {
 		return "Multicast"
 	case strings.Contains(classID, "UnionAll"):
 		return "Union All"
+	case strings.Contains(classID, "Pivot"):
+		return "Pivot"
+	case strings.Contains(classID, "Unpivot"):
+		return "Unpivot"
+	case strings.Contains(classID, "TermExtraction"):
+		return "Term Extraction"
+	case strings.Contains(classID, "TermLookup"):
+		return "Term Lookup"
+	case strings.Contains(classID, "FuzzyGrouping"):
+		return "Fuzzy Grouping"
+	case strings.Contains(classID, "RowCount"):
+		return "Row Count"
+	case strings.Contains(classID, "RowSampling"):
+		return "Row Sampling"
+	case strings.Contains(classID, "PercentageSampling"):
+		return "Percentage Sampling"
+	case strings.Contains(classID, "SlowlyChangingDimension"):
+		return "Slowly Changing Dimension"
+	case strings.Contains(classID, "CharacterMap"):
+		return "Character Map"
+	case strings.Contains(classID, "CopyColumn"):
+		return "Copy Column"
+	case strings.Contains(classID, "DerivedColumn"):
+		return "Derived Column"
+	case strings.Contains(classID, "DataMiningQuery"):
+		return "Data Mining Query"
+	case strings.Contains(classID, "DimensionProcessing"):
+		return "Dimension Processing"
+	case strings.Contains(classID, "PartitionProcessing"):
+		return "Partition Processing"
 	case strings.Contains(classID, "ScriptComponent"):
 		return "Script Component"
 	case strings.Contains(classID, "Lineage"):
@@ -5512,6 +6736,17 @@ func getComponentType(classID string) string {
 		return "Script Component"
 	case strings.Contains(classID, "Cache"):
 		return "Cache Transform"
+	// Third-party and custom components
+	case strings.Contains(classID, "KingswaySoft"):
+		return "KingswaySoft Component"
+	case strings.Contains(classID, "CozyRoc"):
+		return "CozyRoc Component"
+	case strings.Contains(classID, "PragmaticWorks"):
+		return "Pragmatic Works Component"
+	case strings.Contains(classID, "AuntieDot"):
+		return "AuntieDot Component"
+	case strings.Contains(classID, "BlueSSIS"):
+		return "BlueSSIS Component"
 	default:
 		return classID
 	}
@@ -5554,4 +6789,2076 @@ func runHTTPServer(s *server.MCPServer, port string) {
 	if err := streamableServer.Start(":" + port); err != nil {
 		log.Fatalf("HTTP server error: %v", err)
 	}
+}
+
+func handleAnalyzePivot(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Pivot Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if task.ObjectData.DataFlow.Components.Components != nil {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.Pivot" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Extract pivot-specific properties
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						switch prop.Name {
+						case "PivotKey":
+							result.WriteString(fmt.Sprintf("  Pivot Key: %s\n", prop.Value))
+						case "SetKey":
+							result.WriteString(fmt.Sprintf("  Set Key: %s\n", prop.Value))
+						case "PivotValue":
+							result.WriteString(fmt.Sprintf("  Pivot Value: %s\n", prop.Value))
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Pivot components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeUnpivot(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Unpivot Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if task.ObjectData.DataFlow.Components.Components != nil {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.Unpivot" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Extract unpivot-specific properties
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						switch prop.Name {
+						case "PivotKeyValue":
+							result.WriteString(fmt.Sprintf("  Pivot Key Value: %s\n", prop.Value))
+						case "DestinationColumn":
+							result.WriteString(fmt.Sprintf("  Destination Column: %s\n", prop.Value))
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Unpivot components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeTermExtraction(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Term Extraction Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if task.ObjectData.DataFlow.Components.Components != nil {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.TermExtraction" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Extract term extraction-specific properties
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						switch prop.Name {
+						case "ExclusionTermTable":
+							result.WriteString(fmt.Sprintf("  Exclusion Term Table: %s\n", prop.Value))
+						case "TermTable":
+							result.WriteString(fmt.Sprintf("  Term Table: %s\n", prop.Value))
+						case "ScoreType":
+							result.WriteString(fmt.Sprintf("  Score Type: %s\n", prop.Value))
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Term Extraction components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeFuzzyLookup(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Fuzzy Lookup Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if task.ObjectData.DataFlow.Components.Components != nil {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.FuzzyLookup" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Extract fuzzy lookup-specific properties
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						switch prop.Name {
+						case "ReferenceTableName":
+							result.WriteString(fmt.Sprintf("  Reference Table: %s\n", prop.Value))
+						case "MaxOutputMatches":
+							result.WriteString(fmt.Sprintf("  Max Output Matches: %s\n", prop.Value))
+						case "SimilarityThreshold":
+							result.WriteString(fmt.Sprintf("  Similarity Threshold: %s\n", prop.Value))
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Fuzzy Lookup components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeFuzzyGrouping(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Fuzzy Grouping Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if task.ObjectData.DataFlow.Components.Components != nil {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.FuzzyGrouping" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Extract fuzzy grouping-specific properties
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						switch prop.Name {
+						case "GroupingKey":
+							result.WriteString(fmt.Sprintf("  Grouping Key: %s\n", prop.Value))
+						case "SimilarityThreshold":
+							result.WriteString(fmt.Sprintf("  Similarity Threshold: %s\n", prop.Value))
+						case "MinimumSimilarity":
+							result.WriteString(fmt.Sprintf("  Minimum Similarity: %s\n", prop.Value))
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Fuzzy Grouping components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeRowCount(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Row Count Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if task.ObjectData.DataFlow.Components.Components != nil {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.RowCount" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Extract row count-specific properties
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						if prop.Name == "VariableName" {
+							result.WriteString(fmt.Sprintf("  Variable Name: %s\n", prop.Value))
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Row Count components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeCharacterMap(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Character Map Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if task.ObjectData.DataFlow.Components.Components != nil {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.CharacterMap" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Extract character map operations from XML
+					xmlContent := string(data)
+					charMapPattern := `<component name="` + comp.Name + `">(.*?)</component>`
+					re := regexp.MustCompile(charMapPattern)
+					matches := re.FindStringSubmatch(xmlContent)
+					if len(matches) > 1 {
+						componentXML := matches[1]
+						operationPattern := `<property name="Operation">(.*?)</property>`
+						opRe := regexp.MustCompile(operationPattern)
+						opMatches := opRe.FindAllStringSubmatch(componentXML, -1)
+						for i, match := range opMatches {
+							if len(match) > 1 {
+								result.WriteString(fmt.Sprintf("  Operation %d: %s\n", i+1, strings.TrimSpace(match[1])))
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Character Map components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeCopyColumn(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Copy Column Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if task.ObjectData.DataFlow.Components.Components != nil {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.CopyColumn" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Count input and output columns
+					inputCount := len(comp.Inputs.Inputs[0].InputColumns.Columns)
+					outputCount := len(comp.Outputs.Outputs[0].OutputColumns.Columns)
+					result.WriteString(fmt.Sprintf("  Input Columns: %d\n", inputCount))
+					result.WriteString(fmt.Sprintf("  Output Columns: %d\n", outputCount))
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No Copy Column components found in this package.\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeContainers(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Container Analysis:\n\n")
+
+	containerCount := 0
+	for _, task := range pkg.Executables.Tasks {
+		containerType := ""
+		if task.CreationName == "Microsoft.Sequence" {
+			containerType = "Sequence Container"
+		} else if task.CreationName == "Microsoft.ForLoop" {
+			containerType = "For Loop Container"
+		} else if task.CreationName == "Microsoft.ForEachLoop" {
+			containerType = "Foreach Loop Container"
+		}
+
+		if containerType != "" {
+			containerCount++
+			result.WriteString(fmt.Sprintf("Container %d: %s (%s)\n", containerCount, task.Name, containerType))
+			result.WriteString(fmt.Sprintf("  Description: %s\n", task.Description))
+
+			// Extract container-specific properties
+			for _, prop := range task.Properties {
+				switch prop.Name {
+				case "Disabled":
+					result.WriteString(fmt.Sprintf("  Disabled: %s\n", prop.Value))
+				case "FailPackageOnFailure":
+					result.WriteString(fmt.Sprintf("  Fail Package On Failure: %s\n", prop.Value))
+				case "FailParentOnFailure":
+					result.WriteString(fmt.Sprintf("  Fail Parent On Failure: %s\n", prop.Value))
+				}
+			}
+
+			// Count nested executables
+			if task.ObjectData.ScriptTask.ScriptTaskData.ScriptProject.ScriptCode != "" {
+				// This is a task with script, not a container
+				continue
+			}
+
+			// For containers, count nested tasks (this is a simplified approach)
+			xmlContent := string(data)
+			containerPattern := fmt.Sprintf(`<Executable.*ObjectName="%s".*CreationName="%s">(.*?)</Executable>`, regexp.QuoteMeta(task.Name), regexp.QuoteMeta(task.CreationName))
+			re := regexp.MustCompile(containerPattern)
+			matches := re.FindStringSubmatch(xmlContent)
+			if len(matches) > 1 {
+				containerXML := matches[1]
+				nestedTaskPattern := `<Executable.*CreationName="`
+				nestedRe := regexp.MustCompile(nestedTaskPattern)
+				nestedMatches := nestedRe.FindAllString(containerXML, -1)
+				result.WriteString(fmt.Sprintf("  Nested Executables: %d\n", len(nestedMatches)))
+			}
+
+			result.WriteString("\n")
+		}
+	}
+
+	if containerCount == 0 {
+		result.WriteString("No containers found in this package.\n")
+	} else {
+		result.WriteString(fmt.Sprintf("Total containers found: %d\n", containerCount))
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeCustomComponents(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("Custom and Third-Party Components Analysis:\n\n")
+
+	customCount := 0
+	for _, task := range pkg.Executables.Tasks {
+		if task.ObjectData.DataFlow.Components.Components != nil {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				// Check if this is a custom or third-party component
+				isCustom := false
+				vendor := ""
+
+				classID := strings.ToLower(comp.ComponentClassID)
+				if strings.Contains(classID, "kingswaysoft") {
+					isCustom = true
+					vendor = "KingswaySoft"
+				} else if strings.Contains(classID, "cozyroc") {
+					isCustom = true
+					vendor = "CozyRoc"
+				} else if strings.Contains(classID, "pragmaticworks") || strings.Contains(classID, "pragmatic") {
+					isCustom = true
+					vendor = "Pragmatic Works"
+				} else if strings.Contains(classID, "auntiedot") {
+					isCustom = true
+					vendor = "AuntieDot"
+				} else if strings.Contains(classID, "bluessis") {
+					isCustom = true
+					vendor = "BlueSSIS"
+				} else if !strings.HasPrefix(classID, "microsoft.sqlserver.dts.pipeline") &&
+					!strings.HasPrefix(classID, "microsoft.sqlserver.dts") &&
+					!strings.HasPrefix(classID, "microsoft.") {
+					isCustom = true
+					vendor = "Unknown/Custom"
+				}
+
+				if isCustom {
+					customCount++
+					result.WriteString(fmt.Sprintf("Component %d: %s\n", customCount, comp.Name))
+					result.WriteString(fmt.Sprintf("  Vendor: %s\n", vendor))
+					result.WriteString(fmt.Sprintf("  Class ID: %s\n", comp.ComponentClassID))
+					result.WriteString(fmt.Sprintf("  Description: %s\n", comp.Description))
+
+					// Extract key properties
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						if isKeyProperty(prop.Name) {
+							result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if customCount == 0 {
+		result.WriteString("No custom or third-party components found in this package.\n")
+		result.WriteString("All components appear to be standard Microsoft SSIS components.\n")
+	} else {
+		result.WriteString(fmt.Sprintf("Total custom/third-party components found: %d\n", customCount))
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+// Advanced Security Features - Phase 2
+
+func handleScanCredentials(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("🔍 Advanced Credential Scanning Report:\n\n")
+
+	issuesFound := false
+
+	// Comprehensive credential pattern matching
+	credentialPatterns := []struct {
+		name     string
+		patterns []string
+		category string
+	}{
+		{
+			name:     "Database Credentials",
+			patterns: []string{"password=", "pwd=", "user id=", "uid=", "userid=", "trusted_connection=false", "integrated security=false"},
+			category: "Database",
+		},
+		{
+			name:     "API Keys & Tokens",
+			patterns: []string{"apikey=", "api_key=", "token=", "bearer=", "authorization=", "x-api-key="},
+			category: "API",
+		},
+		{
+			name:     "Cloud Credentials",
+			patterns: []string{"accesskey=", "secretkey=", "accountkey=", "sharedaccesskey=", "sas=", "connectionstring="},
+			category: "Cloud",
+		},
+		{
+			name:     "Encryption Keys",
+			patterns: []string{"encryptionkey=", "key=", "certificate=", "privatekey=", "publickey="},
+			category: "Encryption",
+		},
+		{
+			name:     "Personal Data",
+			patterns: []string{"ssn=", "socialsecurity=", "creditcard=", "cardnumber=", "email=", "phone="},
+			category: "PII",
+		},
+	}
+
+	// Check connection strings with advanced pattern matching
+	result.WriteString("🔗 Connection String Analysis:\n")
+	connIssues := scanConnectionCredentials(pkg.ConnectionMgr.Connections, credentialPatterns)
+	if len(connIssues) > 0 {
+		issuesFound = true
+		for _, issue := range connIssues {
+			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+		}
+	} else {
+		result.WriteString("No credential patterns detected in connection strings.\n")
+	}
+	result.WriteString("\n")
+
+	// Check variables for credential patterns
+	result.WriteString("📊 Variable Analysis:\n")
+	varIssues := scanVariableCredentials(pkg.Variables.Vars, credentialPatterns)
+	if len(varIssues) > 0 {
+		issuesFound = true
+		for _, issue := range varIssues {
+			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+		}
+	} else {
+		result.WriteString("No credential patterns detected in variables.\n")
+	}
+	result.WriteString("\n")
+
+	// Check script tasks for embedded credentials
+	result.WriteString("📜 Script Task Analysis:\n")
+	scriptIssues := scanScriptCredentials(pkg.Executables.Tasks, credentialPatterns)
+	if len(scriptIssues) > 0 {
+		issuesFound = true
+		for _, issue := range scriptIssues {
+			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+		}
+	} else {
+		result.WriteString("No credential patterns detected in script tasks.\n")
+	}
+	result.WriteString("\n")
+
+	// Check expressions for credential patterns
+	result.WriteString("🔍 Expression Analysis:\n")
+	exprIssues := scanExpressionCredentials(pkg.Executables.Tasks, credentialPatterns)
+	if len(exprIssues) > 0 {
+		issuesFound = true
+		for _, issue := range exprIssues {
+			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+		}
+	} else {
+		result.WriteString("No credential patterns detected in expressions.\n")
+	}
+	result.WriteString("\n")
+
+	// Check raw XML content for additional patterns
+	result.WriteString("📄 Raw Content Analysis:\n")
+	rawIssues := scanRawContentCredentials(string(data), credentialPatterns)
+	if len(rawIssues) > 0 {
+		issuesFound = true
+		for _, issue := range rawIssues {
+			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+		}
+	} else {
+		result.WriteString("No credential patterns detected in raw content.\n")
+	}
+	result.WriteString("\n")
+
+	if !issuesFound {
+		result.WriteString("✅ No credential patterns detected in this package.\n\n")
+		result.WriteString("💡 Credential Security Best Practices:\n")
+		result.WriteString("• Use SSIS parameters for all credentials\n")
+		result.WriteString("• Store sensitive data in environment variables or secure stores\n")
+		result.WriteString("• Use Azure Key Vault or similar for cloud credentials\n")
+		result.WriteString("• Implement proper package protection levels\n")
+		result.WriteString("• Regularly rotate credentials and keys\n")
+	} else {
+		result.WriteString("🚨 Critical Security Recommendations:\n")
+		result.WriteString("• Immediately replace all hardcoded credentials with secure alternatives\n")
+		result.WriteString("• Implement proper encryption for sensitive package elements\n")
+		result.WriteString("• Use SSIS package configurations or parameters\n")
+		result.WriteString("• Consider using managed identity or service principals\n")
+		result.WriteString("• Audit and monitor access to sensitive data\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleDetectEncryption(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("🔐 Encryption Detection & Recommendations:\n\n")
+
+	// Check package protection level
+	result.WriteString("📦 Package Protection Level:\n")
+	protectionLevel := "Not specified"
+	for _, prop := range pkg.Properties {
+		if prop.Name == "ProtectionLevel" {
+			protectionLevel = prop.Value
+			break
+		}
+	}
+
+	switch protectionLevel {
+	case "0", "DontSaveSensitive":
+		result.WriteString("⚠️  Protection Level: DontSaveSensitive - Sensitive data will not be saved\n")
+		result.WriteString("   This is generally secure but requires runtime parameter input\n")
+	case "1", "EncryptSensitiveWithUserKey":
+		result.WriteString("⚠️  Protection Level: EncryptSensitiveWithUserKey - Uses current user key\n")
+		result.WriteString("   This may cause issues when deploying to different users/machines\n")
+	case "2", "EncryptSensitiveWithPassword":
+		result.WriteString("✅ Protection Level: EncryptSensitiveWithPassword - Uses password protection\n")
+		result.WriteString("   Good for deployment but requires secure password management\n")
+	case "3", "EncryptAllWithPassword":
+		result.WriteString("✅ Protection Level: EncryptAllWithPassword - Encrypts entire package\n")
+		result.WriteString("   Maximum security but requires password for execution\n")
+	case "4", "EncryptAllWithUserKey":
+		result.WriteString("⚠️  Protection Level: EncryptAllWithUserKey - Uses current user key for all data\n")
+		result.WriteString("   May cause deployment issues across different users/machines\n")
+	default:
+		result.WriteString("❓ Protection Level: Unknown or not set\n")
+		result.WriteString("   Consider setting an appropriate protection level\n")
+	}
+	result.WriteString("\n")
+
+	// Check for encrypted connection strings
+	result.WriteString("🔗 Connection Encryption:\n")
+	encryptionIssues := analyzeConnectionEncryption(pkg.ConnectionMgr.Connections)
+	if len(encryptionIssues) > 0 {
+		for _, issue := range encryptionIssues {
+			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+		}
+	} else {
+		result.WriteString("No encryption issues detected in connections.\n")
+	}
+	result.WriteString("\n")
+
+	// Check for sensitive data handling
+	result.WriteString("🔒 Sensitive Data Handling:\n")
+	sensitiveDataIssues := analyzeSensitiveDataHandling(pkg)
+	if len(sensitiveDataIssues) > 0 {
+		for _, issue := range sensitiveDataIssues {
+			result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+		}
+	} else {
+		result.WriteString("No sensitive data handling issues detected.\n")
+	}
+	result.WriteString("\n")
+
+	// Provide encryption recommendations
+	result.WriteString("💡 Encryption Recommendations:\n")
+	result.WriteString("• Use EncryptSensitiveWithPassword for most scenarios\n")
+	result.WriteString("• Consider EncryptAllWithPassword for maximum security\n")
+	result.WriteString("• Use Azure Key Vault for cloud deployments\n")
+	result.WriteString("• Implement proper certificate management\n")
+	result.WriteString("• Use SSL/TLS for all external connections\n")
+	result.WriteString("• Consider column-level encryption for sensitive data\n")
+	result.WriteString("• Implement proper key rotation policies\n")
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleCheckCompliance(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	complianceStandard := request.GetString("compliance_standard", "all")
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("⚖️  Compliance Check Report:\n")
+	result.WriteString(fmt.Sprintf("Standard: %s\n\n", strings.ToUpper(complianceStandard)))
+
+	issuesFound := false
+
+	// GDPR Compliance Patterns
+	if complianceStandard == "gdpr" || complianceStandard == "all" {
+		result.WriteString("🇪🇺 GDPR Compliance Analysis:\n")
+		gdprIssues := checkGDPRCompliance(pkg, string(data))
+		if len(gdprIssues) > 0 {
+			issuesFound = true
+			for _, issue := range gdprIssues {
+				result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			}
+		} else {
+			result.WriteString("No GDPR compliance issues detected.\n")
+		}
+		result.WriteString("\n")
+	}
+
+	// HIPAA Compliance Patterns
+	if complianceStandard == "hipaa" || complianceStandard == "all" {
+		result.WriteString("🏥 HIPAA Compliance Analysis:\n")
+		hipaaIssues := checkHIPAACompliance(pkg, string(data))
+		if len(hipaaIssues) > 0 {
+			issuesFound = true
+			for _, issue := range hipaaIssues {
+				result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			}
+		} else {
+			result.WriteString("No HIPAA compliance issues detected.\n")
+		}
+		result.WriteString("\n")
+	}
+
+	// PCI DSS Compliance Patterns
+	if complianceStandard == "pci" || complianceStandard == "all" {
+		result.WriteString("💳 PCI DSS Compliance Analysis:\n")
+		pciIssues := checkPCICompliance(pkg, string(data))
+		if len(pciIssues) > 0 {
+			issuesFound = true
+			for _, issue := range pciIssues {
+				result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			}
+		} else {
+			result.WriteString("No PCI DSS compliance issues detected.\n")
+		}
+		result.WriteString("\n")
+	}
+
+	// General Data Protection Analysis
+	if complianceStandard == "all" {
+		result.WriteString("🔒 General Data Protection Analysis:\n")
+		generalIssues := checkGeneralDataProtection(pkg, string(data))
+		if len(generalIssues) > 0 {
+			issuesFound = true
+			for _, issue := range generalIssues {
+				result.WriteString(fmt.Sprintf("⚠️  %s\n", issue))
+			}
+		} else {
+			result.WriteString("No general data protection issues detected.\n")
+		}
+		result.WriteString("\n")
+	}
+
+	if !issuesFound {
+		result.WriteString("✅ No compliance issues detected for the specified standards.\n\n")
+		result.WriteString("💡 Compliance Best Practices:\n")
+		result.WriteString("• Implement proper data classification and labeling\n")
+		result.WriteString("• Use encryption for sensitive data at rest and in transit\n")
+		result.WriteString("• Implement access controls and audit logging\n")
+		result.WriteString("• Regular security assessments and penetration testing\n")
+		result.WriteString("• Data minimization and purpose limitation principles\n")
+		result.WriteString("• Implement proper data retention and deletion policies\n")
+	} else {
+		result.WriteString("🚨 Compliance Remediation Required:\n")
+		result.WriteString("• Address all flagged compliance issues immediately\n")
+		result.WriteString("• Implement proper data protection measures\n")
+		result.WriteString("• Consult with compliance officers and legal teams\n")
+		result.WriteString("• Document compliance measures and controls\n")
+		result.WriteString("• Regular compliance audits and monitoring\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+// Helper functions for Advanced Security Features
+
+func scanConnectionCredentials(connections []Connection, patterns []struct {
+	name     string
+	patterns []string
+	category string
+}) []string {
+	var issues []string
+
+	for _, conn := range connections {
+		connStr := conn.ObjectData.ConnectionMgr.ConnectionString
+		if connStr == "" {
+			connStr = conn.ObjectData.MsmqConnMgr.ConnectionString
+		}
+		connStrLower := strings.ToLower(connStr)
+
+		for _, patternGroup := range patterns {
+			for _, pattern := range patternGroup.patterns {
+				if strings.Contains(connStrLower, strings.ToLower(pattern)) {
+					issues = append(issues, fmt.Sprintf("[%s] Connection '%s' contains %s pattern: %s",
+						patternGroup.category, conn.Name, patternGroup.name, pattern))
+				}
+			}
+		}
+	}
+
+	return issues
+}
+
+func scanVariableCredentials(variables []Variable, patterns []struct {
+	name     string
+	patterns []string
+	category string
+}) []string {
+	var issues []string
+
+	for _, variable := range variables {
+		varNameLower := strings.ToLower(variable.Name)
+		varValueLower := strings.ToLower(variable.Value)
+
+		for _, patternGroup := range patterns {
+			for _, pattern := range patternGroup.patterns {
+				if strings.Contains(varNameLower, strings.ToLower(strings.TrimSuffix(pattern, "="))) ||
+					strings.Contains(varValueLower, strings.ToLower(pattern)) {
+					if variable.Value != "" && !strings.HasPrefix(variable.Value, "@") {
+						issues = append(issues, fmt.Sprintf("[%s] Variable '%s' contains %s pattern",
+							patternGroup.category, variable.Name, patternGroup.name))
+					}
+				}
+			}
+		}
+	}
+
+	return issues
+}
+
+func scanScriptCredentials(tasks []Task, patterns []struct {
+	name     string
+	patterns []string
+	category string
+}) []string {
+	var issues []string
+
+	for _, task := range tasks {
+		if getTaskType(task) == "Script Task" {
+			scriptCode := task.ObjectData.ScriptTask.ScriptTaskData.ScriptProject.ScriptCode
+			if scriptCode != "" {
+				scriptLower := strings.ToLower(scriptCode)
+
+				for _, patternGroup := range patterns {
+					for _, pattern := range patternGroup.patterns {
+						if strings.Contains(scriptLower, strings.ToLower(pattern)) {
+							issues = append(issues, fmt.Sprintf("[%s] Script Task '%s' contains %s pattern in code",
+								patternGroup.category, task.Name, patternGroup.name))
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return issues
+}
+
+func scanExpressionCredentials(tasks []Task, patterns []struct {
+	name     string
+	patterns []string
+	category string
+}) []string {
+	var issues []string
+
+	for _, task := range tasks {
+		for _, prop := range task.Properties {
+			if prop.Name == "Expression" || strings.Contains(prop.Name, "Expression") {
+				exprLower := strings.ToLower(prop.Value)
+
+				for _, patternGroup := range patterns {
+					for _, pattern := range patternGroup.patterns {
+						if strings.Contains(exprLower, strings.ToLower(pattern)) {
+							issues = append(issues, fmt.Sprintf("[%s] Task '%s' expression contains %s pattern",
+								patternGroup.category, task.Name, patternGroup.name))
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return issues
+}
+
+func scanRawContentCredentials(content string, patterns []struct {
+	name     string
+	patterns []string
+	category string
+}) []string {
+	var issues []string
+	contentLower := strings.ToLower(content)
+
+	for _, patternGroup := range patterns {
+		for _, pattern := range patternGroup.patterns {
+			if strings.Contains(contentLower, strings.ToLower(pattern)) {
+				issues = append(issues, fmt.Sprintf("[%s] Raw content contains %s pattern: %s",
+					patternGroup.category, patternGroup.name, pattern))
+			}
+		}
+	}
+
+	return issues
+}
+
+func analyzeConnectionEncryption(connections []Connection) []string {
+	var issues []string
+
+	for _, conn := range connections {
+		connStr := conn.ObjectData.ConnectionMgr.ConnectionString
+		if connStr == "" {
+			connStr = conn.ObjectData.MsmqConnMgr.ConnectionString
+		}
+		connStrLower := strings.ToLower(connStr)
+
+		// Check for unencrypted connections
+		if strings.Contains(connStrLower, "server=") || strings.Contains(connStrLower, "data source=") {
+			if !strings.Contains(connStrLower, "encrypt=true") && !strings.Contains(connStrLower, "ssl") {
+				issues = append(issues, fmt.Sprintf("Connection '%s' may not be using encryption", conn.Name))
+			}
+		}
+
+		// Check for HTTP connections without SSL
+		if strings.Contains(connStrLower, "http://") && !strings.Contains(connStrLower, "https://") {
+			issues = append(issues, fmt.Sprintf("Connection '%s' uses unencrypted HTTP", conn.Name))
+		}
+	}
+
+	return issues
+}
+
+func analyzeSensitiveDataHandling(pkg SSISPackage) []string {
+	var issues []string
+
+	// Check for sensitive data in logs
+	for _, task := range pkg.Executables.Tasks {
+		if getTaskType(task) == "Execute SQL Task" {
+			for _, prop := range task.Properties {
+				if strings.Contains(strings.ToLower(prop.Name), "sqlstatement") {
+					sqlLower := strings.ToLower(prop.Value)
+					if strings.Contains(sqlLower, "password") || strings.Contains(sqlLower, "ssn") ||
+						strings.Contains(sqlLower, "credit") || strings.Contains(sqlLower, "salary") {
+						issues = append(issues, fmt.Sprintf("Execute SQL Task '%s' may be logging sensitive data", task.Name))
+					}
+				}
+			}
+		}
+	}
+
+	// Check for unencrypted flat files
+	for _, conn := range pkg.ConnectionMgr.Connections {
+		connStr := conn.ObjectData.ConnectionMgr.ConnectionString
+		if connStr == "" {
+			connStr = conn.ObjectData.MsmqConnMgr.ConnectionString
+		}
+		connStrLower := strings.ToLower(connStr)
+		// Check for file paths in connection strings (likely flat files)
+		if strings.Contains(connStrLower, ".csv") || strings.Contains(connStrLower, ".txt") ||
+			strings.Contains(connStrLower, ".dat") || strings.Contains(connStrLower, "\\") {
+			issues = append(issues, fmt.Sprintf("File-based connection '%s' detected - ensure file encryption if sensitive data", conn.Name))
+		}
+	}
+
+	return issues
+}
+
+func checkGDPRCompliance(pkg SSISPackage, content string) []string {
+	var issues []string
+	contentLower := strings.ToLower(content)
+
+	// GDPR-specific patterns
+	gdprPatterns := []string{
+		"email", "emailaddress", "firstname", "lastname", "fullname", "dateofbirth", "dob",
+		"address", "phonenumber", "phone", "ipaddress", "ip", "location", "geolocation",
+		"cookie", "tracking", "consent", "gdpr", "personaldata", "pii",
+	}
+
+	for _, pattern := range gdprPatterns {
+		if strings.Contains(contentLower, pattern) {
+			issues = append(issues, fmt.Sprintf("Potential GDPR-sensitive data pattern detected: %s", pattern))
+		}
+	}
+
+	// Check for data retention patterns
+	if strings.Contains(contentLower, "delete") || strings.Contains(contentLower, "truncate") {
+		issues = append(issues, "Data deletion operations detected - ensure GDPR compliance for data retention")
+	}
+
+	return issues
+}
+
+func checkHIPAACompliance(pkg SSISPackage, content string) []string {
+	var issues []string
+	contentLower := strings.ToLower(content)
+
+	// HIPAA-specific patterns
+	hipaaPatterns := []string{
+		"medicalrecord", "healthrecord", "diagnosis", "treatment", "medication",
+		"patientid", "patient_id", "medicalid", "healthid", "phi", "protectedhealth",
+		"insurance", "policy", "claim", "billing", "hipaa",
+	}
+
+	for _, pattern := range hipaaPatterns {
+		if strings.Contains(contentLower, pattern) {
+			issues = append(issues, fmt.Sprintf("Potential HIPAA-sensitive data pattern detected: %s", pattern))
+		}
+	}
+
+	// Check for audit logging
+	hasAudit := false
+	for _, task := range pkg.Executables.Tasks {
+		if getTaskType(task) == "Audit" || strings.Contains(strings.ToLower(task.Name), "audit") {
+			hasAudit = true
+			break
+		}
+	}
+	if !hasAudit {
+		issues = append(issues, "No audit logging detected - HIPAA requires audit trails for PHI access")
+	}
+
+	return issues
+}
+
+func checkPCICompliance(pkg SSISPackage, content string) []string {
+	var issues []string
+	contentLower := strings.ToLower(content)
+
+	// PCI DSS-specific patterns
+	pciPatterns := []string{
+		"creditcard", "cardnumber", "cvv", "cvc", "expiration", "expiry",
+		"cardholder", "pci", "payment", "transaction", "merchant",
+	}
+
+	for _, pattern := range pciPatterns {
+		if strings.Contains(contentLower, pattern) {
+			issues = append(issues, fmt.Sprintf("Potential PCI DSS-sensitive data pattern detected: %s", pattern))
+		}
+	}
+
+	// Check for encryption of card data
+	if strings.Contains(contentLower, "creditcard") || strings.Contains(contentLower, "cardnumber") {
+		if !strings.Contains(contentLower, "encrypt") && !strings.Contains(contentLower, "mask") {
+			issues = append(issues, "Card data detected without apparent encryption or masking")
+		}
+	}
+
+	return issues
+}
+
+func checkGeneralDataProtection(pkg SSISPackage, content string) []string {
+	var issues []string
+	contentLower := strings.ToLower(content)
+
+	// General data protection patterns
+	generalPatterns := []string{
+		"password", "pwd", "secret", "key", "token", "apikey", "api_key",
+		"confidential", "sensitive", "private", "internal",
+	}
+
+	for _, pattern := range generalPatterns {
+		if strings.Contains(contentLower, pattern) {
+			issues = append(issues, fmt.Sprintf("Potential sensitive data pattern detected: %s", pattern))
+		}
+	}
+
+	// Check for data masking or anonymization
+	hasMasking := strings.Contains(contentLower, "mask") || strings.Contains(contentLower, "anonymize") ||
+		strings.Contains(contentLower, "pseudonymize")
+
+	if !hasMasking && (strings.Contains(contentLower, "personal") || strings.Contains(contentLower, "sensitive")) {
+		issues = append(issues, "Sensitive data handling detected without apparent masking/anonymization")
+	}
+
+	return issues
+}
+
+// Performance Optimization Tools - Phase 2
+
+func handleOptimizeBufferSize(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("🔄 Buffer Size Optimization Analysis:\n\n")
+
+	dataFlowCount := 0
+	totalComponents := 0
+
+	for _, task := range pkg.Executables.Tasks {
+		if isDataFlowTask(task) {
+			dataFlowCount++
+			result.WriteString(fmt.Sprintf("📊 Data Flow Task: %s\n", task.Name))
+
+			// Analyze current buffer settings
+			bufferSettings := analyzeBufferSettings(task)
+			if len(bufferSettings) > 0 {
+				result.WriteString("  Current Buffer Settings:\n")
+				for _, setting := range bufferSettings {
+					result.WriteString(fmt.Sprintf("  • %s: %s\n", setting.Name, setting.Value))
+				}
+			} else {
+				result.WriteString("  No explicit buffer settings found (using defaults).\n")
+			}
+
+			// Count components and estimate data volume
+			if task.ObjectData.DataFlow.Components.Components != nil {
+				componentCount := len(task.ObjectData.DataFlow.Components.Components)
+				totalComponents += componentCount
+
+				result.WriteString(fmt.Sprintf("  Components: %d\n", componentCount))
+
+				// Estimate buffer requirements based on component types
+				bufferRecommendations := generateBufferRecommendations(task.ObjectData.DataFlow.Components.Components, bufferSettings)
+				if len(bufferRecommendations) > 0 {
+					result.WriteString("  📈 Buffer Optimization Recommendations:\n")
+					for _, rec := range bufferRecommendations {
+						result.WriteString(fmt.Sprintf("    • %s\n", rec))
+					}
+				}
+			}
+			result.WriteString("\n")
+		}
+	}
+
+	if dataFlowCount == 0 {
+		result.WriteString("❌ No Data Flow Tasks found in this package.\n\n")
+		result.WriteString("💡 Buffer optimization is only applicable to Data Flow Tasks.\n")
+	} else {
+		result.WriteString("🎯 Overall Buffer Optimization Summary:\n")
+		result.WriteString(fmt.Sprintf("• Analyzed %d Data Flow Task(s) with %d total components\n", dataFlowCount, totalComponents))
+
+		// General buffer optimization guidelines
+		result.WriteString("\n📋 General Buffer Optimization Guidelines:\n")
+		result.WriteString("• DefaultBufferSize: Start with 10MB, increase to 50MB+ for large datasets\n")
+		result.WriteString("• DefaultBufferMaxRows: 10,000-100,000 rows based on row size\n")
+		result.WriteString("• MaxBufferSize: Set to 100MB+ for very large datasets\n")
+		result.WriteString("• MinBufferSize: Keep at 64KB unless processing very small datasets\n")
+		result.WriteString("• AutoAdjustBufferSize: Enable for automatic optimization\n")
+		result.WriteString("• BufferTempStoragePath: Use fast SSD storage for spill operations\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleAnalyzeParallelProcessing(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("⚡ Parallel Processing Analysis:\n\n")
+
+	// Analyze package-level parallel settings
+	result.WriteString("📦 Package-Level Parallel Settings:\n")
+	maxConcurrent := "Not set"
+	for _, prop := range pkg.Properties {
+		if prop.Name == "MaxConcurrentExecutables" {
+			maxConcurrent = prop.Value
+			break
+		}
+	}
+
+	if maxConcurrent == "Not set" {
+		result.WriteString("• MaxConcurrentExecutables: Not configured (using SSIS default)\n")
+		result.WriteString("  ⚠️  Consider setting this to optimize parallel execution\n")
+	} else {
+		result.WriteString(fmt.Sprintf("• MaxConcurrentExecutables: %s\n", maxConcurrent))
+		if val, err := strconv.Atoi(maxConcurrent); err == nil && val < 4 {
+			result.WriteString("  💡 Consider increasing for better parallel utilization\n")
+		}
+	}
+	result.WriteString("\n")
+
+	// Analyze task dependencies and parallel execution potential
+	result.WriteString("🔗 Task Execution Analysis:\n")
+	taskAnalysis := analyzeTaskParallelization(pkg.Executables.Tasks)
+	for _, analysis := range taskAnalysis {
+		result.WriteString(fmt.Sprintf("• %s\n", analysis))
+	}
+	result.WriteString("\n")
+
+	// Analyze data flow parallel processing
+	result.WriteString("🔄 Data Flow Parallel Processing:\n")
+	dataFlowAnalysis := analyzeDataFlowParallelization(pkg.Executables.Tasks)
+	for _, analysis := range dataFlowAnalysis {
+		result.WriteString(fmt.Sprintf("• %s\n", analysis))
+	}
+	result.WriteString("\n")
+
+	// Container analysis for parallel execution
+	result.WriteString("📁 Container Parallel Execution:\n")
+	containerAnalysis := analyzeContainerParallelization(pkg.Executables.Tasks)
+	for _, analysis := range containerAnalysis {
+		result.WriteString(fmt.Sprintf("• %s\n", analysis))
+	}
+	result.WriteString("\n")
+
+	// Performance recommendations
+	result.WriteString("🚀 Parallel Processing Optimization Recommendations:\n")
+	result.WriteString("• Set MaxConcurrentExecutables to 2-4 times the number of CPU cores\n")
+	result.WriteString("• Use Sequence Containers to group independent tasks\n")
+	result.WriteString("• Configure EngineThreads (2-10) based on data flow complexity\n")
+	result.WriteString("• Avoid unnecessary precedence constraints that block parallel execution\n")
+	result.WriteString("• Use For Loop containers for parallel processing of multiple files\n")
+	result.WriteString("• Consider partitioning large datasets for parallel processing\n")
+	result.WriteString("• Monitor CPU utilization to avoid over-subscription\n")
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+func handleProfileMemoryUsage(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve the file path against the package directory
+	resolvedPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("🧠 Memory Usage Profiling:\n\n")
+
+	totalEstimatedMemory := int64(0)
+	dataFlowCount := 0
+
+	for _, task := range pkg.Executables.Tasks {
+		if isDataFlowTask(task) {
+			dataFlowCount++
+			result.WriteString(fmt.Sprintf("📊 Data Flow Task: %s\n", task.Name))
+
+			// Analyze buffer memory usage
+			bufferMemory := estimateBufferMemoryUsage(task)
+			if bufferMemory > 0 {
+				result.WriteString(fmt.Sprintf("  Buffer Memory: ~%s\n", formatBytes(bufferMemory)))
+				totalEstimatedMemory += bufferMemory
+			}
+
+			// Analyze component memory usage
+			if task.ObjectData.DataFlow.Components.Components != nil {
+				result.WriteString("  Component Memory Analysis:\n")
+				componentMemory := analyzeComponentMemoryUsage(task.ObjectData.DataFlow.Components.Components)
+				for _, compMem := range componentMemory {
+					result.WriteString(fmt.Sprintf("    • %s: %s\n", compMem.Component, compMem.Estimate))
+					if compMem.Recommendation != "" {
+						result.WriteString(fmt.Sprintf("      💡 %s\n", compMem.Recommendation))
+					}
+				}
+			}
+
+			// Check for memory-intensive operations
+			memoryIssues := detectMemoryIntensiveOperations(task)
+			if len(memoryIssues) > 0 {
+				result.WriteString("  ⚠️  Memory-Intensive Operations:\n")
+				for _, issue := range memoryIssues {
+					result.WriteString(fmt.Sprintf("    • %s\n", issue))
+				}
+			}
+			result.WriteString("\n")
+		}
+	}
+
+	if dataFlowCount == 0 {
+		result.WriteString("❌ No Data Flow Tasks found in this package.\n\n")
+		result.WriteString("💡 Memory profiling is only applicable to Data Flow Tasks.\n")
+	} else {
+		result.WriteString("📈 Overall Memory Profile:\n")
+		result.WriteString(fmt.Sprintf("• Analyzed %d Data Flow Task(s)\n", dataFlowCount))
+		result.WriteString(fmt.Sprintf("• Estimated Total Buffer Memory: ~%s\n", formatBytes(totalEstimatedMemory)))
+		result.WriteString(fmt.Sprintf("• Recommended System Memory: ~%s+\n", formatBytes(totalEstimatedMemory*2)))
+
+		// Memory optimization recommendations
+		result.WriteString("\n🧠 Memory Optimization Recommendations:\n")
+		result.WriteString("• Monitor actual memory usage during execution\n")
+		result.WriteString("• Adjust DefaultBufferSize based on available RAM\n")
+		result.WriteString("• Use 64-bit SSIS for large memory requirements\n")
+		result.WriteString("• Consider data partitioning for very large datasets\n")
+		result.WriteString("• Use BLOBTempStoragePath for large object processing\n")
+		result.WriteString("• Optimize data types to reduce memory footprint\n")
+		result.WriteString("• Consider caching strategies for reference data\n")
+	}
+
+	return mcp.NewToolResultText(result.String()), nil
+}
+
+// Helper functions for Performance Optimization Tools
+
+type BufferSetting struct {
+	Name  string
+	Value string
+}
+
+type ComponentMemory struct {
+	Component      string
+	Estimate       string
+	Recommendation string
+}
+
+func analyzeBufferSettings(task Task) []BufferSetting {
+	var settings []BufferSetting
+
+	bufferProps := []string{
+		"DefaultBufferSize", "DefaultBufferMaxRows", "MaxBufferSize",
+		"MinBufferSize", "AutoAdjustBufferSize", "BufferTempStoragePath",
+		"BLOBTempStoragePath", "EngineThreads",
+	}
+
+	for _, prop := range task.Properties {
+		for _, bufferProp := range bufferProps {
+			if prop.Name == bufferProp {
+				settings = append(settings, BufferSetting{
+					Name:  prop.Name,
+					Value: prop.Value,
+				})
+				break
+			}
+		}
+	}
+
+	return settings
+}
+
+func generateBufferRecommendations(components []DataFlowComponent, bufferSettings []BufferSetting) []string {
+	var recommendations []string
+
+	// Count different component types
+	sourceCount := 0
+	transformCount := 0
+	destCount := 0
+	hasLookup := false
+	hasSort := false
+	hasAggregate := false
+
+	for _, comp := range components {
+		compType := getComponentType(comp.ComponentClassID)
+		switch {
+		case strings.Contains(strings.ToLower(compType), "source"):
+			sourceCount++
+		case strings.Contains(strings.ToLower(compType), "destination"):
+			destCount++
+		case strings.Contains(strings.ToLower(compType), "lookup"):
+			hasLookup = true
+			transformCount++
+		case strings.Contains(strings.ToLower(compType), "sort"):
+			hasSort = true
+			transformCount++
+		case strings.Contains(strings.ToLower(compType), "aggregate"):
+			hasAggregate = true
+			transformCount++
+		default:
+			transformCount++
+		}
+	}
+
+	// Generate recommendations based on component analysis
+	if sourceCount > 1 {
+		recommendations = append(recommendations, "Multiple sources detected - consider increasing EngineThreads for parallel reading")
+	}
+
+	if destCount > 1 {
+		recommendations = append(recommendations, "Multiple destinations detected - consider increasing EngineThreads for parallel writing")
+	}
+
+	if hasLookup {
+		recommendations = append(recommendations, "Lookup transformations present - ensure sufficient memory for reference data caching")
+	}
+
+	if hasSort || hasAggregate {
+		recommendations = append(recommendations, "Blocking transformations (Sort/Aggregate) detected - consider increasing DefaultBufferSize")
+	}
+
+	// Check current buffer settings and provide specific recommendations
+	bufferSize := int64(0)
+	bufferMaxRows := 0
+
+	for _, setting := range bufferSettings {
+		switch setting.Name {
+		case "DefaultBufferSize":
+			if val, err := strconv.ParseInt(setting.Value, 10, 64); err == nil {
+				bufferSize = val
+			}
+		case "DefaultBufferMaxRows":
+			if val, err := strconv.Atoi(setting.Value); err == nil {
+				bufferMaxRows = val
+			}
+		}
+	}
+
+	if bufferSize < 10485760 { // Less than 10MB
+		recommendations = append(recommendations, "DefaultBufferSize is low - consider increasing to 10MB+ for better performance")
+	}
+
+	if bufferMaxRows > 0 && bufferMaxRows < 10000 {
+		recommendations = append(recommendations, "DefaultBufferMaxRows is low - consider increasing to 10,000+ for better throughput")
+	}
+
+	return recommendations
+}
+
+func analyzeTaskParallelization(tasks []Task) []string {
+	var analysis []string
+
+	// Simple analysis of task dependencies
+	// In a real implementation, this would parse precedence constraints
+	taskCount := len(tasks)
+	if taskCount == 0 {
+		return []string{"No tasks found in package"}
+	}
+
+	analysis = append(analysis, fmt.Sprintf("Total tasks: %d", taskCount))
+
+	// Count different task types
+	dataFlowCount := 0
+	executeSQLCount := 0
+	fileSystemCount := 0
+	scriptCount := 0
+
+	for _, task := range tasks {
+		switch getTaskType(task) {
+		case "Data Flow Task":
+			dataFlowCount++
+		case "Execute SQL Task":
+			executeSQLCount++
+		case "File System Task":
+			fileSystemCount++
+		case "Script Task":
+			scriptCount++
+		}
+	}
+
+	if dataFlowCount > 0 {
+		analysis = append(analysis, fmt.Sprintf("Data Flow Tasks: %d (can run in parallel if no dependencies)", dataFlowCount))
+	}
+	if executeSQLCount > 0 {
+		analysis = append(analysis, fmt.Sprintf("Execute SQL Tasks: %d (check for dependencies on same database)", executeSQLCount))
+	}
+	if fileSystemCount > 0 {
+		analysis = append(analysis, fmt.Sprintf("File System Tasks: %d (can often run in parallel)", fileSystemCount))
+	}
+
+	return analysis
+}
+
+func analyzeDataFlowParallelization(tasks []Task) []string {
+	var analysis []string
+
+	for _, task := range tasks {
+		if isDataFlowTask(task) {
+			engineThreads := "Not set"
+			for _, prop := range task.Properties {
+				if prop.Name == "EngineThreads" {
+					engineThreads = prop.Value
+					break
+				}
+			}
+
+			if engineThreads == "Not set" {
+				analysis = append(analysis, fmt.Sprintf("Data Flow '%s': EngineThreads not configured (using default)", task.Name))
+			} else {
+				if val, err := strconv.Atoi(engineThreads); err == nil && val < 2 {
+					analysis = append(analysis, fmt.Sprintf("Data Flow '%s': EngineThreads=%s (consider increasing for parallel processing)", task.Name, engineThreads))
+				} else {
+					analysis = append(analysis, fmt.Sprintf("Data Flow '%s': EngineThreads=%s (good for parallel processing)", task.Name, engineThreads))
+				}
+			}
+		}
+	}
+
+	if len(analysis) == 0 {
+		analysis = append(analysis, "No Data Flow Tasks found")
+	}
+
+	return analysis
+}
+
+func analyzeContainerParallelization(tasks []Task) []string {
+	var analysis []string
+
+	containerCount := 0
+	for _, task := range tasks {
+		if getTaskType(task) == "Sequence Container" || getTaskType(task) == "For Loop Container" || getTaskType(task) == "Foreach Loop Container" {
+			containerCount++
+			containerType := getTaskType(task)
+			analysis = append(analysis, fmt.Sprintf("%s '%s': Enables parallel execution of child tasks", containerType, task.Name))
+		}
+	}
+
+	if containerCount == 0 {
+		analysis = append(analysis, "No containers found - consider using Sequence Containers to group independent tasks")
+	} else {
+		analysis = append(analysis, fmt.Sprintf("Found %d container(s) for organizing parallel execution", containerCount))
+	}
+
+	return analysis
+}
+
+func estimateBufferMemoryUsage(task Task) int64 {
+	bufferSize := int64(1048576) // Default 1MB
+	bufferMaxRows := 10000       // Default 10k rows
+
+	for _, prop := range task.Properties {
+		switch prop.Name {
+		case "DefaultBufferSize":
+			if val, err := strconv.ParseInt(prop.Value, 10, 64); err == nil {
+				bufferSize = val
+			}
+		case "DefaultBufferMaxRows":
+			if val, err := strconv.Atoi(prop.Value); err == nil {
+				bufferMaxRows = val
+			}
+		}
+	}
+
+	// Estimate memory based on buffer settings
+	// This is a simplified estimation: buffer size * estimated row overhead
+	estimatedRowSize := int64(100) // Rough estimate of bytes per row
+	rowOverhead := bufferMaxRows * int(estimatedRowSize)
+	return bufferSize + int64(rowOverhead)
+}
+
+func formatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+func analyzeComponentMemoryUsage(components []DataFlowComponent) []ComponentMemory {
+	var memoryAnalysis []ComponentMemory
+
+	for _, comp := range components {
+		compType := getComponentType(comp.ComponentClassID)
+		var estimate string
+		var recommendation string
+
+		switch {
+		case strings.Contains(strings.ToLower(compType), "lookup"):
+			estimate = "High (caches reference data)"
+			recommendation = "Ensure sufficient memory for lookup cache"
+		case strings.Contains(strings.ToLower(compType), "sort"):
+			estimate = "High (requires memory for sorting)"
+			recommendation = "Consider increasing buffer size for large sorts"
+		case strings.Contains(strings.ToLower(compType), "aggregate"):
+			estimate = "Medium-High (accumulates data)"
+			recommendation = "Monitor memory usage during aggregation"
+		case strings.Contains(strings.ToLower(compType), "merge"):
+			estimate = "Medium (combines multiple inputs)"
+			recommendation = "Ensure adequate buffer size for merge operations"
+		case strings.Contains(strings.ToLower(compType), "source"):
+			estimate = "Low-Medium (reading data)"
+			recommendation = "Optimize source query if possible"
+		case strings.Contains(strings.ToLower(compType), "destination"):
+			estimate = "Low-Medium (writing data)"
+			recommendation = "Configure appropriate batch sizes"
+		default:
+			estimate = "Medium (standard transformation)"
+			recommendation = ""
+		}
+
+		memoryAnalysis = append(memoryAnalysis, ComponentMemory{
+			Component:      compType,
+			Estimate:       estimate,
+			Recommendation: recommendation,
+		})
+	}
+
+	return memoryAnalysis
+}
+
+func detectMemoryIntensiveOperations(task Task) []string {
+	var issues []string
+
+	if task.ObjectData.DataFlow.Components.Components != nil {
+		for _, comp := range task.ObjectData.DataFlow.Components.Components {
+			compType := getComponentType(comp.ComponentClassID)
+
+			// Check for memory-intensive operations
+			if strings.Contains(strings.ToLower(compType), "sort") {
+				issues = append(issues, fmt.Sprintf("%s: Sorting operations can be memory-intensive", compType))
+			}
+			if strings.Contains(strings.ToLower(compType), "aggregate") {
+				issues = append(issues, fmt.Sprintf("%s: Aggregation operations accumulate data in memory", compType))
+			}
+			if strings.Contains(strings.ToLower(compType), "lookup") {
+				issues = append(issues, fmt.Sprintf("%s: Lookup caching can consume significant memory", compType))
+			}
+		}
+	}
+
+	return issues
+}
+
+// performPackageAnalysis performs a basic analysis of a DTSX package
+func performPackageAnalysis(filePath, packageDirectory string) (map[string]interface{}, error) {
+	fullPath := resolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Remove namespace prefixes for easier parsing
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		return nil, fmt.Errorf("failed to parse DTSX file: %w", err)
+	}
+
+	// Extract package name from properties
+	packageName := "Unknown"
+	for _, prop := range pkg.Properties {
+		if prop.Name == "Name" {
+			packageName = strings.TrimSpace(prop.Value)
+			break
+		}
+	}
+
+	// Perform basic analysis
+	result := map[string]interface{}{
+		"package_name":     packageName,
+		"task_count":       len(pkg.Executables.Tasks),
+		"connection_count": len(pkg.ConnectionMgr.Connections),
+		"variable_count":   len(pkg.Variables.Vars),
+		"parameter_count":  len(pkg.Parameters.Params),
+	}
+
+	// Count different task types
+	taskTypes := make(map[string]int)
+	for _, task := range pkg.Executables.Tasks {
+		taskType := getTaskType(task)
+		taskTypes[taskType]++
+	}
+	result["task_types"] = taskTypes
+
+	return result, nil
+}
+
+// formatBatchSummaryAsText formats batch summary as plain text
+func formatBatchSummaryAsText(summary BatchSummary) string {
+	var output strings.Builder
+
+	output.WriteString("Batch Analysis Summary\n")
+	output.WriteString("=====================\n\n")
+	output.WriteString(fmt.Sprintf("Total Packages: %d\n", summary.TotalPackages))
+	output.WriteString(fmt.Sprintf("Successful: %d\n", summary.Successful))
+	output.WriteString(fmt.Sprintf("Failed: %d\n", summary.Failed))
+	output.WriteString(fmt.Sprintf("Total Duration: %v\n", summary.TotalDuration))
+	output.WriteString(fmt.Sprintf("Average Duration: %v\n", summary.AverageDuration))
+
+	if len(summary.Errors) > 0 {
+		output.WriteString("\nErrors:\n")
+		for _, err := range summary.Errors {
+			output.WriteString(fmt.Sprintf("- %s\n", err))
+		}
+	}
+
+	output.WriteString("\nPackage Details:\n")
+	for _, pkg := range summary.PackageSummaries {
+		status := "✓"
+		if !pkg.Success {
+			status = "✗"
+		}
+		output.WriteString(fmt.Sprintf("%s %s (%v)\n", status, pkg.PackagePath, pkg.Duration))
+		if !pkg.Success {
+			output.WriteString(fmt.Sprintf("  Error: %s\n", pkg.Error))
+		}
+	}
+
+	return output.String()
+}
+
+// formatBatchSummaryAsCSV formats batch summary as CSV
+func formatBatchSummaryAsCSV(summary BatchSummary) string {
+	var output strings.Builder
+
+	// Summary header
+	output.WriteString("Summary\n")
+	output.WriteString("Total Packages,Successful,Failed,Total Duration,Average Duration\n")
+	output.WriteString(fmt.Sprintf("%d,%d,%d,%v,%v\n\n",
+		summary.TotalPackages, summary.Successful, summary.Failed,
+		summary.TotalDuration, summary.AverageDuration))
+
+	// Errors
+	if len(summary.Errors) > 0 {
+		output.WriteString("Errors\n")
+		for _, err := range summary.Errors {
+			output.WriteString(fmt.Sprintf("\"%s\"\n", strings.ReplaceAll(err, "\"", "\"\"")))
+		}
+		output.WriteString("\n")
+	}
+
+	// Package details
+	output.WriteString("Package Details\n")
+	output.WriteString("Package Path,Success,Error,Duration\n")
+	for _, pkg := range summary.PackageSummaries {
+		errorStr := ""
+		if pkg.Error != "" {
+			errorStr = strings.ReplaceAll(pkg.Error, "\"", "\"\"")
+		}
+		output.WriteString(fmt.Sprintf("\"%s\",%t,\"%s\",%v\n",
+			pkg.PackagePath, pkg.Success, errorStr, pkg.Duration))
+	}
+
+	return output.String()
+}
+
+// formatBatchSummaryAsHTML formats batch summary as HTML
+func formatBatchSummaryAsHTML(summary BatchSummary) string {
+	var output strings.Builder
+
+	output.WriteString(`<!DOCTYPE html>
+<html>
+<head>
+    <title>Batch Analysis Summary</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .summary { background: #f0f0f0; padding: 10px; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .status-icon { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Batch Analysis Summary</h1>
+    
+    <div class="summary">
+        <h2>Overview</h2>
+        <p>Total Packages: `)
+	output.WriteString(fmt.Sprintf("%d</p>", summary.TotalPackages))
+	output.WriteString(fmt.Sprintf("<p>Successful: <span class=\"success\">%d</span></p>", summary.Successful))
+	output.WriteString(fmt.Sprintf("<p>Failed: <span class=\"error\">%d</span></p>", summary.Failed))
+	output.WriteString(fmt.Sprintf("<p>Total Duration: %v</p>", summary.TotalDuration))
+	output.WriteString(fmt.Sprintf("<p>Average Duration: %v</p>", summary.AverageDuration))
+	output.WriteString(`    </div>`)
+
+	if len(summary.Errors) > 0 {
+		output.WriteString(`
+    <h2>Errors</h2>
+    <ul>`)
+		for _, err := range summary.Errors {
+			output.WriteString(fmt.Sprintf("<li>%s</li>", html.EscapeString(err)))
+		}
+		output.WriteString(`    </ul>`)
+	}
+
+	output.WriteString(`
+    <h2>Package Details</h2>
+    <table>
+        <tr>
+            <th>Package Path</th>
+            <th>Status</th>
+            <th>Duration</th>
+            <th>Error</th>
+        </tr>`)
+
+	for _, pkg := range summary.PackageSummaries {
+		status := `<span class="status-icon success">✓</span>`
+		if !pkg.Success {
+			status = `<span class="status-icon error">✗</span>`
+		}
+		errorCell := ""
+		if pkg.Error != "" {
+			errorCell = html.EscapeString(pkg.Error)
+		}
+		output.WriteString(fmt.Sprintf(`
+        <tr>
+            <td>%s</td>
+            <td>%s</td>
+            <td>%v</td>
+            <td>%s</td>
+        </tr>`, html.EscapeString(pkg.PackagePath), status, pkg.Duration, errorCell))
+	}
+
+	output.WriteString(`
+    </table>
+</body>
+</html>`)
+
+	return output.String()
+}
+
+// formatBatchSummaryAsMarkdown formats batch summary as Markdown
+func formatBatchSummaryAsMarkdown(summary BatchSummary) string {
+	var output strings.Builder
+
+	output.WriteString("# Batch Analysis Summary\n\n")
+	output.WriteString("## Overview\n\n")
+	output.WriteString(fmt.Sprintf("- **Total Packages**: %d\n", summary.TotalPackages))
+	output.WriteString(fmt.Sprintf("- **Successful**: %d\n", summary.Successful))
+	output.WriteString(fmt.Sprintf("- **Failed**: %d\n", summary.Failed))
+	output.WriteString(fmt.Sprintf("- **Total Duration**: %v\n", summary.TotalDuration))
+	output.WriteString(fmt.Sprintf("- **Average Duration**: %v\n", summary.AverageDuration))
+
+	if len(summary.Errors) > 0 {
+		output.WriteString("\n## Errors\n\n")
+		for _, err := range summary.Errors {
+			output.WriteString(fmt.Sprintf("- %s\n", err))
+		}
+	}
+
+	output.WriteString("\n## Package Details\n\n")
+	output.WriteString("| Package Path | Status | Duration | Error |\n")
+	output.WriteString("|--------------|--------|----------|-------|\n")
+
+	for _, pkg := range summary.PackageSummaries {
+		status := "✅"
+		if !pkg.Success {
+			status = "❌"
+		}
+		errorCell := ""
+		if pkg.Error != "" {
+			errorCell = pkg.Error
+		}
+		output.WriteString(fmt.Sprintf("| %s | %s | %v | %s |\n",
+			pkg.PackagePath, status, pkg.Duration, errorCell))
+	}
+
+	return output.String()
 }

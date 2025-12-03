@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "ssis-analyzer-http": {
+      "type": "http",
+      "url": "http://localhost:8086/mcp"
+    },
+    "ssis-analyzer": {
+      "type": "stdio",
+      "command": ".\\ssis-analyzer.exe",
+      "env": {
+        "GOSSIS_PKG_DIRECTORY": ".\\Documents\\SSIS_EXAMPLES"
+      }
+    }
+  }
+}
