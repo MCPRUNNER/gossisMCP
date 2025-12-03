@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/xml"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -299,4 +301,430 @@ func TestResolveFilePath(t *testing.T) {
 			assert.True(t, strings.Contains(resolved, "test.dtsx"), "Expected path to contain test.dtsx")
 		})
 	}
+}
+
+// createTestCallToolRequest creates a proper mcp.CallToolRequest for testing
+func createTestCallToolRequest(toolName string, args map[string]interface{}) mcp.CallToolRequest {
+	return mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name:      toolName,
+			Arguments: args,
+		},
+	}
+}
+
+// Phase 3: Integration Tests - Testing full MCP tool handler workflows
+
+// TestHandleParseDtsxIntegration tests the full MCP integration for parse_dtsx tool
+func TestHandleParseDtsxIntegration(t *testing.T) {
+	tests := []struct {
+		name        string
+		filePath    string
+		format      string
+		expectError bool
+	}{
+		{
+			name:     "parse valid DTSX file with text format",
+			filePath: "testdata/Package1.dtsx",
+			format:   "text",
+		},
+		{
+			name:     "parse valid DTSX file with json format",
+			filePath: "testdata/Package1.dtsx",
+			format:   "json",
+		},
+		{
+			name:        "parse nonexistent file",
+			filePath:    "testdata/NonExistent.dtsx",
+			format:      "text",
+			expectError: false, // Handler returns error result, not error
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			params := map[string]interface{}{
+				"file_path": tt.filePath,
+				"format":    tt.format,
+			}
+			request := createTestCallToolRequest("parse_dtsx", params)
+
+			result, err := handleParseDtsx(context.Background(), request, "")
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				if result != nil {
+					t.Logf("Result content length: %d", len(result.Content))
+					assert.NotEmpty(t, result.Content)
+
+					// Check that result contains expected content
+					if len(result.Content) > 0 {
+						content := result.Content[0]
+						t.Logf("Content type: %T", content)
+						textContent, ok := content.(mcp.TextContent)
+						assert.True(t, ok, "Expected TextContent, got %T", content)
+						if ok {
+							if tt.format == "json" {
+								// For JSON format, should contain JSON structure
+								assert.Contains(t, textContent.Text, `"tool_name": "parse_dtsx"`)
+							} else if strings.Contains(tt.filePath, "NonExistent") {
+								// For error cases, should contain error message
+								assert.Contains(t, textContent.Text, "Error:")
+							} else {
+								// For successful text parsing, should contain analysis results
+								assert.Contains(t, textContent.Text, "parse_dtsx Analysis Report")
+							}
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestHandleExtractTasksIntegration tests the full MCP integration for extract_tasks tool
+func TestHandleExtractTasksIntegration(t *testing.T) {
+	tests := []struct {
+		name     string
+		filePath string
+	}{
+		{
+			name:     "extract tasks from valid DTSX file",
+			filePath: "testdata/Package1.dtsx",
+		},
+		{
+			name:     "extract tasks from nonexistent file",
+			filePath: "testdata/NonExistent.dtsx",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			params := map[string]interface{}{
+				"file_path": tt.filePath,
+			}
+			request := createTestCallToolRequest("extract_tasks", params)
+
+			result, err := handleExtractTasks(context.Background(), request, "")
+
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.NotEmpty(t, result.Content)
+
+			content := result.Content[0]
+			textContent, ok := content.(mcp.TextContent)
+			assert.True(t, ok, "Expected TextContent")
+			if strings.Contains(tt.filePath, "NonExistent") {
+				assert.Contains(t, textContent.Text, "Failed to read file:")
+			} else {
+				assert.Contains(t, textContent.Text, "Tasks:")
+			}
+		})
+	}
+}
+
+// TestHandleExtractConnectionsIntegration tests the full MCP integration for extract_connections tool
+func TestHandleExtractConnectionsIntegration(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "testdata/Package1.dtsx",
+	}
+	request := createTestCallToolRequest("extract_connections", params)
+
+	result, err := handleExtractConnections(context.Background(), request, "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Connections:")
+}
+
+// TestHandleExtractVariablesIntegration tests the full MCP integration for extract_variables tool
+func TestHandleExtractVariablesIntegration(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "testdata/Package1.dtsx",
+	}
+	request := createTestCallToolRequest("extract_variables", params)
+
+	result, err := handleExtractVariables(context.Background(), request, "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Variables:")
+}
+
+// TestHandleExtractParametersIntegration tests the full MCP integration for extract_parameters tool
+func TestHandleExtractParametersIntegration(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "testdata/Package1.dtsx",
+	}
+	request := createTestCallToolRequest("extract_parameters", params)
+
+	result, err := handleExtractParameters(context.Background(), request, "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Parameters:")
+}
+
+// TestHandleExtractPrecedenceConstraintsIntegration tests the full MCP integration for extract_precedence_constraints tool
+func TestHandleExtractPrecedenceConstraintsIntegration(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "testdata/Package1.dtsx",
+	}
+	request := createTestCallToolRequest("extract_precedence_constraints", params)
+
+	result, err := handleExtractPrecedenceConstraints(context.Background(), request, "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Precedence Constraints:")
+}
+
+// TestHandleExtractScriptCodeIntegration tests the full MCP integration for extract_script_code tool
+func TestHandleExtractScriptCodeIntegration(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "testdata/Package1.dtsx",
+	}
+	request := createTestCallToolRequest("extract_script_code", params)
+
+	result, err := handleExtractScriptCode(context.Background(), request, "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Script Tasks Code:")
+}
+
+// TestHandleValidateBestPracticesIntegration tests the full MCP integration for validate_best_practices tool
+func TestHandleValidateBestPracticesIntegration(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "testdata/Package1.dtsx",
+	}
+	request := createTestCallToolRequest("validate_best_practices", params)
+
+	result, err := handleValidateBestPractices(context.Background(), request, "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Best Practices Validation Report:")
+}
+
+// TestHandleListPackagesIntegration tests the full MCP integration for list_packages tool
+func TestHandleListPackagesIntegration(t *testing.T) {
+	params := map[string]interface{}{}
+	request := createTestCallToolRequest("list_packages", params)
+
+	result, err := handleListPackages(context.Background(), request, "testdata")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Found")
+}
+
+// TestHandleAnalyzeDataFlowIntegration tests the full MCP integration for analyze_data_flow tool
+func TestHandleAnalyzeDataFlowIntegration(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "testdata/Package1.dtsx",
+	}
+	request := createTestCallToolRequest("analyze_data_flow", params)
+
+	result, err := handleAnalyzeDataFlow(context.Background(), request, "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Data Flow Analysis:")
+}
+
+// TestHandleDetectHardcodedValuesIntegration tests the full MCP integration for detect_hardcoded_values tool
+func TestHandleDetectHardcodedValuesIntegration(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "testdata/Package1.dtsx",
+	}
+	request := createTestCallToolRequest("detect_hardcoded_values", params)
+
+	result, err := handleDetectHardcodedValues(context.Background(), request, "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Hard-coded Values Detection Report:")
+}
+
+// TestHandleAskAboutDtsxIntegration tests the full MCP integration for ask_about_dtsx tool
+func TestHandleAskAboutDtsxIntegration(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "testdata/Package1.dtsx",
+		"question":  "What is this package?",
+	}
+	request := createTestCallToolRequest("ask_about_dtsx", params)
+
+	result, err := handleAskAboutDtsx(context.Background(), request, "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Package Summary:")
+}
+
+// TestHandleAnalyzeMessageQueueTasksIntegration tests the full MCP integration for analyze_message_queue_tasks tool
+func TestHandleAnalyzeMessageQueueTasksIntegration(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "testdata/Package1.dtsx",
+	}
+	request := createTestCallToolRequest("analyze_message_queue_tasks", params)
+
+	result, err := handleAnalyzeMessageQueueTasks(context.Background(), request, "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Message Queue Tasks Analysis:")
+}
+
+// TestHandleAnalyzeScriptTaskIntegration tests the full MCP integration for analyze_script_task tool
+func TestHandleAnalyzeScriptTaskIntegration(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "testdata/Package1.dtsx",
+	}
+	request := createTestCallToolRequest("analyze_script_task", params)
+
+	result, err := handleAnalyzeScriptTask(context.Background(), request, "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Script Tasks Analysis:")
+}
+
+// TestHandleAnalyzeLoggingConfigurationIntegration tests the full MCP integration for analyze_logging_configuration tool
+func TestHandleAnalyzeLoggingConfigurationIntegration(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "testdata/Package1.dtsx",
+	}
+	request := createTestCallToolRequest("analyze_logging_configuration", params)
+
+	result, err := handleAnalyzeLoggingConfiguration(context.Background(), request, "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Logging Configuration Analysis:")
+}
+
+// TestHandleValidateDtsxIntegration tests the full MCP integration for validate_dtsx tool
+func TestHandleValidateDtsxIntegration(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "testdata/Package1.dtsx",
+	}
+	request := createTestCallToolRequest("validate_dtsx", params)
+
+	result, err := handleValidateDtsx(context.Background(), request)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "Validation")
+}
+
+// TestMCPToolHandlerErrorHandling tests error handling in MCP tool handlers
+func TestMCPToolHandlerErrorHandling(t *testing.T) {
+	// Test missing required parameter
+	params := map[string]interface{}{}
+	request := createTestCallToolRequest("parse_dtsx", params)
+
+	result, err := handleParseDtsx(context.Background(), request, "")
+
+	assert.NoError(t, err) // Handler returns error result, not error
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "required argument") // Should contain error information
+}
+
+// TestMCPToolHandlerWithPackageDirectory tests handlers with package directory parameter
+func TestMCPToolHandlerWithPackageDirectory(t *testing.T) {
+	params := map[string]interface{}{
+		"file_path": "Package1.dtsx", // Relative path
+	}
+	request := createTestCallToolRequest("parse_dtsx", params)
+
+	// Use testdata directory as package directory
+	result, err := handleParseDtsx(context.Background(), request, "testdata")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	content := result.Content[0]
+	textContent, ok := content.(mcp.TextContent)
+	assert.True(t, ok, "Expected TextContent")
+	assert.Contains(t, textContent.Text, "parse_dtsx")
 }
