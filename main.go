@@ -19,15 +19,18 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"gopkg.in/yaml.v3"
 
+	"github.com/MCPRUNNER/gossisMCP/pkg/config"
 	"github.com/MCPRUNNER/gossisMCP/pkg/formatter"
+	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/analysis"
+	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/extraction"
 )
 
 // Config represents the application configuration
 type Config struct {
-	Server   ServerConfig  `json:"server" yaml:"server"`
-	Packages PackageConfig `json:"packages" yaml:"packages"`
-	Logging  LoggingConfig `json:"logging" yaml:"logging"`
-	Plugins  PluginConfig  `json:"plugins" yaml:"plugins"`
+	Server   ServerConfig        `json:"server" yaml:"server"`
+	Packages PackageConfig       `json:"packages" yaml:"packages"`
+	Logging  LoggingConfig       `json:"logging" yaml:"logging"`
+	Plugins  config.PluginConfig `json:"plugins" yaml:"plugins"`
 }
 
 // ServerConfig holds server-related configuration
@@ -576,7 +579,7 @@ func main() {
 		),
 	)
 	s.AddTool(extractTasksTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleExtractTasks(ctx, request, packageDirectory)
+		return extraction.HandleExtractTasks(ctx, request, packageDirectory)
 	})
 
 	// Tool to extract connections
@@ -591,7 +594,7 @@ func main() {
 		),
 	)
 	s.AddTool(extractConnectionsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleExtractConnections(ctx, request, packageDirectory)
+		return extraction.HandleExtractConnections(ctx, request, packageDirectory)
 	})
 
 	// Tool to extract precedence constraints
@@ -606,7 +609,7 @@ func main() {
 		),
 	)
 	s.AddTool(extractPrecedenceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleExtractPrecedenceConstraints(ctx, request, packageDirectory)
+		return extraction.HandleExtractPrecedenceConstraints(ctx, request, packageDirectory)
 	})
 
 	// Tool to extract variables
@@ -621,7 +624,7 @@ func main() {
 		),
 	)
 	s.AddTool(extractVariablesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleExtractVariables(ctx, request, packageDirectory)
+		return extraction.HandleExtractVariables(ctx, request, packageDirectory)
 	})
 
 	// Tool to extract parameters
@@ -636,7 +639,7 @@ func main() {
 		),
 	)
 	s.AddTool(extractParametersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleExtractParameters(ctx, request, packageDirectory)
+		return extraction.HandleExtractParameters(ctx, request, packageDirectory)
 	})
 
 	// Tool to extract script code from Script Tasks
@@ -651,7 +654,7 @@ func main() {
 		),
 	)
 	s.AddTool(extractScriptTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleExtractScriptCode(ctx, request, packageDirectory)
+		return extraction.HandleExtractScriptCode(ctx, request, packageDirectory)
 	})
 
 	// Tool to validate best practices
@@ -771,7 +774,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeDataFlowTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeDataFlow(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeDataFlow(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze data flow components with detailed configurations
@@ -786,7 +789,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeDataFlowDetailedTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeDataFlowDetailed(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeDataFlowDetailed(ctx, request, packageDirectory)
 	})
 
 	// Unified tool to analyze source components
@@ -805,7 +808,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeSource(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeSource(ctx, request, packageDirectory)
 	})
 
 	// Unified tool to analyze destination components
@@ -839,7 +842,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeOLEDBSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeOLEDBSource(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeOLEDBSource(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Export Column destinations
@@ -854,7 +857,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeExportColumnTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeExportColumn(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeExportColumn(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Data Conversion transformations
@@ -869,7 +872,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeDataConversionTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeDataConversion(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeDataConversion(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze ADO.NET Source components
@@ -914,7 +917,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeFlatFileSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeFlatFileSource(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeFlatFileSource(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Excel Source components
@@ -929,7 +932,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeExcelSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeExcelSource(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeExcelSource(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Access Source components
@@ -944,7 +947,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeAccessSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeAccessSource(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeAccessSource(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze XML Source components
@@ -959,7 +962,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeXMLSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeXMLSource(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeXMLSource(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Raw File Source components
@@ -974,7 +977,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeRawFileSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeRawFileSource(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeRawFileSource(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze CDC Source components
@@ -989,7 +992,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeCDCSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeCDCSource(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeCDCSource(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze SAP BW Source components
@@ -1004,7 +1007,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeSAPBWSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeSAPBWSource(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeSAPBWSource(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze OLE DB Destination components
@@ -1019,7 +1022,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeOLEDBDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeOLEDBDestination(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeOLEDBDestination(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Flat File Destination components
@@ -1031,7 +1034,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeFlatFileDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeFlatFileDestination(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeFlatFileDestination(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze SQL Server Destination components
@@ -1043,7 +1046,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeSQLServerDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeSQLServerDestination(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeSQLServerDestination(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Derived Column components
@@ -1055,7 +1058,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeDerivedColumnTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeDerivedColumn(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeDerivedColumn(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Lookup components
@@ -1067,7 +1070,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeLookupTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeLookup(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeLookup(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Conditional Split components
@@ -1079,7 +1082,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeConditionalSplitTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeConditionalSplit(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeConditionalSplit(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Sort components
@@ -1091,7 +1094,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeSortTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeSort(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeSort(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Aggregate components
@@ -1103,7 +1106,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeAggregateTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeAggregate(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeAggregate(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Merge Join components
@@ -1115,7 +1118,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeMergeJoinTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeMergeJoin(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeMergeJoin(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Union All components
@@ -1127,7 +1130,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeUnionAllTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeUnionAll(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeUnionAll(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Multicast components
@@ -1139,7 +1142,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeMulticastTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeMulticast(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeMulticast(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Script Component components
@@ -1151,7 +1154,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeScriptComponentTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeScriptComponent(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeScriptComponent(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Excel Destination components
@@ -1163,7 +1166,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeExcelDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeExcelDestination(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeExcelDestination(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Raw File Destination components
@@ -1175,7 +1178,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeRawFileDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeRawFileDestination(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeRawFileDestination(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze event handlers
@@ -1187,7 +1190,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeEventHandlersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeEventHandlers(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeEventHandlers(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze package dependencies
@@ -1195,7 +1198,7 @@ func main() {
 		mcp.WithDescription("Analyze relationships between packages, shared connections, and variables across multiple DTSX files"),
 	)
 	s.AddTool(analyzePackageDependenciesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzePackageDependencies(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzePackageDependencies(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze package configurations
@@ -1207,7 +1210,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeConfigurationsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeConfigurations(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeConfigurations(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze performance metrics
@@ -1219,7 +1222,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzePerformanceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzePerformanceMetrics(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzePerformanceMetrics(ctx, request, packageDirectory)
 	})
 
 	detectSecurityIssuesTool := mcp.NewTool("detect_security_issues",
@@ -1230,7 +1233,7 @@ func main() {
 		),
 	)
 	s.AddTool(detectSecurityIssuesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleDetectSecurityIssues(ctx, request, packageDirectory)
+		return analysis.HandleDetectSecurityIssues(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Pivot transformations
@@ -1242,7 +1245,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzePivotTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzePivot(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzePivot(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Unpivot transformations
@@ -1254,7 +1257,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeUnpivotTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeUnpivot(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeUnpivot(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Term Extraction transformations
@@ -1266,7 +1269,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeTermExtractionTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeTermExtraction(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeTermExtraction(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Fuzzy Lookup transformations
@@ -1278,7 +1281,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeFuzzyLookupTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeFuzzyLookup(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeFuzzyLookup(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Fuzzy Grouping transformations
@@ -1290,7 +1293,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeFuzzyGroupingTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeFuzzyGrouping(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeFuzzyGrouping(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Row Count transformations
@@ -1302,7 +1305,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeRowCountTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeRowCount(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeRowCount(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Character Map transformations
@@ -1314,7 +1317,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeCharacterMapTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeCharacterMap(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeCharacterMap(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze Copy Column transformations
@@ -1326,7 +1329,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeCopyColumnTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeCopyColumn(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeCopyColumn(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze containers
@@ -1338,7 +1341,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeContainersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeContainers(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeContainers(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze custom and third-party components
@@ -1350,7 +1353,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeCustomComponentsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeCustomComponents(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeCustomComponents(ctx, request, packageDirectory)
 	})
 
 	comparePackagesTool := mcp.NewTool("compare_packages",
@@ -1376,7 +1379,7 @@ func main() {
 		),
 	)
 	s.AddTool(analyzeCodeQualityTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAnalyzeCodeQuality(ctx, request, packageDirectory)
+		return analysis.HandleAnalyzeCodeQuality(ctx, request, packageDirectory)
 	})
 
 	readTextFileTool := mcp.NewTool("read_text_file",

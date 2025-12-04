@@ -7,11 +7,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/MCPRUNNER/gossisMCP/pkg/config"
 )
 
 // TestDefaultConfig tests the default configuration values
 func TestDefaultConfig(t *testing.T) {
-	config := DefaultConfig()
+	config := config.DefaultConfig()
 
 	// Test server config defaults
 	assert.False(t, config.Server.HTTPMode)
@@ -71,7 +73,7 @@ func TestLoadConfigFromJSON(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test loading config
-	config, err := LoadConfig(configFile)
+	config, err := config.LoadConfig(configFile)
 	require.NoError(t, err)
 
 	// Verify loaded values
@@ -122,7 +124,7 @@ plugins:
 	require.NoError(t, err)
 
 	// Test loading config
-	config, err := LoadConfig(configFile)
+	config, err := config.LoadConfig(configFile)
 	require.NoError(t, err)
 
 	// Verify loaded values
@@ -145,7 +147,7 @@ plugins:
 
 // TestLoadConfigInvalidFile tests loading configuration from non-existent file
 func TestLoadConfigInvalidFile(t *testing.T) {
-	_, err := LoadConfig("/non/existent/file.json")
+	_, err := config.LoadConfig("/non/existent/file.json")
 	assert.Error(t, err)
 }
 
@@ -158,10 +160,10 @@ func TestLoadConfigInvalidJSON(t *testing.T) {
 	err := os.WriteFile(configFile, []byte(`{"invalid": json}`), 0644)
 	require.NoError(t, err)
 
-	config, err := LoadConfig(configFile)
+	loadedConfig, err := config.LoadConfig(configFile)
 	// Should succeed with default values
 	assert.NoError(t, err)
-	assert.Equal(t, DefaultConfig(), config)
+	assert.Equal(t, config.DefaultConfig(), loadedConfig)
 }
 
 // TestLoadConfigInvalidYAML tests loading invalid YAML configuration
@@ -173,7 +175,7 @@ func TestLoadConfigInvalidYAML(t *testing.T) {
 	err := os.WriteFile(configFile, []byte(`invalid: yaml: content: [`), 0644)
 	require.NoError(t, err)
 
-	_, err = LoadConfig(configFile)
+	_, err = config.LoadConfig(configFile)
 	assert.Error(t, err)
 }
 
@@ -185,7 +187,7 @@ func TestLoadConfigUnsupportedFormat(t *testing.T) {
 	err := os.WriteFile(configFile, []byte("some content"), 0644)
 	require.NoError(t, err)
 
-	_, err = LoadConfig(configFile)
+	_, err = config.LoadConfig(configFile)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse config as JSON or YAML")
 }
@@ -193,27 +195,27 @@ func TestLoadConfigUnsupportedFormat(t *testing.T) {
 // TestConfigValidation tests configuration validation
 func TestConfigValidation(t *testing.T) {
 	// Test valid config
-	config := DefaultConfig()
-	err := validateConfig(config)
+	testConfig := config.DefaultConfig()
+	err := config.ValidateConfig(testConfig)
 	assert.NoError(t, err)
 
 	// Test invalid port
-	config.Server.Port = "invalid"
-	err = validateConfig(config)
+	testConfig.Server.Port = "invalid"
+	err = config.ValidateConfig(testConfig)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid server port")
 
 	// Test invalid log level
-	config = DefaultConfig()
-	config.Logging.Level = "invalid"
-	err = validateConfig(config)
+	testConfig = config.DefaultConfig()
+	testConfig.Logging.Level = "invalid"
+	err = config.ValidateConfig(testConfig)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid log level")
 
 	// Test invalid log format
-	config = DefaultConfig()
-	config.Logging.Format = "invalid"
-	err = validateConfig(config)
+	testConfig = config.DefaultConfig()
+	testConfig.Logging.Format = "invalid"
+	err = config.ValidateConfig(testConfig)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid log format")
 }
@@ -272,12 +274,12 @@ func TestEnvironmentVariableOverrides(t *testing.T) {
 	require.NoError(t, err)
 
 	// Load config - environment variables should override
-	config, err := LoadConfig(configFile)
+	loadedConfig, err := config.LoadConfig(configFile)
 	require.NoError(t, err)
 
 	// Verify environment variable overrides
-	assert.Equal(t, "9999", config.Server.Port)
-	assert.Equal(t, "", config.Packages.Directory)
-	assert.Equal(t, "debug", config.Logging.Level)
-	assert.Equal(t, "json", config.Logging.Format)
+	assert.Equal(t, "9999", loadedConfig.Server.Port)
+	assert.Equal(t, "", loadedConfig.Packages.Directory)
+	assert.Equal(t, "debug", loadedConfig.Logging.Level)
+	assert.Equal(t, "json", loadedConfig.Logging.Format)
 }

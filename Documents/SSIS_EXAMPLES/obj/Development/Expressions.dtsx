@@ -1,0 +1,1076 @@
+<?xml version="1.0"?>
+<DTS:Executable xmlns:DTS="www.microsoft.com/SqlServer/Dts"
+  DTS:refId="Package"
+  DTS:CreationDate="11/11/2024 8:51:53 AM"
+  DTS:CreationName="Microsoft.Package"
+  DTS:CreatorComputerName="T15P"
+  DTS:CreatorName="RSYSLAB\U00001"
+  DTS:DTSID="{41ADF117-4E99-43F4-B9E7-34245C58A5D6}"
+  DTS:EnableConfig="True"
+  DTS:ExecutableType="Microsoft.Package"
+  DTS:LastModifiedProductVersion="16.0.5685.0"
+  DTS:LocaleID="1033"
+  DTS:ObjectName="Expressions"
+  DTS:PackageType="5"
+  DTS:VersionBuild="22"
+  DTS:VersionGUID="{9F36C3E3-0BC9-4682-8084-0DE4EE4404BE}">
+  <DTS:Property
+    DTS:Name="PackageFormatVersion">8</DTS:Property>
+  <DTS:ConnectionManagers>
+    <DTS:ConnectionManager
+      DTS:refId="Package.ConnectionManagers[PROTO]"
+      DTS:CreationName="OLEDB"
+      DTS:DTSID="{4805ACE5-78FE-45A3-A39C-7BBDF22E418E}"
+      DTS:ObjectName="PROTO">
+      <DTS:PropertyExpression
+        DTS:Name="ConnectionString">@[User::DB_CS]</DTS:PropertyExpression>
+      <DTS:ObjectData>
+        <DTS:ConnectionManager
+          DTS:ConnectRetryCount="1"
+          DTS:ConnectRetryInterval="5"
+          DTS:ConnectionString="Data Source=T15P;Initial Catalog=PROTO;Provider=MSOLEDBSQL.1;Integrated Security=SSPI;Auto Translate=False;" />
+      </DTS:ObjectData>
+    </DTS:ConnectionManager>
+    <DTS:ConnectionManager
+      DTS:refId="Package.ConnectionManagers[TEMP_EXPRESSIONS_CSV]"
+      DTS:CreationName="FLATFILE"
+      DTS:DTSID="{B20B184D-F5EE-4A7F-B56C-22A23D4D09EC}"
+      DTS:ObjectName="TEMP_EXPRESSIONS_CSV">
+      <DTS:PropertyExpression
+        DTS:Name="ConnectionString">@[User::CSV_LOCATION]</DTS:PropertyExpression>
+      <DTS:ObjectData>
+        <DTS:ConnectionManager
+          DTS:Format="Delimited"
+          DTS:LocaleID="1033"
+          DTS:HeaderRowDelimiter="_x000D__x000A_"
+          DTS:ColumnNamesInFirstDataRow="True"
+          DTS:RowDelimiter=""
+          DTS:TextQualifier="_x003C_none_x003E_"
+          DTS:CodePage="65001"
+          DTS:ConnectionString="C:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\Expressions.csv">
+          <DTS:FlatFileColumns>
+            <DTS:FlatFileColumn
+              DTS:ColumnType="Delimited"
+              DTS:ColumnDelimiter="_x002C_"
+              DTS:DataType="3"
+              DTS:TextQualified="True"
+              DTS:ObjectName="id"
+              DTS:DTSID="{8CFCCB21-C9B8-47C9-B652-B5CFC8C93F30}"
+              DTS:CreationName="" />
+            <DTS:FlatFileColumn
+              DTS:ColumnType="Delimited"
+              DTS:ColumnDelimiter="_x002C_"
+              DTS:MaximumWidth="128"
+              DTS:DataType="130"
+              DTS:TextQualified="True"
+              DTS:ObjectName="event"
+              DTS:DTSID="{B4703EF0-7B17-436D-8C33-9D63DD72621C}"
+              DTS:CreationName="" />
+            <DTS:FlatFileColumn
+              DTS:ColumnType="Delimited"
+              DTS:ColumnDelimiter="_x002C_"
+              DTS:MaximumWidth="128"
+              DTS:DataType="130"
+              DTS:TextQualified="True"
+              DTS:ObjectName="computer"
+              DTS:DTSID="{55AA2315-139B-495F-8BAC-7DA24FA74305}"
+              DTS:CreationName="" />
+            <DTS:FlatFileColumn
+              DTS:ColumnType="Delimited"
+              DTS:ColumnDelimiter="_x002C_"
+              DTS:MaximumWidth="128"
+              DTS:DataType="130"
+              DTS:TextQualified="True"
+              DTS:ObjectName="operator"
+              DTS:DTSID="{2E1FF669-C27D-4AF2-BA5D-6460D8C5EACC}"
+              DTS:CreationName="" />
+            <DTS:FlatFileColumn
+              DTS:ColumnType="Delimited"
+              DTS:ColumnDelimiter="_x002C_"
+              DTS:MaximumWidth="1024"
+              DTS:DataType="130"
+              DTS:TextQualified="True"
+              DTS:ObjectName="source"
+              DTS:DTSID="{BD940E65-C09E-4962-8439-35BFB21B50EB}"
+              DTS:CreationName="" />
+            <DTS:FlatFileColumn
+              DTS:ColumnType="Delimited"
+              DTS:ColumnDelimiter="_x002C_"
+              DTS:DataType="72"
+              DTS:TextQualified="True"
+              DTS:ObjectName="sourceid"
+              DTS:DTSID="{929F0C6F-C5C2-4ABD-85FB-C54FD3831EB3}"
+              DTS:CreationName="" />
+            <DTS:FlatFileColumn
+              DTS:ColumnType="Delimited"
+              DTS:ColumnDelimiter="_x002C_"
+              DTS:DataType="72"
+              DTS:TextQualified="True"
+              DTS:ObjectName="executionid"
+              DTS:DTSID="{EEEFD1FF-8BB5-4784-8340-F5753A4D58F3}"
+              DTS:CreationName="" />
+            <DTS:FlatFileColumn
+              DTS:ColumnType="Delimited"
+              DTS:ColumnDelimiter="_x002C_"
+              DTS:DataType="135"
+              DTS:TextQualified="True"
+              DTS:ObjectName="starttime"
+              DTS:DTSID="{8AF0D27F-8C0C-4DBF-AAAE-137D76BA5A1F}"
+              DTS:CreationName="" />
+            <DTS:FlatFileColumn
+              DTS:ColumnType="Delimited"
+              DTS:ColumnDelimiter="_x002C_"
+              DTS:DataType="135"
+              DTS:TextQualified="True"
+              DTS:ObjectName="endtime"
+              DTS:DTSID="{A77AE127-6768-4787-A3D0-D0FFE685A8F7}"
+              DTS:CreationName="" />
+            <DTS:FlatFileColumn
+              DTS:ColumnType="Delimited"
+              DTS:ColumnDelimiter="_x002C_"
+              DTS:DataType="3"
+              DTS:TextQualified="True"
+              DTS:ObjectName="datacode"
+              DTS:DTSID="{27D3C911-DE33-47B4-8BA2-660ABC6AEABB}"
+              DTS:CreationName="" />
+            <DTS:FlatFileColumn
+              DTS:ColumnType="Delimited"
+              DTS:ColumnDelimiter="_x002C_"
+              DTS:DataType="301"
+              DTS:TextQualified="True"
+              DTS:ObjectName="databytes"
+              DTS:DTSID="{5FD946CF-4077-4809-9513-7DBD353A9986}"
+              DTS:CreationName="" />
+            <DTS:FlatFileColumn
+              DTS:ColumnType="Delimited"
+              DTS:ColumnDelimiter="_x000D__x000A_"
+              DTS:MaximumWidth="2048"
+              DTS:DataType="130"
+              DTS:TextQualified="True"
+              DTS:ObjectName="message"
+              DTS:DTSID="{E146EACC-7785-4CF4-B238-BA9B4D038DC4}"
+              DTS:CreationName="" />
+          </DTS:FlatFileColumns>
+        </DTS:ConnectionManager>
+      </DTS:ObjectData>
+    </DTS:ConnectionManager>
+  </DTS:ConnectionManagers>
+  <DTS:Configurations>
+    <DTS:Configuration
+      DTS:ConfigurationString="ConfigFile"
+      DTS:ConfigurationType="5"
+      DTS:CreationName=""
+      DTS:DTSID="{CB2DE7AD-EF6F-4822-9B4E-C4FFDA0D8A82}"
+      DTS:ObjectName="ConfigFile" />
+  </DTS:Configurations>
+  <DTS:LogProviders>
+    <DTS:LogProvider
+      DTS:ConfigString="PROTO"
+      DTS:CreationName="Microsoft.LogProviderSQLServer"
+      DTS:Description="Writes log entries for events to a SQL Server database"
+      DTS:DTSID="{D2BAA6B3-26FD-498D-B1B3-54A0E34A79B2}"
+      DTS:ObjectName="SSIS log provider for SQL Server">
+      <DTS:ObjectData>
+        <InnerObject />
+      </DTS:ObjectData>
+    </DTS:LogProvider>
+  </DTS:LogProviders>
+  <DTS:Variables>
+    <DTS:Variable
+      DTS:CreationName=""
+      DTS:DTSID="{252451C8-0637-4BD2-86D2-3AA7098C8AFB}"
+      DTS:IncludeInDebugDump="2345"
+      DTS:Namespace="User"
+      DTS:ObjectName="CSV_DIRECTORY">
+      <DTS:VariableValue
+        DTS:DataType="8">C:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES</DTS:VariableValue>
+    </DTS:Variable>
+    <DTS:Variable
+      DTS:CreationName=""
+      DTS:DTSID="{57A5A701-130D-430E-A28E-E4962AA23378}"
+      DTS:IncludeInDebugDump="2345"
+      DTS:Namespace="User"
+      DTS:ObjectName="CSV_FILENAME">
+      <DTS:VariableValue
+        DTS:DataType="8">Expressions.csv</DTS:VariableValue>
+    </DTS:Variable>
+    <DTS:Variable
+      DTS:CreationName=""
+      DTS:DTSID="{DDB66C85-B1FD-451E-AD7A-DE1128FF90CE}"
+      DTS:EvaluateAsExpression="True"
+      DTS:Expression="@[User::CSV_DIRECTORY] +&quot;\\&quot;+ @[User::CSV_FILENAME]"
+      DTS:IncludeInDebugDump="2345"
+      DTS:Namespace="User"
+      DTS:ObjectName="CSV_LOCATION">
+      <DTS:VariableValue
+        DTS:DataType="8">C:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\Expressions.csv</DTS:VariableValue>
+    </DTS:Variable>
+    <DTS:Variable
+      DTS:CreationName=""
+      DTS:DTSID="{20F14ADE-83DD-4ACA-A8C0-AE9C6A72A973}"
+      DTS:EvaluateAsExpression="True"
+      DTS:Expression="&quot;Data Source=&quot;+ @[User::DB_NAME] +&quot;;Initial Catalog=PROTO;Provider=MSOLEDBSQL.1;Integrated Security=SSPI;Auto Translate=False;&quot;"
+      DTS:IncludeInDebugDump="2345"
+      DTS:Namespace="User"
+      DTS:ObjectName="DB_CS">
+      <DTS:VariableValue
+        DTS:DataType="8">Data Source=T15P;Initial Catalog=PROTO;Provider=MSOLEDBSQL.1;Integrated Security=SSPI;Auto Translate=False;</DTS:VariableValue>
+    </DTS:Variable>
+    <DTS:Variable
+      DTS:CreationName=""
+      DTS:DTSID="{1DDF37CB-C146-47AD-8C30-3C11026FC93B}"
+      DTS:EvaluateAsExpression="True"
+      DTS:Expression="@[User::DB_NAME]"
+      DTS:IncludeInDebugDump="2345"
+      DTS:Namespace="User"
+      DTS:ObjectName="DB_NAME">
+      <DTS:VariableValue
+        DTS:DataType="8">T15P</DTS:VariableValue>
+    </DTS:Variable>
+  </DTS:Variables>
+  <DTS:LoggingOptions
+    DTS:FilterKind="0"
+    DTS:LoggingMode="1">
+    <DTS:Property
+      DTS:DataType="8"
+      DTS:Name="EventFilter">6,7,OnError,13,OnPostExecute,12,OnPreExecute,10,OnProgress,12,OnTaskFailed,9,OnWarning</DTS:Property>
+    <DTS:Property
+      DTS:EventName="OnError"
+      DTS:Name="ColumnFilter">
+      <DTS:Property
+        DTS:Name="Computer">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="Operator">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="SourceName">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="SourceID">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="ExecutionID">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="MessageText">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="DataBytes">-1</DTS:Property>
+    </DTS:Property>
+    <DTS:Property
+      DTS:EventName="OnPostExecute"
+      DTS:Name="ColumnFilter">
+      <DTS:Property
+        DTS:Name="Computer">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="Operator">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="SourceName">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="SourceID">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="ExecutionID">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="MessageText">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="DataBytes">-1</DTS:Property>
+    </DTS:Property>
+    <DTS:Property
+      DTS:EventName="OnPreExecute"
+      DTS:Name="ColumnFilter">
+      <DTS:Property
+        DTS:Name="Computer">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="Operator">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="SourceName">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="SourceID">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="ExecutionID">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="MessageText">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="DataBytes">-1</DTS:Property>
+    </DTS:Property>
+    <DTS:Property
+      DTS:EventName="OnProgress"
+      DTS:Name="ColumnFilter">
+      <DTS:Property
+        DTS:Name="Computer">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="Operator">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="SourceName">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="SourceID">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="ExecutionID">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="MessageText">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="DataBytes">-1</DTS:Property>
+    </DTS:Property>
+    <DTS:Property
+      DTS:EventName="OnTaskFailed"
+      DTS:Name="ColumnFilter">
+      <DTS:Property
+        DTS:Name="Computer">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="Operator">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="SourceName">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="SourceID">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="ExecutionID">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="MessageText">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="DataBytes">-1</DTS:Property>
+    </DTS:Property>
+    <DTS:Property
+      DTS:EventName="OnWarning"
+      DTS:Name="ColumnFilter">
+      <DTS:Property
+        DTS:Name="Computer">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="Operator">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="SourceName">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="SourceID">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="ExecutionID">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="MessageText">-1</DTS:Property>
+      <DTS:Property
+        DTS:Name="DataBytes">-1</DTS:Property>
+    </DTS:Property>
+    <DTS:SelectedLogProviders>
+      <DTS:SelectedLogProvider
+        DTS:InstanceID="{D2BAA6B3-26FD-498D-B1B3-54A0E34A79B2}" />
+    </DTS:SelectedLogProviders>
+  </DTS:LoggingOptions>
+  <DTS:Executables>
+    <DTS:Executable
+      DTS:refId="Package\SSIS_LOGS_TO_CSV"
+      DTS:CreationName="Microsoft.Pipeline"
+      DTS:Description="Data Flow Task"
+      DTS:DTSID="{8FE22759-BB3F-40B7-A791-2C0518D7AEF5}"
+      DTS:ExecutableType="Microsoft.Pipeline"
+      DTS:LocaleID="-1"
+      DTS:ObjectName="SSIS_LOGS_TO_CSV"
+      DTS:TaskContact="Performs high-performance data extraction, transformation and loading;Microsoft Corporation; Microsoft SQL Server; (C) Microsoft Corporation; All Rights Reserved;http://www.microsoft.com/sql/support/default.asp;1">
+      <DTS:Variables />
+      <DTS:LoggingOptions
+        DTS:FilterKind="0" />
+      <DTS:ObjectData>
+        <pipeline
+          version="1">
+          <components>
+            <component
+              refId="Package\SSIS_LOGS_TO_CSV\Convert_databytes"
+              componentClassID="Microsoft.DataConvert"
+              contactInfo="Data Conversion;Microsoft Corporation; Microsoft SQL Server; (C) Microsoft Corporation; All Rights Reserved; http://www.microsoft.com/sql/support;0"
+              description="Data Conversion"
+              name="Convert_databytes"
+              usesDispositions="true">
+              <inputs>
+                <input
+                  refId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Inputs[Data Conversion Input]"
+                  name="Data Conversion Input">
+                  <inputColumns>
+                    <inputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Inputs[Data Conversion Input].Columns[databytes]"
+                      cachedDataType="image"
+                      cachedName="databytes"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[databytes]" />
+                  </inputColumns>
+                  <externalMetadataColumns />
+                </input>
+              </inputs>
+              <outputs>
+                <output
+                  refId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Outputs[Data Conversion Output]"
+                  exclusionGroup="1"
+                  name="Data Conversion Output"
+                  synchronousInputId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Inputs[Data Conversion Input]">
+                  <outputColumns>
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Outputs[Data Conversion Output].Columns[Copy of databytes]"
+                      codePage="1252"
+                      dataType="text"
+                      errorOrTruncationOperation="Conversion"
+                      errorRowDisposition="FailComponent"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Outputs[Data Conversion Output].Columns[Copy of databytes]"
+                      name="Copy of databytes"
+                      truncationRowDisposition="FailComponent">
+                      <properties>
+                        <property
+                          containsID="true"
+                          dataType="System.Int32"
+                          description="Specifies the input column used as the source of data for the conversion."
+                          name="SourceInputColumnLineageID">#{Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[databytes]}</property>
+                        <property
+                          dataType="System.Boolean"
+                          description="Indicates whether the column uses the faster, locale-neutral parsing routines."
+                          name="FastParse">false</property>
+                      </properties>
+                    </outputColumn>
+                  </outputColumns>
+                  <externalMetadataColumns />
+                </output>
+                <output
+                  refId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Outputs[Data Conversion Error Output]"
+                  exclusionGroup="1"
+                  isErrorOut="true"
+                  name="Data Conversion Error Output"
+                  synchronousInputId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Inputs[Data Conversion Input]">
+                  <outputColumns>
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Outputs[Data Conversion Error Output].Columns[ErrorCode]"
+                      dataType="i4"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Outputs[Data Conversion Error Output].Columns[ErrorCode]"
+                      name="ErrorCode"
+                      specialFlags="1" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Outputs[Data Conversion Error Output].Columns[ErrorColumn]"
+                      dataType="i4"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Outputs[Data Conversion Error Output].Columns[ErrorColumn]"
+                      name="ErrorColumn"
+                      specialFlags="2" />
+                  </outputColumns>
+                  <externalMetadataColumns />
+                </output>
+              </outputs>
+            </component>
+            <component
+              refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv"
+              componentClassID="Microsoft.FlatFileDestination"
+              contactInfo="Flat File Destination;Microsoft Corporation; Microsoft SQL Server; (C) Microsoft Corporation; All Rights Reserved; http://www.microsoft.com/sql/support;1"
+              description="Flat File Destination"
+              localeId="1033"
+              name="Expressions_csv"
+              version="1">
+              <properties>
+                <property
+                  dataType="System.Boolean"
+                  description="Specifies whether the data will overwrite or append to the destination file."
+                  name="Overwrite">true</property>
+                <property
+                  dataType="System.Null"
+                  description="Specifies the text to write to the destination file before any data is written."
+                  expressionType="Notify"
+                  name="Header" />
+                <property
+                  dataType="System.Boolean"
+                  description="When text qualifier is enabled, specifies whether the text qualifier in the data written to the destination file will be escaped or not."
+                  name="EscapeQualifier">false</property>
+              </properties>
+              <connections>
+                <connection
+                  refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Connections[FlatFileConnection]"
+                  connectionManagerID="Package.ConnectionManagers[TEMP_EXPRESSIONS_CSV]"
+                  connectionManagerRefId="Package.ConnectionManagers[TEMP_EXPRESSIONS_CSV]"
+                  name="FlatFileConnection" />
+              </connections>
+              <inputs>
+                <input
+                  refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input]"
+                  hasSideEffects="true"
+                  name="Flat File Destination Input">
+                  <inputColumns>
+                    <inputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].Columns[id]"
+                      cachedDataType="i4"
+                      cachedName="id"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[id]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[id]" />
+                    <inputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].Columns[event]"
+                      cachedDataType="wstr"
+                      cachedLength="128"
+                      cachedName="event"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[event]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[event]" />
+                    <inputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].Columns[computer]"
+                      cachedDataType="wstr"
+                      cachedLength="128"
+                      cachedName="computer"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[computer]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[computer]" />
+                    <inputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].Columns[operator]"
+                      cachedDataType="wstr"
+                      cachedLength="128"
+                      cachedName="operator"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[operator]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[operator]" />
+                    <inputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].Columns[source]"
+                      cachedDataType="wstr"
+                      cachedLength="1024"
+                      cachedName="source"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[source]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[source]" />
+                    <inputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].Columns[sourceid]"
+                      cachedDataType="guid"
+                      cachedName="sourceid"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[sourceid]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[sourceid]" />
+                    <inputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].Columns[executionid]"
+                      cachedDataType="guid"
+                      cachedName="executionid"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[executionid]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[executionid]" />
+                    <inputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].Columns[starttime]"
+                      cachedDataType="dbTimeStamp"
+                      cachedName="starttime"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[starttime]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[starttime]" />
+                    <inputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].Columns[endtime]"
+                      cachedDataType="dbTimeStamp"
+                      cachedName="endtime"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[endtime]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[endtime]" />
+                    <inputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].Columns[datacode]"
+                      cachedDataType="i4"
+                      cachedName="datacode"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[datacode]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[datacode]" />
+                    <inputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].Columns[message]"
+                      cachedDataType="wstr"
+                      cachedLength="2048"
+                      cachedName="message"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[message]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[message]" />
+                    <inputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].Columns[Copy of databytes]"
+                      cachedCodepage="1252"
+                      cachedDataType="text"
+                      cachedName="Copy of databytes"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[databytes]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Outputs[Data Conversion Output].Columns[Copy of databytes]" />
+                  </inputColumns>
+                  <externalMetadataColumns
+                    isUsed="True">
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[id]"
+                      dataType="i4"
+                      name="id" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[event]"
+                      dataType="wstr"
+                      length="128"
+                      name="event" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[computer]"
+                      dataType="wstr"
+                      length="128"
+                      name="computer" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[operator]"
+                      dataType="wstr"
+                      length="128"
+                      name="operator" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[source]"
+                      dataType="wstr"
+                      length="1024"
+                      name="source" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[sourceid]"
+                      dataType="guid"
+                      name="sourceid" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[executionid]"
+                      dataType="guid"
+                      name="executionid" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[starttime]"
+                      dataType="dbTimeStamp"
+                      name="starttime" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[endtime]"
+                      dataType="dbTimeStamp"
+                      name="endtime" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[datacode]"
+                      dataType="i4"
+                      name="datacode" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[databytes]"
+                      dataType="image"
+                      name="databytes" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input].ExternalColumns[message]"
+                      dataType="wstr"
+                      length="2048"
+                      name="message" />
+                  </externalMetadataColumns>
+                </input>
+              </inputs>
+            </component>
+            <component
+              refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS"
+              componentClassID="Microsoft.OLEDBSource"
+              contactInfo="OLE DB Source;Microsoft Corporation; Microsoft SQL Server; (C) Microsoft Corporation; All Rights Reserved; http://www.microsoft.com/sql/support;7"
+              description="OLE DB Source"
+              name="PROTO_SSIS_LOGS"
+              usesDispositions="true"
+              version="7">
+              <properties>
+                <property
+                  dataType="System.Int32"
+                  description="The number of seconds before a command times out.  A value of 0 indicates an infinite time-out."
+                  name="CommandTimeout">0</property>
+                <property
+                  dataType="System.String"
+                  description="Specifies the name of the database object used to open a rowset."
+                  name="OpenRowset">[dbo].[sysssislog]</property>
+                <property
+                  dataType="System.String"
+                  description="Specifies the variable that contains the name of the database object used to open a rowset."
+                  name="OpenRowsetVariable"></property>
+                <property
+                  dataType="System.String"
+                  description="The SQL command to be executed."
+                  name="SqlCommand"
+                  UITypeEditor="Microsoft.DataTransformationServices.Controls.ModalMultilineStringEditor"></property>
+                <property
+                  dataType="System.String"
+                  description="The variable that contains the SQL command to be executed."
+                  name="SqlCommandVariable"></property>
+                <property
+                  dataType="System.Int32"
+                  description="Specifies the column code page to use when code page information is unavailable from the data source."
+                  name="DefaultCodePage">1252</property>
+                <property
+                  dataType="System.Boolean"
+                  description="Forces the use of the DefaultCodePage property value when describing character data."
+                  name="AlwaysUseDefaultCodePage">false</property>
+                <property
+                  dataType="System.Int32"
+                  description="Specifies the mode used to access the database."
+                  name="AccessMode"
+                  typeConverter="AccessMode">0</property>
+                <property
+                  dataType="System.String"
+                  description="The mappings between the parameters in the SQL command and variables."
+                  name="ParameterMapping"></property>
+              </properties>
+              <connections>
+                <connection
+                  refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Connections[OleDbConnection]"
+                  connectionManagerID="Package.ConnectionManagers[PROTO]"
+                  connectionManagerRefId="Package.ConnectionManagers[PROTO]"
+                  description="The OLE DB runtime connection used to access the database."
+                  name="OleDbConnection" />
+              </connections>
+              <outputs>
+                <output
+                  refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output]"
+                  name="OLE DB Source Output">
+                  <outputColumns>
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[id]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversion"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[id]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[id]"
+                      name="id"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[event]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversion"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[event]"
+                      length="128"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[event]"
+                      name="event"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[computer]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversion"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[computer]"
+                      length="128"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[computer]"
+                      name="computer"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[operator]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversion"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[operator]"
+                      length="128"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[operator]"
+                      name="operator"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[source]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversion"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[source]"
+                      length="1024"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[source]"
+                      name="source"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[sourceid]"
+                      dataType="guid"
+                      errorOrTruncationOperation="Conversion"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[sourceid]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[sourceid]"
+                      name="sourceid"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[executionid]"
+                      dataType="guid"
+                      errorOrTruncationOperation="Conversion"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[executionid]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[executionid]"
+                      name="executionid"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[starttime]"
+                      dataType="dbTimeStamp"
+                      errorOrTruncationOperation="Conversion"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[starttime]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[starttime]"
+                      name="starttime"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[endtime]"
+                      dataType="dbTimeStamp"
+                      errorOrTruncationOperation="Conversion"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[endtime]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[endtime]"
+                      name="endtime"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[datacode]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversion"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[datacode]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[datacode]"
+                      name="datacode"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[databytes]"
+                      dataType="image"
+                      errorOrTruncationOperation="Conversion"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[databytes]"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[databytes]"
+                      name="databytes"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[message]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversion"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[message]"
+                      length="2048"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[message]"
+                      name="message"
+                      truncationRowDisposition="FailComponent" />
+                  </outputColumns>
+                  <externalMetadataColumns
+                    isUsed="True">
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[id]"
+                      dataType="i4"
+                      name="id" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[event]"
+                      dataType="wstr"
+                      length="128"
+                      name="event" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[computer]"
+                      dataType="wstr"
+                      length="128"
+                      name="computer" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[operator]"
+                      dataType="wstr"
+                      length="128"
+                      name="operator" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[source]"
+                      dataType="wstr"
+                      length="1024"
+                      name="source" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[sourceid]"
+                      dataType="guid"
+                      name="sourceid" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[executionid]"
+                      dataType="guid"
+                      name="executionid" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[starttime]"
+                      dataType="dbTimeStamp"
+                      name="starttime" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[endtime]"
+                      dataType="dbTimeStamp"
+                      name="endtime" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[datacode]"
+                      dataType="i4"
+                      name="datacode" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[databytes]"
+                      dataType="image"
+                      name="databytes" />
+                    <externalMetadataColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].ExternalColumns[message]"
+                      dataType="wstr"
+                      length="2048"
+                      name="message" />
+                  </externalMetadataColumns>
+                </output>
+                <output
+                  refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output]"
+                  isErrorOut="true"
+                  name="OLE DB Source Error Output">
+                  <outputColumns>
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[id]"
+                      dataType="i4"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[id]"
+                      name="id" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[event]"
+                      dataType="wstr"
+                      length="128"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[event]"
+                      name="event" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[computer]"
+                      dataType="wstr"
+                      length="128"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[computer]"
+                      name="computer" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[operator]"
+                      dataType="wstr"
+                      length="128"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[operator]"
+                      name="operator" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[source]"
+                      dataType="wstr"
+                      length="1024"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[source]"
+                      name="source" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[sourceid]"
+                      dataType="guid"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[sourceid]"
+                      name="sourceid" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[executionid]"
+                      dataType="guid"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[executionid]"
+                      name="executionid" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[starttime]"
+                      dataType="dbTimeStamp"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[starttime]"
+                      name="starttime" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[endtime]"
+                      dataType="dbTimeStamp"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[endtime]"
+                      name="endtime" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[datacode]"
+                      dataType="i4"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[datacode]"
+                      name="datacode" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[databytes]"
+                      dataType="image"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[databytes]"
+                      name="databytes" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[message]"
+                      dataType="wstr"
+                      length="2048"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[message]"
+                      name="message" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[ErrorCode]"
+                      dataType="i4"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[ErrorCode]"
+                      name="ErrorCode"
+                      specialFlags="1" />
+                    <outputColumn
+                      refId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[ErrorColumn]"
+                      dataType="i4"
+                      lineageId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Error Output].Columns[ErrorColumn]"
+                      name="ErrorColumn"
+                      specialFlags="2" />
+                  </outputColumns>
+                  <externalMetadataColumns />
+                </output>
+              </outputs>
+            </component>
+          </components>
+          <paths>
+            <path
+              refId="Package\SSIS_LOGS_TO_CSV.Paths[Data Conversion Output]"
+              endId="Package\SSIS_LOGS_TO_CSV\Expressions_csv.Inputs[Flat File Destination Input]"
+              name="Data Conversion Output"
+              startId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Outputs[Data Conversion Output]" />
+            <path
+              refId="Package\SSIS_LOGS_TO_CSV.Paths[OLE DB Source Output]"
+              endId="Package\SSIS_LOGS_TO_CSV\Convert_databytes.Inputs[Data Conversion Input]"
+              name="OLE DB Source Output"
+              startId="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output]" />
+          </paths>
+        </pipeline>
+      </DTS:ObjectData>
+    </DTS:Executable>
+  </DTS:Executables>
+  <DTS:DesignTimeProperties><![CDATA[<?xml version="1.0"?>
+<!--This CDATA section contains the layout information of the package. The section includes information such as (x,y) coordinates, width, and height.-->
+<!--If you manually edit this section and make a mistake, you can delete it. -->
+<!--The package will still be able to load normally but the previous layout information will be lost and the designer will automatically re-arrange the elements on the design surface.-->
+<Objects
+  Version="8">
+  <!--Each node below will contain properties that do not affect runtime behavior.-->
+  <Package
+    design-time-name="Package">
+    <LayoutInfo>
+      <GraphLayout
+        Capacity="4" xmlns="clr-namespace:Microsoft.SqlServer.IntegrationServices.Designer.Model.Serialization;assembly=Microsoft.SqlServer.IntegrationServices.Graph">
+        <NodeLayout
+          Size="191,42"
+          Id="Package\SSIS_LOGS_TO_CSV"
+          TopLeft="174,129" />
+      </GraphLayout>
+    </LayoutInfo>
+  </Package>
+  <TaskHost
+    design-time-name="Package\SSIS_LOGS_TO_CSV">
+    <LayoutInfo>
+      <GraphLayout
+        Capacity="8" xmlns="clr-namespace:Microsoft.SqlServer.IntegrationServices.Designer.Model.Serialization;assembly=Microsoft.SqlServer.IntegrationServices.Graph" xmlns:mssgle="clr-namespace:Microsoft.SqlServer.Graph.LayoutEngine;assembly=Microsoft.SqlServer.Graph" xmlns:assembly="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:mssgm="clr-namespace:Microsoft.SqlServer.Graph.Model;assembly=Microsoft.SqlServer.Graph">
+        <NodeLayout
+          Size="186,42"
+          Id="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS"
+          TopLeft="156,226" />
+        <NodeLayout
+          Size="162,42"
+          Id="Package\SSIS_LOGS_TO_CSV\Expressions_csv"
+          TopLeft="512,298" />
+        <NodeLayout
+          Size="171,42"
+          Id="Package\SSIS_LOGS_TO_CSV\Convert_databytes"
+          TopLeft="443,121" />
+        <EdgeLayout
+          Id="Package\SSIS_LOGS_TO_CSV.Paths[OLE DB Source Output]"
+          TopLeft="249,226">
+          <EdgeLayout.Curve>
+            <mssgle:Curve
+              StartConnector="{assembly:Null}"
+              EndConnector="252.333333333333,-63"
+              Start="0,0"
+              End="252.333333333333,-55.5">
+              <mssgle:Curve.Segments>
+                <mssgle:SegmentCollection
+                  Capacity="5">
+                  <mssgle:LineSegment
+                    End="0,-33.449594438007" />
+                  <mssgle:CubicBezierSegment
+                    Point1="0,-33.449594438007"
+                    Point2="0,-37.449594438007"
+                    Point3="4,-37.449594438007" />
+                  <mssgle:LineSegment
+                    End="248.333333333333,-37.449594438007" />
+                  <mssgle:CubicBezierSegment
+                    Point1="248.333333333333,-37.449594438007"
+                    Point2="252.333333333333,-37.449594438007"
+                    Point3="252.333333333333,-41.449594438007" />
+                  <mssgle:LineSegment
+                    End="252.333333333333,-55.5" />
+                </mssgle:SegmentCollection>
+              </mssgle:Curve.Segments>
+            </mssgle:Curve>
+          </EdgeLayout.Curve>
+          <EdgeLayout.Labels>
+            <mssgm:EdgeLabel
+              BoundingBox="118.166666666667,-32.449594438007,16,16"
+              RelativePosition="Any" />
+          </EdgeLayout.Labels>
+        </EdgeLayout>
+        <EdgeLayout
+          Id="Package\SSIS_LOGS_TO_CSV.Paths[Data Conversion Output]"
+          TopLeft="555.666666666667,163">
+          <EdgeLayout.Curve>
+            <mssgle:Curve
+              StartConnector="{assembly:Null}"
+              EndConnector="37.3333333333334,135"
+              Start="0,0"
+              End="37.3333333333334,127.5">
+              <mssgle:Curve.Segments>
+                <mssgle:SegmentCollection
+                  Capacity="5">
+                  <mssgle:LineSegment
+                    End="0,50.7508690614137" />
+                  <mssgle:CubicBezierSegment
+                    Point1="0,50.7508690614137"
+                    Point2="0,54.7508690614137"
+                    Point3="4,54.7508690614137" />
+                  <mssgle:LineSegment
+                    End="33.3333333333334,54.7508690614137" />
+                  <mssgle:CubicBezierSegment
+                    Point1="33.3333333333334,54.7508690614137"
+                    Point2="37.3333333333334,54.7508690614137"
+                    Point3="37.3333333333334,58.7508690614137" />
+                  <mssgle:LineSegment
+                    End="37.3333333333334,127.5" />
+                </mssgle:SegmentCollection>
+              </mssgle:Curve.Segments>
+            </mssgle:Curve>
+          </EdgeLayout.Curve>
+          <EdgeLayout.Labels>
+            <EdgeLabelCollection />
+          </EdgeLayout.Labels>
+        </EdgeLayout>
+      </GraphLayout>
+    </LayoutInfo>
+  </TaskHost>
+  <PipelineComponentMetadata
+    design-time-name="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS">
+    <Properties>
+      <Property>
+        <Name>DataSourceViewID</Name>
+      </Property>
+      <Property>
+        <Name>TableInfoObjectType</Name>
+        <Value
+          type="q2:string">Table</Value>
+      </Property>
+    </Properties>
+  </PipelineComponentMetadata>
+</Objects>]]></DTS:DesignTimeProperties>
+</DTS:Executable>
