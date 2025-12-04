@@ -26,7 +26,8 @@ type ServerConfig struct {
 
 // PackageConfig holds package directory configuration
 type PackageConfig struct {
-	Directory string `json:"directory" yaml:"directory"`
+	Directory   string `json:"directory" yaml:"directory"`
+	ExcludeFile string `json:"exclude_file" yaml:"exclude_file"`
 }
 
 // LoggingConfig holds logging configuration
@@ -181,6 +182,9 @@ func mergeConfigs(base, override Config) Config {
 	// Merge package config
 	if override.Packages.Directory != "" {
 		result.Packages.Directory = override.Packages.Directory
+	}
+	if override.Packages.ExcludeFile != "" {
+		result.Packages.ExcludeFile = override.Packages.ExcludeFile
 	}
 
 	// Merge logging config

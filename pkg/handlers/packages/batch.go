@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -160,12 +161,19 @@ func performBatchPackageAnalysis(filePath, packageDirectory string) (map[string]
 		return nil, fmt.Errorf("failed to parse DTSX file: %w", err)
 	}
 
-	packageName := "Unknown"
-	for _, prop := range pkg.Properties {
-		if prop.Name == "Name" {
-			packageName = strings.TrimSpace(prop.Value)
-			break
+	packageName := strings.TrimSpace(pkg.ObjectName)
+	if packageName == "" {
+		for _, prop := range pkg.Properties {
+			if prop.Name == "ObjectName" || prop.Name == "Name" {
+				packageName = strings.TrimSpace(prop.Value)
+				if packageName != "" {
+					break
+				}
+			}
 		}
+	}
+	if packageName == "" {
+		packageName = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
 	}
 
 	result := map[string]interface{}{

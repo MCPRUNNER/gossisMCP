@@ -1,0 +1,7 @@
+# Patterns to exclude from MCP package scans
+# Lines starting with # are comments; blank lines are ignored.
+
+bin/
+obj/
+# Ignore temporary build outputs
+*.ispac

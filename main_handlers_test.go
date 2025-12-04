@@ -548,7 +548,7 @@ func TestHandleListPackagesIntegration(t *testing.T) {
 	params := map[string]interface{}{}
 	request := createTestCallToolRequest("list_packages", params)
 
-	result, err := packagehandlers.HandleListPackages(context.Background(), request, "testdata")
+	result, err := packagehandlers.HandleListPackages(context.Background(), request, "testdata", "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)

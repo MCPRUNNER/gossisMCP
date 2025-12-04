@@ -38,7 +38,8 @@ type ServerConfig struct {
 
 // PackageConfig holds package directory configuration
 type PackageConfig struct {
-	Directory string `json:"directory" yaml:"directory"`
+	Directory   string `json:"directory" yaml:"directory"`
+	ExcludeFile string `json:"exclude_file" yaml:"exclude_file"`
 }
 
 // LoggingConfig holds logging configuration
@@ -55,7 +56,8 @@ func DefaultConfig() Config {
 			Port:     "8086",
 		},
 		Packages: PackageConfig{
-			Directory: "",
+			Directory:   "",
+			ExcludeFile: "",
 		},
 		Logging: LoggingConfig{
 			Level:  "info",
@@ -208,6 +210,7 @@ func main() {
 
 	// Determine package directory from config, environment variable, or default
 	packageDirectory := config.Packages.Directory
+	excludeFile := config.Packages.ExcludeFile
 	if packageDirectory == "" {
 		packageDirectory = os.Getenv("GOSSIS_PKG_DIRECTORY")
 	}
@@ -447,7 +450,7 @@ func main() {
 		),
 	)
 	s.AddTool(listPackagesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return packagehandlers.HandleListPackages(ctx, request, packageDirectory)
+		return packagehandlers.HandleListPackages(ctx, request, packageDirectory, excludeFile)
 	})
 
 	// Tool to analyze data flow components

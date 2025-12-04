@@ -7,6 +7,9 @@ import (
 // SSISPackage represents the root of a DTSX file
 type SSISPackage struct {
 	XMLName               xml.Name              `xml:"Executable"`
+	RefID                 string                `xml:"refId,attr"`
+	ObjectName            string                `xml:"ObjectName,attr"`
+	CreationName          string                `xml:"CreationName,attr"`
 	Properties            []Property            `xml:"Property"`
 	ConnectionMgr         ConnectionMgr         `xml:"ConnectionManagers"`
 	Variables             Variables             `xml:"Variables"`

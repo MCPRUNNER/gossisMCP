@@ -62,12 +62,24 @@ func TestListPackages(t *testing.T) {
 			t.Fatalf("failed to create file %s: %v", file, err)
 		}
 	}
-	results, err := ListPackages(dir)
+	results, err := ListPackages(dir, "")
 	if err != nil {
 		t.Fatalf("unexpected error listing packages: %v", err)
 	}
 	if len(results) != 2 {
 		t.Fatalf("expected two DTSX files, got %v", results)
+	}
+
+	excludePath := filepath.Join(dir, ".gossisignore")
+	if err := os.WriteFile(excludePath, []byte("nested/\n"), 0o644); err != nil {
+		t.Fatalf("failed to write exclude file: %v", err)
+	}
+	filtered, err := ListPackages(dir, "")
+	if err != nil {
+		t.Fatalf("unexpected error listing packages with exclude: %v", err)
+	}
+	if len(filtered) != 1 || !strings.Contains(filtered[0], "one.dtsx") {
+		t.Fatalf("expected exclude file to remove nested package, got %v", filtered)
 	}
 }
 

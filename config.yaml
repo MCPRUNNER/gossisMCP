@@ -3,6 +3,7 @@ server:
   port: "8086"
 packages:
   directory: "Documents/SSIS_EXAMPLES"
+  exclude_file: ".gossisignore"
 logging:
   level: "info"
   format: "text"
