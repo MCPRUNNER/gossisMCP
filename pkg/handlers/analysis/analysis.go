@@ -450,6 +450,152 @@ func HandleAnalyzeOLEDBSource(_ context.Context, request mcp.CallToolRequest, pa
 	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 
+// HandleAnalyzeADONETSource handles ADO.NET Source component analysis from DTSX files
+func HandleAnalyzeADONETSource(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Get format parameter (default to "text")
+	formatStr := request.GetString("format", "text")
+	format := formatter.OutputFormat(formatStr)
+
+	resolvedPath := ResolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		result := formatter.CreateAnalysisResult("ADO.NET Source Analysis", filePath, nil, err)
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg types.SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		result := formatter.CreateAnalysisResult("ADO.NET Source Analysis", filePath, nil, err)
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("ADO.NET Source Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.DataReaderSourceAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Outputs
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No ADO.NET Source components found in this package.\n")
+	}
+
+	analysisResult := formatter.CreateAnalysisResult("ADO.NET Source Analysis", filePath, result.String(), nil)
+	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
+}
+
+// HandleAnalyzeODBCSource handles ODBC Source component analysis from DTSX files
+func HandleAnalyzeODBCSource(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Get format parameter (default to "text")
+	formatStr := request.GetString("format", "text")
+	format := formatter.OutputFormat(formatStr)
+
+	resolvedPath := ResolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		result := formatter.CreateAnalysisResult("ODBC Source Analysis", filePath, nil, err)
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg types.SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		result := formatter.CreateAnalysisResult("ODBC Source Analysis", filePath, nil, err)
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("ODBC Source Analysis:\n\n")
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == "Microsoft.SqlServer.Dts.Pipeline.OdbcSourceAdapter" {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Outputs
+					result.WriteString("Output Columns:\n")
+					for _, output := range comp.Outputs.Outputs {
+						if !output.IsErrorOut {
+							for _, col := range output.OutputColumns.Columns {
+								result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+								if col.Length > 0 {
+									result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+								}
+								result.WriteString(")\n")
+							}
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString("No ODBC Source components found in this package.\n")
+	}
+
+	analysisResult := formatter.CreateAnalysisResult("ODBC Source Analysis", filePath, result.String(), nil)
+	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
+}
+
 // HandleAnalyzeExportColumn handles Export Column component analysis from DTSX files
 func HandleAnalyzeExportColumn(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
@@ -1154,6 +1300,109 @@ func HandleAnalyzeSAPBWSource(_ context.Context, request mcp.CallToolRequest, pa
 	}
 
 	analysisResult := formatter.CreateAnalysisResult("SAP BW Source Analysis", filePath, result.String(), nil)
+	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
+}
+
+// HandleAnalyzeOLEDBDestination handles OLE DB destination analysis from DTSX files
+// HandleAnalyzeDestination provides unified analysis for various SSIS destination components
+func HandleAnalyzeDestination(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	destinationType, err := request.RequireString("destination_type")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Map destination types to ComponentClassIDs
+	destinationTypeMap := map[string]string{
+		"ole_db":     "Microsoft.SqlServer.Dts.Pipeline.OLEDBDestinationAdapter",
+		"flat_file":  "Microsoft.SqlServer.Dts.Pipeline.FlatFileDestinationAdapter",
+		"sql_server": "Microsoft.SqlServer.Dts.Pipeline.SqlServerDestinationAdapter",
+		"excel":      "Microsoft.SqlServer.Dts.Pipeline.ExcelDestinationAdapter",
+		"raw_file":   "Microsoft.SqlServer.Dts.Pipeline.RawFileDestinationAdapter",
+	}
+
+	componentClassID, exists := destinationTypeMap[destinationType]
+	if !exists {
+		return mcp.NewToolResultError(fmt.Sprintf("Unknown destination type: %s. Supported types: ole_db, flat_file, sql_server, excel, raw_file", destinationType)), nil
+	}
+
+	// Map destination types to display names
+	destinationNameMap := map[string]string{
+		"ole_db":     "OLE DB Destination",
+		"flat_file":  "Flat File Destination",
+		"sql_server": "SQL Server Destination",
+		"excel":      "Excel Destination",
+		"raw_file":   "Raw File Destination",
+	}
+
+	displayName := destinationNameMap[destinationType]
+	analysisTitle := fmt.Sprintf("%s Analysis", displayName)
+
+	// Get format parameter (default to "text")
+	formatStr := request.GetString("format", "text")
+	format := formatter.OutputFormat(formatStr)
+
+	resolvedPath := ResolveFilePath(filePath, packageDirectory)
+
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		result := formatter.CreateAnalysisResult(analysisTitle, filePath, nil, err)
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
+	}
+
+	data = []byte(strings.ReplaceAll(string(data), "DTS:", ""))
+	data = []byte(strings.ReplaceAll(string(data), `xmlns="www.microsoft.com/SqlServer/Dts"`, ""))
+
+	var pkg types.SSISPackage
+	if err := xml.Unmarshal(data, &pkg); err != nil {
+		result := formatter.CreateAnalysisResult(analysisTitle, filePath, nil, err)
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString(fmt.Sprintf("%s:\n\n", analysisTitle))
+
+	found := false
+	for _, task := range pkg.Executables.Tasks {
+		if strings.Contains(task.CreationName, "Pipeline") {
+			for _, comp := range task.ObjectData.DataFlow.Components.Components {
+				if comp.ComponentClassID == componentClassID {
+					found = true
+					result.WriteString(fmt.Sprintf("Component: %s\n", comp.Name))
+					result.WriteString(fmt.Sprintf("Description: %s\n", comp.Description))
+
+					// Properties
+					result.WriteString("Properties:\n")
+					for _, prop := range comp.ObjectData.PipelineComponent.Properties.Properties {
+						result.WriteString(fmt.Sprintf("  %s: %s\n", prop.Name, prop.Value))
+					}
+
+					// Input Columns
+					result.WriteString("Input Columns:\n")
+					for _, input := range comp.Inputs.Inputs {
+						for _, col := range input.InputColumns.Columns {
+							result.WriteString(fmt.Sprintf("  %s (%s", col.Name, col.DataType))
+							if col.Length > 0 {
+								result.WriteString(fmt.Sprintf(", length=%d", col.Length))
+							}
+							result.WriteString(")\n")
+						}
+					}
+					result.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	if !found {
+		result.WriteString(fmt.Sprintf("No %s components found in this package.\n", displayName))
+	}
+
+	analysisResult := formatter.CreateAnalysisResult(analysisTitle, filePath, result.String(), nil)
 	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 

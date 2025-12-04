@@ -165,3 +165,7 @@ func (p *ExamplePlugin) analyzeVariableUsage(ctx context.Context, request mcp.Ca
 
 // Plugin instance - this is what the plugin system looks for
 var Plugin = &ExamplePlugin{}
+
+// main exists so that `go build ./...` succeeds when traversing the plugins module.
+// Plugins are loaded reflectively, so the entrypoint stays empty.
+func main() {}
