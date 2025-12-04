@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/MCPRUNNER/gossisMCP/pkg/config"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -23,25 +24,8 @@ type PluginSystem struct {
 	registry    *PluginRegistry
 	manager     *PluginManager
 	marketplace *PluginMarketplace
-	config      PluginConfig
+	config      config.PluginConfig
 	mu          sync.RWMutex
-}
-
-// PluginConfig holds plugin system configuration
-type PluginConfig struct {
-	PluginDir         string         `json:"plugin_dir" yaml:"plugin_dir"`
-	EnabledPlugins    []string       `json:"enabled_plugins" yaml:"enabled_plugins"`
-	CommunityRegistry string         `json:"community_registry" yaml:"community_registry"`
-	AutoUpdate        bool           `json:"auto_update" yaml:"auto_update"`
-	Security          PluginSecurity `json:"security" yaml:"security"`
-}
-
-// PluginSecurity defines security settings for plugins
-type PluginSecurity struct {
-	AllowNetworkAccess bool     `json:"allow_network_access" yaml:"allow_network_access"`
-	AllowedDomains     []string `json:"allowed_domains" yaml:"allowed_domains"`
-	SignatureRequired  bool     `json:"signature_required" yaml:"signature_required"`
-	TrustedPublishers  []string `json:"trusted_publishers" yaml:"trusted_publishers"`
 }
 
 // PluginRegistry manages plugin metadata and discovery
@@ -136,7 +120,7 @@ type PluginMarketplace struct {
 }
 
 // NewPluginSystem creates a new plugin system instance
-func NewPluginSystem(config PluginConfig) *PluginSystem {
+func NewPluginSystem(config config.PluginConfig) *PluginSystem {
 	return &PluginSystem{
 		registry:    NewPluginRegistry(),
 		manager:     NewPluginManager(),
@@ -542,13 +526,13 @@ func (pm *PluginMarketplace) GetPluginStats() map[string]interface{} {
 }
 
 // DefaultPluginConfig returns default plugin configuration
-func DefaultPluginConfig() PluginConfig {
-	return PluginConfig{
+func DefaultPluginConfig() config.PluginConfig {
+	return config.PluginConfig{
 		PluginDir:         "./plugins",
 		EnabledPlugins:    []string{"ssis-core-analysis"},
 		CommunityRegistry: "https://registry.gossismcp.com",
 		AutoUpdate:        true,
-		Security: PluginSecurity{
+		Security: config.PluginSecurity{
 			AllowNetworkAccess: false,
 			AllowedDomains:     []string{},
 			SignatureRequired:  false,

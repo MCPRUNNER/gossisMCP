@@ -14,6 +14,8 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/extraction"
 )
 
 // TestPerformanceBenchmarks tests performance characteristics of DTSX parsing and analysis
@@ -66,7 +68,7 @@ func TestPerformanceBenchmarks(t *testing.T) {
 				packageDir = "Documents/SSIS_EXAMPLES"
 			}
 
-			result, err := handleParseDtsx(context.Background(), request, packageDir)
+			result, err := extraction.HandleParseDtsx(context.Background(), request, packageDir)
 
 			duration := time.Since(start)
 
@@ -90,7 +92,7 @@ func BenchmarkParseDtsx(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		result, err := handleParseDtsx(context.Background(), request, "testdata")
+		result, err := extraction.HandleParseDtsx(context.Background(), request, "testdata")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -109,7 +111,7 @@ func BenchmarkExtractTasks(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		result, err := handleExtractTasks(context.Background(), request, "testdata")
+		result, err := extraction.HandleExtractTasks(context.Background(), request, "testdata")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -145,7 +147,7 @@ func TestMemoryUsageAnalysis(t *testing.T) {
 		}
 		request := createTestCallToolRequest("parse_dtsx", params)
 
-		result, err := handleParseDtsx(context.Background(), request, "Documents/SSIS_EXAMPLES")
+		result, err := extraction.HandleParseDtsx(context.Background(), request, "Documents/SSIS_EXAMPLES")
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	}
@@ -197,7 +199,7 @@ func TestConcurrentRequests(t *testing.T) {
 				}
 				request := createTestCallToolRequest("parse_dtsx", params)
 
-				result, err := handleParseDtsx(context.Background(), request, "testdata")
+				result, err := extraction.HandleParseDtsx(context.Background(), request, "testdata")
 				if err != nil {
 					errChan <- fmt.Errorf("goroutine %d, request %d: %v", goroutineID, j, err)
 					continue
@@ -273,7 +275,7 @@ func TestStressTestingWithMalformedXML(t *testing.T) {
 			}
 			request := createTestCallToolRequest("parse_dtsx", params)
 
-			result, err := handleParseDtsx(context.Background(), request, filepath.Dir(tempFile.Name()))
+			result, err := extraction.HandleParseDtsx(context.Background(), request, filepath.Dir(tempFile.Name()))
 
 			// Should not panic and should return some result (error result is acceptable)
 			assert.NotNil(t, result)
@@ -329,7 +331,7 @@ func TestSecurityPathTraversal(t *testing.T) {
 			}
 			request := createTestCallToolRequest("parse_dtsx", params)
 
-			result, err := handleParseDtsx(context.Background(), request, "testdata")
+			result, err := extraction.HandleParseDtsx(context.Background(), request, "testdata")
 
 			// Should not panic and should return error result
 			assert.NoError(t, err, "Handler should not return error for security test")
@@ -406,7 +408,7 @@ func TestLargeFileHandling(t *testing.T) {
 	}
 	request := createTestCallToolRequest("parse_dtsx", params)
 
-	result, err := handleParseDtsx(context.Background(), request, filepath.Dir(tempFile.Name()))
+	result, err := extraction.HandleParseDtsx(context.Background(), request, filepath.Dir(tempFile.Name()))
 	duration := time.Since(start)
 
 	require.NoError(t, err)
@@ -437,7 +439,7 @@ func TestResourceCleanup(t *testing.T) {
 		}
 		request := createTestCallToolRequest("extract_tasks", params)
 
-		result, err := handleExtractTasks(context.Background(), request, "testdata")
+		result, err := extraction.HandleExtractTasks(context.Background(), request, "testdata")
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	}

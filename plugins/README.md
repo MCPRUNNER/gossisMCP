@@ -350,6 +350,8 @@ func (p *MyPlugin) Configure(config map[string]interface{}) error {
 
 ## Testing Plugins
 
+> Run `go test ./...` from the repository root before publishing updates; this executes both the plugin system regression suite (`plugin_system_test.go`) and the example plugin tests (`example_plugin_test.go`) that assert tool metadata, execution paths, and severity overrides.
+
 ### Unit Tests
 
 ```go
@@ -391,6 +393,12 @@ func TestPluginIntegration(t *testing.T) {
     assert.Equal(t, "my-custom-plugin", metadata.ID)
 }
 ```
+
+### Testing Tips
+
+- Keep business logic in plain Go functions so unit tests can target them directly without loading a shared library.
+- Use table-driven tests to verify parameter validation, default severity handling, and expected text in `mcp.CallToolResult` outputs.
+- Add integration coverage for marketplace flows once registry mocks are in place (tracked on the roadmap).
 
 ## Example Plugins
 

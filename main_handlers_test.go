@@ -11,6 +11,11 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/analysis"
+	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/extraction"
+	packagehandlers "github.com/MCPRUNNER/gossisMCP/pkg/handlers/packages"
+	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/validation"
 )
 
 // TestParseDtsxFile tests the core DTSX parsing functionality
@@ -347,7 +352,7 @@ func TestHandleParseDtsxIntegration(t *testing.T) {
 			}
 			request := createTestCallToolRequest("parse_dtsx", params)
 
-			result, err := handleParseDtsx(context.Background(), request, "")
+			result, err := extraction.HandleParseDtsx(context.Background(), request, "")
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -406,7 +411,7 @@ func TestHandleExtractTasksIntegration(t *testing.T) {
 			}
 			request := createTestCallToolRequest("extract_tasks", params)
 
-			result, err := handleExtractTasks(context.Background(), request, "")
+			result, err := extraction.HandleExtractTasks(context.Background(), request, "")
 
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
@@ -431,7 +436,7 @@ func TestHandleExtractConnectionsIntegration(t *testing.T) {
 	}
 	request := createTestCallToolRequest("extract_connections", params)
 
-	result, err := handleExtractConnections(context.Background(), request, "")
+	result, err := extraction.HandleExtractConnections(context.Background(), request, "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -450,7 +455,7 @@ func TestHandleExtractVariablesIntegration(t *testing.T) {
 	}
 	request := createTestCallToolRequest("extract_variables", params)
 
-	result, err := handleExtractVariables(context.Background(), request, "")
+	result, err := extraction.HandleExtractVariables(context.Background(), request, "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -469,7 +474,7 @@ func TestHandleExtractParametersIntegration(t *testing.T) {
 	}
 	request := createTestCallToolRequest("extract_parameters", params)
 
-	result, err := handleExtractParameters(context.Background(), request, "")
+	result, err := extraction.HandleExtractParameters(context.Background(), request, "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -488,7 +493,7 @@ func TestHandleExtractPrecedenceConstraintsIntegration(t *testing.T) {
 	}
 	request := createTestCallToolRequest("extract_precedence_constraints", params)
 
-	result, err := handleExtractPrecedenceConstraints(context.Background(), request, "")
+	result, err := extraction.HandleExtractPrecedenceConstraints(context.Background(), request, "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -507,7 +512,7 @@ func TestHandleExtractScriptCodeIntegration(t *testing.T) {
 	}
 	request := createTestCallToolRequest("extract_script_code", params)
 
-	result, err := handleExtractScriptCode(context.Background(), request, "")
+	result, err := extraction.HandleExtractScriptCode(context.Background(), request, "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -526,7 +531,7 @@ func TestHandleValidateBestPracticesIntegration(t *testing.T) {
 	}
 	request := createTestCallToolRequest("validate_best_practices", params)
 
-	result, err := handleValidateBestPractices(context.Background(), request, "")
+	result, err := packagehandlers.HandleValidateBestPractices(context.Background(), request, "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -543,7 +548,7 @@ func TestHandleListPackagesIntegration(t *testing.T) {
 	params := map[string]interface{}{}
 	request := createTestCallToolRequest("list_packages", params)
 
-	result, err := handleListPackages(context.Background(), request, "testdata")
+	result, err := packagehandlers.HandleListPackages(context.Background(), request, "testdata")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -562,7 +567,7 @@ func TestHandleAnalyzeDataFlowIntegration(t *testing.T) {
 	}
 	request := createTestCallToolRequest("analyze_data_flow", params)
 
-	result, err := handleAnalyzeDataFlow(context.Background(), request, "")
+	result, err := analysis.HandleAnalyzeDataFlow(context.Background(), request, "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -581,7 +586,7 @@ func TestHandleDetectHardcodedValuesIntegration(t *testing.T) {
 	}
 	request := createTestCallToolRequest("detect_hardcoded_values", params)
 
-	result, err := handleDetectHardcodedValues(context.Background(), request, "")
+	result, err := packagehandlers.HandleDetectHardcodedValues(context.Background(), request, "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -601,7 +606,7 @@ func TestHandleAskAboutDtsxIntegration(t *testing.T) {
 	}
 	request := createTestCallToolRequest("ask_about_dtsx", params)
 
-	result, err := handleAskAboutDtsx(context.Background(), request, "")
+	result, err := packagehandlers.HandleAskAboutDtsx(context.Background(), request, "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -620,7 +625,7 @@ func TestHandleAnalyzeMessageQueueTasksIntegration(t *testing.T) {
 	}
 	request := createTestCallToolRequest("analyze_message_queue_tasks", params)
 
-	result, err := handleAnalyzeMessageQueueTasks(context.Background(), request, "")
+	result, err := packagehandlers.HandleAnalyzeMessageQueueTasks(context.Background(), request, "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -639,7 +644,7 @@ func TestHandleAnalyzeScriptTaskIntegration(t *testing.T) {
 	}
 	request := createTestCallToolRequest("analyze_script_task", params)
 
-	result, err := handleAnalyzeScriptTask(context.Background(), request, "")
+	result, err := packagehandlers.HandleAnalyzeScriptTask(context.Background(), request, "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -658,7 +663,7 @@ func TestHandleAnalyzeLoggingConfigurationIntegration(t *testing.T) {
 	}
 	request := createTestCallToolRequest("analyze_logging_configuration", params)
 
-	result, err := handleAnalyzeLoggingConfiguration(context.Background(), request, "")
+	result, err := packagehandlers.HandleAnalyzeLoggingConfiguration(context.Background(), request, "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -677,7 +682,7 @@ func TestHandleValidateDtsxIntegration(t *testing.T) {
 	}
 	request := createTestCallToolRequest("validate_dtsx", params)
 
-	result, err := handleValidateDtsx(context.Background(), request)
+	result, err := validation.HandleValidateDtsx(context.Background(), request)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -695,7 +700,7 @@ func TestMCPToolHandlerErrorHandling(t *testing.T) {
 	params := map[string]interface{}{}
 	request := createTestCallToolRequest("parse_dtsx", params)
 
-	result, err := handleParseDtsx(context.Background(), request, "")
+	result, err := extraction.HandleParseDtsx(context.Background(), request, "")
 
 	assert.NoError(t, err) // Handler returns error result, not error
 	assert.NotNil(t, result)
@@ -715,7 +720,7 @@ func TestMCPToolHandlerWithPackageDirectory(t *testing.T) {
 	request := createTestCallToolRequest("parse_dtsx", params)
 
 	// Use testdata directory as package directory
-	result, err := handleParseDtsx(context.Background(), request, "testdata")
+	result, err := extraction.HandleParseDtsx(context.Background(), request, "testdata")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)

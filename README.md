@@ -171,6 +171,12 @@ go build -buildmode=plugin -o my-plugin.so .
 4. **Install the plugin:**
    Use the `install_plugin` tool or manually place the .so/.dll file in the plugins directory.
 
+### Testing Strategy
+
+- Run `go test ./...` before publishing or updating plugins; this executes core plugin-system tests plus the example plugin coverage that validates tool metadata, execution, and default severity handling.
+- Keep plugin code modular so you can back the MCP tool entry points with functions that are testable without loading the Go `plugin` package.
+- For marketplace or end-to-end scenarios, add integration tests that exercise install/enable flows via the plugin management handlers once mock registries are available (tracked in roadmap).
+
 ## Prerequisites
 
 - Go 1.19 or later

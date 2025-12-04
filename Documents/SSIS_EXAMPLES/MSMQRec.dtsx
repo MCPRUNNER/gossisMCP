@@ -1,25 +1,25 @@
-﻿<?xml version="1.0"?>
+<?xml version="1.0"?>
 <DTS:Executable xmlns:DTS="www.microsoft.com/SqlServer/Dts"
   DTS:refId="Package"
   DTS:CreationDate="11/9/2024 7:04:18 AM"
   DTS:CreationName="Microsoft.Package"
   DTS:CreatorComputerName="T15P"
   DTS:CreatorName="RSYSLAB\U00001"
-  DTS:DTSID="{C00F1CEA-DA37-4551-B014-D3F7CA63F3DC}"
+  DTS:DTSID="{A838673C-A28C-4719-A654-55F122089851}"
   DTS:ExecutableType="Microsoft.Package"
-  DTS:LastModifiedProductVersion="16.0.5397.1"
+  DTS:LastModifiedProductVersion="16.0.5685.0"
   DTS:LocaleID="1033"
   DTS:ObjectName="MSMQRec"
   DTS:PackageType="5"
   DTS:VersionBuild="6"
-  DTS:VersionGUID="{3C7FDC8F-C349-4D5A-BCD2-8D2168404E21}">
+  DTS:VersionGUID="{81FE0D35-C6A4-4913-BBF3-158D178DF980}">
   <DTS:Property
     DTS:Name="PackageFormatVersion">8</DTS:Property>
   <DTS:ConnectionManagers>
     <DTS:ConnectionManager
       DTS:refId="Package.ConnectionManagers[ssis-demo]"
       DTS:CreationName="MSMQ"
-      DTS:DTSID="{ECB6DA87-11B6-43A1-8C22-15E8AE702A0C}"
+      DTS:DTSID="{5AEAA6BF-0769-4CEA-B9FF-C77DEB40B2B9}"
       DTS:ObjectName="ssis-demo">
       <DTS:ObjectData>
         <MsmqConnectionManager
@@ -31,7 +31,7 @@
   <DTS:Variables>
     <DTS:Variable
       DTS:CreationName=""
-      DTS:DTSID="{C28082CD-6A82-4AD4-AD53-C944ADE7FF01}"
+      DTS:DTSID="{7A73633E-902D-43ED-8F0E-439790E1E9E5}"
       DTS:IncludeInDebugDump="2345"
       DTS:Namespace="User"
       DTS:ObjectName="QUEUE_RESULT">
@@ -45,7 +45,7 @@
       DTS:refId="Package\Message Queue Task"
       DTS:CreationName="Microsoft.MessageQueueTask"
       DTS:Description="Message Queue Task"
-      DTS:DTSID="{A0ED4AA1-3AC0-46B6-9F4A-8EBDCF82E6E8}"
+      DTS:DTSID="{2DDCB788-9ADE-43B7-A0E0-01FAA7F44046}"
       DTS:ExecutableType="Microsoft.MessageQueueTask"
       DTS:LocaleID="-1"
       DTS:ObjectName="Message Queue Task"
@@ -66,7 +66,7 @@
       DTS:refId="Package\Script Task"
       DTS:CreationName="Microsoft.ScriptTask"
       DTS:Description="Script Task"
-      DTS:DTSID="{A6EB8ECA-D54D-40BF-9B7B-9D6C2C59180F}"
+      DTS:DTSID="{4B40FADF-9403-4C16-993E-8DE49E3B6A00}"
       DTS:ExecutableType="Microsoft.ScriptTask"
       DTS:LocaleID="-1"
       DTS:ObjectName="Script Task"
@@ -80,14 +80,35 @@
           Language="CSharp"
           ReadOnlyVariables="User::QUEUE_RESULT">
           <ProjectItem
-            Name="Properties\Settings.settings"
-            Encoding="UTF8"><![CDATA[<?xml version='1.0' encoding='iso-8859-1'?>
-<SettingsFile xmlns="uri:settings" CurrentProfile="(Default)">
-  <Profiles>
-    <Profile Name="(Default)" />
-  </Profiles>
-  <Settings />
-</SettingsFile>]]></ProjectItem>
+            Name="Properties\AssemblyInfo.cs"
+            Encoding="UTF8"><![CDATA[using System.Reflection;
+using System.Runtime.CompilerServices;
+
+//
+// General Information about an assembly is controlled through the following 
+// set of attributes. Change these attribute values to modify the information
+// associated with an assembly.
+//
+[assembly: AssemblyTitle("ST_f9814b446cbc4b209f66798fc8103b65")]
+[assembly: AssemblyDescription("")]
+[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyCompany("")]
+[assembly: AssemblyProduct("ST_f9814b446cbc4b209f66798fc8103b65")]
+[assembly: AssemblyCopyright("Copyright @  2024")]
+[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCulture("")]
+//
+// Version information for an assembly consists of the following four values:
+//
+//      Major Version
+//      Minor Version 
+//      Build Number
+//      Revision
+//
+// You can specify all the values or you can default the Revision and Build Numbers 
+// by using the '*' as shown below:
+
+[assembly: AssemblyVersion("1.0.*")]]]></ProjectItem>
           <ProjectItem
             Name="Properties\Resources.resx"
             Encoding="UTF8"><![CDATA[<?xml version="1.0" encoding="utf-8"?>
@@ -457,35 +478,14 @@ namespace ST_f9814b446cbc4b209f66798fc8103b65.Properties {
     }
 }]]></ProjectItem>
           <ProjectItem
-            Name="Properties\AssemblyInfo.cs"
-            Encoding="UTF8"><![CDATA[using System.Reflection;
-using System.Runtime.CompilerServices;
-
-//
-// General Information about an assembly is controlled through the following 
-// set of attributes. Change these attribute values to modify the information
-// associated with an assembly.
-//
-[assembly: AssemblyTitle("ST_f9814b446cbc4b209f66798fc8103b65")]
-[assembly: AssemblyDescription("")]
-[assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("ST_f9814b446cbc4b209f66798fc8103b65")]
-[assembly: AssemblyCopyright("Copyright @  2024")]
-[assembly: AssemblyTrademark("")]
-[assembly: AssemblyCulture("")]
-//
-// Version information for an assembly consists of the following four values:
-//
-//      Major Version
-//      Minor Version 
-//      Build Number
-//      Revision
-//
-// You can specify all the values or you can default the Revision and Build Numbers 
-// by using the '*' as shown below:
-
-[assembly: AssemblyVersion("1.0.*")]]]></ProjectItem>
+            Name="Properties\Settings.settings"
+            Encoding="UTF8"><![CDATA[<?xml version='1.0' encoding='iso-8859-1'?>
+<SettingsFile xmlns="uri:settings" CurrentProfile="(Default)">
+  <Profiles>
+    <Profile Name="(Default)" />
+  </Profiles>
+  <Settings />
+</SettingsFile>]]></ProjectItem>
           <ProjectItem
             Name="Properties\Resources.Designer.cs"
             Encoding="UTF8"><![CDATA[//------------------------------------------------------------------------------
@@ -680,7 +680,7 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</BinaryItem>
     <DTS:PrecedenceConstraint
       DTS:refId="Package.PrecedenceConstraints[Constraint]"
       DTS:CreationName=""
-      DTS:DTSID="{F00F8DBC-6909-4EB6-98C8-1D9CEEEE8ABA}"
+      DTS:DTSID="{665207B6-1FE4-428A-B09B-0CB36764BB1C}"
       DTS:From="Package\Message Queue Task"
       DTS:LogicalAnd="True"
       DTS:ObjectName="Constraint"
