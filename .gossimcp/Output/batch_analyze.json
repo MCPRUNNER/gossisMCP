@@ -1,0 +1,208 @@
+{
+  "total_packages": 13,
+  "successful": 13,
+  "failed": 0,
+  "total_duration": 6151700,
+  "average_duration": 473207,
+  "package_summaries": [
+    {
+      "package_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\WMIDataReader.dtsx",
+      "success": true,
+      "analysis_result": {
+        "connection_count": 2,
+        "package_name": "WMIDataReader",
+        "parameter_count": 0,
+        "task_count": 3,
+        "task_types": {
+          "Microsoft.Pipeline": 1,
+          "Microsoft.WmiDataReaderTask": 2
+        },
+        "variable_count": 0
+      },
+      "duration": 574000
+    },
+    {
+      "package_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\Package2.dtsx",
+      "success": true,
+      "analysis_result": {
+        "connection_count": 0,
+        "package_name": "Package2",
+        "parameter_count": 0,
+        "task_count": 0,
+        "task_types": {},
+        "variable_count": 0
+      },
+      "duration": 0
+    },
+    {
+      "package_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\MSMQSender.dtsx",
+      "success": true,
+      "analysis_result": {
+        "connection_count": 1,
+        "package_name": "MSMQSender",
+        "parameter_count": 0,
+        "task_count": 1,
+        "task_types": {
+          "Microsoft.MessageQueueTask": 1
+        },
+        "variable_count": 0
+      },
+      "duration": 548300
+    },
+    {
+      "package_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\Loader.dtsx",
+      "success": true,
+      "analysis_result": {
+        "connection_count": 2,
+        "package_name": "Loader",
+        "parameter_count": 0,
+        "task_count": 2,
+        "task_types": {
+          "Microsoft.ExecuteSQLTask": 1,
+          "Microsoft.Pipeline": 1
+        },
+        "variable_count": 0
+      },
+      "duration": 1161000
+    },
+    {
+      "package_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\EXECProcess.dtsx",
+      "success": true,
+      "analysis_result": {
+        "connection_count": 0,
+        "package_name": "Package1",
+        "parameter_count": 0,
+        "task_count": 1,
+        "task_types": {
+          "Microsoft.ExecuteProcess": 1
+        },
+        "variable_count": 0
+      },
+      "duration": 512200
+    },
+    {
+      "package_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\Expressions.dtsx",
+      "success": true,
+      "analysis_result": {
+        "connection_count": 2,
+        "package_name": "Expressions",
+        "parameter_count": 0,
+        "task_count": 1,
+        "task_types": {
+          "Microsoft.Pipeline": 1
+        },
+        "variable_count": 5
+      },
+      "duration": 2247200
+    },
+    {
+      "package_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\RunMultu.dtsx",
+      "success": true,
+      "analysis_result": {
+        "connection_count": 2,
+        "package_name": "RunMulti",
+        "parameter_count": 0,
+        "task_count": 2,
+        "task_types": {
+          "Microsoft.ExecutePackageTask": 2
+        },
+        "variable_count": 0
+      },
+      "duration": 0
+    },
+    {
+      "package_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\MSMQRec.dtsx",
+      "success": true,
+      "analysis_result": {
+        "connection_count": 1,
+        "package_name": "MSMQRec",
+        "parameter_count": 0,
+        "task_count": 2,
+        "task_types": {
+          "Microsoft.MessageQueueTask": 1,
+          "Microsoft.ScriptTask": 1
+        },
+        "variable_count": 1
+      },
+      "duration": 1124900
+    },
+    {
+      "package_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\DupeAlertFail.dtsx",
+      "success": true,
+      "analysis_result": {
+        "connection_count": 1,
+        "package_name": "DupeAlertFail",
+        "parameter_count": 0,
+        "task_count": 3,
+        "task_types": {
+          "Microsoft.ExecuteSQLTask": 1,
+          "Microsoft.Pipeline": 2
+        },
+        "variable_count": 4
+      },
+      "duration": 2837400
+    },
+    {
+      "package_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\ExportColumn.dtsx",
+      "success": true,
+      "analysis_result": {
+        "connection_count": 1,
+        "package_name": "ExportColumn",
+        "parameter_count": 0,
+        "task_count": 1,
+        "task_types": {
+          "Microsoft.Pipeline": 1
+        },
+        "variable_count": 0
+      },
+      "duration": 1079400
+    },
+    {
+      "package_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\ConfigTables.dtsx",
+      "success": true,
+      "analysis_result": {
+        "connection_count": 3,
+        "package_name": "ConfigTables",
+        "parameter_count": 0,
+        "task_count": 1,
+        "task_types": {
+          "Microsoft.Pipeline": 1
+        },
+        "variable_count": 1
+      },
+      "duration": 2243600
+    },
+    {
+      "package_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\ConfigFile.dtsx",
+      "success": true,
+      "analysis_result": {
+        "connection_count": 2,
+        "package_name": "ConfigFile",
+        "parameter_count": 0,
+        "task_count": 1,
+        "task_types": {
+          "Microsoft.Pipeline": 1
+        },
+        "variable_count": 1
+      },
+      "duration": 2243600
+    },
+    {
+      "package_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\Scanner.dtsx",
+      "success": true,
+      "analysis_result": {
+        "connection_count": 5,
+        "package_name": "Scanner",
+        "parameter_count": 0,
+        "task_count": 5,
+        "task_types": {
+          "Microsoft.ExecuteSQLTask": 1,
+          "Microsoft.Pipeline": 3,
+          "Microsoft.ScriptTask": 1
+        },
+        "variable_count": 1
+      },
+      "duration": 3904500
+    }
+  ]
+}

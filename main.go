@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/extraction"
 	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/optimization"
 	packagehandlers "github.com/MCPRUNNER/gossisMCP/pkg/handlers/packages"
+	"github.com/MCPRUNNER/gossisMCP/pkg/workflow"
 )
 
 // Config represents the application configuration
@@ -1072,6 +1074,8 @@ func main() {
 		return packagehandlers.HandleBatchAnalyze(ctx, request, packageDirectory)
 	})
 
+	registerWorkflowRunnerTool(s, packageDirectory, excludeFile)
+
 	if config.Server.HTTPMode {
 		// Run in HTTP streaming mode
 		runHTTPServer(s, config.Server.Port)
@@ -1081,6 +1085,354 @@ func main() {
 			fmt.Printf("Server error: %v\n", err)
 		}
 	}
+}
+
+func registerWorkflowRunnerTool(s *server.MCPServer, packageDirectory, excludeFile string) {
+	workflowRunnerTool := mcp.NewTool("workflow_runner",
+		mcp.WithDescription("Execute a workflow definition file and run each referenced MCP tool step sequentially"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the workflow definition (JSON or YAML)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: markdown (default) or json"),
+		),
+	)
+
+	s.AddTool(workflowRunnerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleWorkflowRunner(ctx, request, packageDirectory, excludeFile)
+	})
+}
+
+type workflowStepSummary struct {
+	Name    string                         `json:"name"`
+	Type    string                         `json:"type"`
+	Enabled bool                           `json:"enabled"`
+	Outputs map[string]workflow.StepResult `json:"outputs,omitempty"`
+}
+
+type workflowExecutionSummary struct {
+	WorkflowPath string                `json:"workflow_path"`
+	Steps        []workflowStepSummary `json:"steps"`
+	FilesWritten []string              `json:"files_written,omitempty"`
+}
+
+func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, packageDirectory, excludeFile string) (*mcp.CallToolResult, error) {
+	args, _ := request.Params.Arguments.(map[string]interface{})
+
+	workflowPath := extractStringArg(args, "file_path")
+	if workflowPath == "" {
+		workflowPath = extractStringArg(args, "workflow_file")
+	}
+	if workflowPath == "" {
+		return mcp.NewToolResultError("workflow_runner requires a file_path parameter"), nil
+	}
+
+	if !filepath.IsAbs(workflowPath) {
+		abs, err := filepath.Abs(workflowPath)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to resolve workflow path: %v", err)), nil
+		}
+		workflowPath = abs
+	}
+
+	info, err := os.Stat(workflowPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to access workflow file: %v", err)), nil
+	}
+	if info.IsDir() {
+		return mcp.NewToolResultError("workflow_runner expects a file, not a directory"), nil
+	}
+
+	wf, err := workflow.LoadFromFile(workflowPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to load workflow: %v", err)), nil
+	}
+
+	workflowDir := filepath.Dir(workflowPath)
+	var writtenOutputs []string
+
+	runner := func(stepCtx context.Context, tool string, params map[string]interface{}) (string, error) {
+		normalized := cloneArguments(params)
+
+		normalizeWorkflowPathArg(normalized, workflowPath, "directory")
+		normalizeWorkflowPathArg(normalized, workflowPath, "file_path")
+		normalizeWorkflowPathArg(normalized, workflowPath, "outputFilePath")
+		normalizeWorkflowPathArg(normalized, workflowPath, "templateFilePath")
+
+		if tool == "list_packages" {
+			if format := stringFromAny(normalized["format"]); format == "" {
+				normalized["format"] = "json"
+			}
+			if dir := stringFromAny(normalized["directory"]); dir == "" && packageDirectory != "" {
+				normalized["directory"] = packageDirectory
+			}
+		}
+
+		if tool == "batch_analyze" {
+			if rawJSON, ok := normalized["jsonData"]; ok {
+				jsonText, ok := rawJSON.(string)
+				if !ok {
+					return "", fmt.Errorf("batch_analyze: jsonData must be a string value")
+				}
+				files, err := extractFilePathsFromJSON(jsonText)
+				if err != nil {
+					return "", err
+				}
+				normalized["file_paths"] = toInterfaceSlice(files)
+				delete(normalized, "jsonData")
+			}
+		}
+
+		req := mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Arguments: normalized,
+			},
+		}
+
+		var result *mcp.CallToolResult
+		switch tool {
+		case "list_packages":
+			res, err := packagehandlers.HandleListPackages(stepCtx, req, packageDirectory, excludeFile)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "batch_analyze":
+			res, err := packagehandlers.HandleBatchAnalyze(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		default:
+			return "", fmt.Errorf("workflow runner: tool %q is not supported", tool)
+		}
+
+		text, err := workflow.ToolResultToString(result)
+		if err != nil {
+			return "", err
+		}
+
+		if outputPath := stringFromAny(normalized["outputFilePath"]); outputPath != "" {
+			if err := writeWorkflowOutput(outputPath, text); err != nil {
+				return "", err
+			}
+			display := outputPath
+			if rel, relErr := filepath.Rel(workflowDir, outputPath); relErr == nil && !strings.HasPrefix(rel, "..") {
+				display = rel
+			}
+			writtenOutputs = append(writtenOutputs, display)
+		}
+
+		return text, nil
+	}
+
+	results, err := wf.Execute(ctx, runner)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Workflow execution failed: %v", err)), nil
+	}
+
+	summary := createWorkflowExecutionSummary(workflowPath, wf, results, writtenOutputs)
+
+	format := strings.ToLower(extractStringArg(args, "format"))
+	switch format {
+	case "json":
+		data, marshalErr := json.MarshalIndent(summary, "", "  ")
+		if marshalErr != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to marshal workflow summary: %v", marshalErr)), nil
+		}
+		return mcp.NewToolResultText(string(data)), nil
+	default:
+		markdown := formatWorkflowSummaryMarkdown(summary)
+		return mcp.NewToolResultText(markdown), nil
+	}
+}
+
+func cloneArguments(params map[string]interface{}) map[string]interface{} {
+	if params == nil {
+		return map[string]interface{}{}
+	}
+	cloned := make(map[string]interface{}, len(params))
+	for key, value := range params {
+		cloned[key] = value
+	}
+	return cloned
+}
+
+func normalizeWorkflowPathArg(args map[string]interface{}, workflowPath, key string) {
+	raw, exists := args[key]
+	if !exists {
+		return
+	}
+	value, ok := raw.(string)
+	if !ok {
+		return
+	}
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return
+	}
+	args[key] = workflow.ResolveRelativePath(workflowPath, trimmed)
+}
+
+func stringFromAny(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+	if s, ok := value.(string); ok {
+		return strings.TrimSpace(s)
+	}
+	return ""
+}
+
+func extractStringArg(args map[string]interface{}, key string) string {
+	if args == nil {
+		return ""
+	}
+	return stringFromAny(args[key])
+}
+
+func extractFilePathsFromJSON(jsonText string) ([]string, error) {
+	var payload struct {
+		Directory        string   `json:"directory"`
+		Packages         []string `json:"packages"`
+		PackagesAbsolute []string `json:"packages_absolute"`
+	}
+
+	if err := json.Unmarshal([]byte(jsonText), &payload); err != nil {
+		return nil, fmt.Errorf("failed to parse jsonData payload: %w", err)
+	}
+
+	var files []string
+	if len(payload.PackagesAbsolute) > 0 {
+		for _, path := range payload.PackagesAbsolute {
+			if path == "" {
+				continue
+			}
+			files = append(files, filepath.Clean(path))
+		}
+	} else {
+		base := payload.Directory
+		for _, pkg := range payload.Packages {
+			if pkg == "" {
+				continue
+			}
+			if filepath.IsAbs(pkg) || base == "" {
+				files = append(files, filepath.Clean(pkg))
+			} else {
+				files = append(files, filepath.Clean(filepath.Join(base, pkg)))
+			}
+		}
+	}
+
+	if len(files) == 0 {
+		return nil, fmt.Errorf("jsonData did not contain any package paths")
+	}
+
+	return files, nil
+}
+
+func toInterfaceSlice(values []string) []interface{} {
+	out := make([]interface{}, 0, len(values))
+	for _, value := range values {
+		out = append(out, value)
+	}
+	return out
+}
+
+func writeWorkflowOutput(outputPath, content string) error {
+	if outputPath == "" {
+		return nil
+	}
+	dir := filepath.Dir(outputPath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("failed to create workflow output directory %s: %w", dir, err)
+	}
+	if err := os.WriteFile(outputPath, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("failed to write workflow output %s: %w", outputPath, err)
+	}
+	return nil
+}
+
+func createWorkflowExecutionSummary(workflowPath string, wf *workflow.Workflow, results map[string]map[string]workflow.StepResult, files []string) workflowExecutionSummary {
+	summaries := make([]workflowStepSummary, 0, len(wf.Steps))
+	for _, step := range wf.Steps {
+		summary := workflowStepSummary{
+			Name:    step.Name,
+			Type:    step.Type,
+			Enabled: step.Enabled,
+		}
+		if step.Enabled {
+			if outputs, ok := results[step.Name]; ok && len(outputs) > 0 {
+				summary.Outputs = outputs
+			}
+		}
+		summaries = append(summaries, summary)
+	}
+
+	return workflowExecutionSummary{
+		WorkflowPath: workflowPath,
+		Steps:        summaries,
+		FilesWritten: files,
+	}
+}
+
+func formatWorkflowSummaryMarkdown(summary workflowExecutionSummary) string {
+	var builder strings.Builder
+
+	builder.WriteString(fmt.Sprintf("# Workflow Execution: %s\n\n", filepath.Base(summary.WorkflowPath)))
+	builder.WriteString(fmt.Sprintf("- **Workflow Path**: %s\n", summary.WorkflowPath))
+	builder.WriteString(fmt.Sprintf("- **Total Steps**: %d\n", len(summary.Steps)))
+
+	executed := 0
+	for _, step := range summary.Steps {
+		if step.Enabled {
+			executed++
+		}
+	}
+	builder.WriteString(fmt.Sprintf("- **Steps Executed**: %d\n\n", executed))
+
+	if len(summary.FilesWritten) > 0 {
+		builder.WriteString("## Files Written\n\n")
+		for _, file := range summary.FilesWritten {
+			builder.WriteString(fmt.Sprintf("- %s\n", file))
+		}
+		builder.WriteString("\n")
+	}
+
+	builder.WriteString("## Step Outputs\n\n")
+	for _, step := range summary.Steps {
+		builder.WriteString(fmt.Sprintf("### %s (%s)\n\n", step.Name, strings.TrimPrefix(step.Type, "#")))
+		if !step.Enabled {
+			builder.WriteString("_Step disabled_\n\n")
+			continue
+		}
+		if len(step.Outputs) == 0 {
+			builder.WriteString("_No outputs captured._\n\n")
+			continue
+		}
+
+		keys := make([]string, 0, len(step.Outputs))
+		for key := range step.Outputs {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+
+		for _, key := range keys {
+			output := step.Outputs[key]
+			builder.WriteString(fmt.Sprintf("- **%s**", key))
+			if output.Format != "" {
+				builder.WriteString(fmt.Sprintf(" (%s)", output.Format))
+			}
+			builder.WriteString("\n\n```")
+			builder.WriteString("\n")
+			builder.WriteString(output.Value)
+			builder.WriteString("\n```")
+			builder.WriteString("\n\n")
+		}
+	}
+
+	return builder.String()
 }
 
 func handleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
