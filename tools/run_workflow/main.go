@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	packagehandlers "github.com/MCPRUNNER/gossisMCP/pkg/handlers/packages"
+	templatehandlers "github.com/MCPRUNNER/gossisMCP/pkg/handlers/templates"
 	"github.com/MCPRUNNER/gossisMCP/pkg/workflow"
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -14,9 +15,13 @@ import (
 func main() {
 	ctx := context.Background()
 	workflowPath := ".gossismcp/workflows/workflow_example_loop.json"
+	packageDir := ".gossismcp"
 	absPath, err := filepath.Abs(workflowPath)
 	if err == nil {
 		workflowPath = absPath
+	}
+	if pkgAbs, err := filepath.Abs(packageDir); err == nil {
+		packageDir = pkgAbs
 	}
 
 	runner := func(stepCtx context.Context, tool string, params map[string]interface{}) (string, error) {
@@ -30,6 +35,12 @@ func main() {
 			return workflow.ToolResultToString(res)
 		case "analyze_logging_configuration":
 			res, err := packagehandlers.HandleAnalyzeLoggingConfiguration(stepCtx, req, "")
+			if err != nil {
+				return "", err
+			}
+			return workflow.ToolResultToString(res)
+		case "render_template":
+			res, err := templatehandlers.HandleRenderTemplate(stepCtx, req, packageDir)
 			if err != nil {
 				return "", err
 			}

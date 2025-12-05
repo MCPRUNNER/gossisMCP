@@ -517,8 +517,26 @@ func WriteCombinedStepOutputs(workflowPath string, wf *Workflow, results map[str
 							base := filepath.Base(f)
 							name := strings.TrimSuffix(base, filepath.Ext(base))
 							obj["package"] = name
-							dataArray[i] = obj
 						}
+
+						// Normalize tool-specific fields into a generic "results" key so
+						// templates can render any looped tool output without knowing
+						// field names like "analysis". Always set results; drop legacy keys.
+						switch {
+						case obj["results"] != nil:
+							// keep existing
+						case obj["analysis"] != nil:
+							obj["results"] = obj["analysis"]
+						case obj["message"] != nil:
+							obj["results"] = obj["message"]
+						default:
+							obj["results"] = obj
+						}
+						// Remove legacy keys so the combined JSON is tool-agnostic
+						delete(obj, "analysis")
+						delete(obj, "message")
+
+						dataArray[i] = obj
 					}
 				}
 				wrapper := map[string]interface{}{"data": dataArray}

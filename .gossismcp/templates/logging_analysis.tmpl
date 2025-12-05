@@ -26,44 +26,49 @@
   <h1>{{ $title }}</h1>
   <p>Package analysis from combined workflow output.</p>
 
-  {{ $rows := or .Data (index . "data") }}
-  {{ if not $rows }}
-    <p><em>No records found.</em></p>
-  {{ else }}
+  {{ $rows := index . "data" }}
+  {{ if $rows }}
   <table aria-describedby="report-desc">
     <caption id="report-desc">Package analysis</caption>
     <thead>
       <tr>
         <th>Package</th>
         <th>File</th>
-        <th>Analysis</th>
+        <th>Results</th>
       </tr>
     </thead>
     <tbody>
-    {{ range $i, $it := $rows }}
-      {{- $file := "" -}}
-      {{- $analysis := "" -}}
-      {{- $pkg := "" -}}
-      {{- if eq (printf "%T" $it) "map[string]interface {}" }}
-        {{- $m := $it -}}
-        {{- if index $m "file" }}{{ $file = index $m "file" }}{{ end -}}
-        {{- if index $m "analysis" }}{{ $analysis = index $m "analysis" }}{{ end -}}
-        {{- if index $m "package" }}{{ $pkg = index $m "package" }}{{ end -}}
-      {{- else }}
-        {{- with $it.File }}{{ $file = . }}{{ end }}
-        {{- with $it.Analysis }}{{ $analysis = . }}{{ end }}
-        {{- with $it.Package }}{{ $pkg = . }}{{ end }}
-      {{- end }}
+{{ range $rows }}
       <tr>
-        <td>
-          {{- if $pkg }}{{ $pkg }}{{ else if $file }}{{ $file }}{{ else }}(unknown){{ end }}
-        </td>
-        <td>{{ $file }}</td>
-        <td><pre class="analysis">{{ $analysis }}</pre></td>
+        <td>{{ index . "package" }}</td>
+        <td>{{ index . "file" }}</td>
+        <td><pre class="analysis">{{ index . "results" }}</pre></td>
       </tr>
-    {{ end }}
+{{ end }}
     </tbody>
   </table>
+  {{ else }}
+    {{- $file := index . "file" -}}
+    {{- $pkg := index . "package" -}}
+    {{- $results := index . "results" -}}
+    {{- if and (eq $results "") (index . "analysis") }}{{ $results = index . "analysis" }}{{ end -}}
+    <table aria-describedby="report-desc">
+      <caption id="report-desc">Package analysis</caption>
+      <thead>
+        <tr>
+          <th>Package</th>
+          <th>File</th>
+          <th>Results</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{ if $pkg }}{{ $pkg }}{{ else if $file }}{{ $file }}{{ else }}(unknown){{ end }}</td>
+          <td>{{ $file }}</td>
+          <td><pre class="analysis">{{ $results }}</pre></td>
+        </tr>
+      </tbody>
+    </table>
   {{ end }}
 </body>
 </html>

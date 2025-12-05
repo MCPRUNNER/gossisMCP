@@ -44,6 +44,9 @@ func RenderTemplateFromJSON(jsonData []byte, templatePath, outputPath string) er
 			}
 			return name
 		},
+		"list": func(v ...interface{}) []interface{} {
+			return v
+		},
 	}).ParseFiles(templatePath)
 	if err != nil {
 		return err

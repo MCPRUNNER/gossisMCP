@@ -13,6 +13,11 @@ import (
 	projecttemplates "github.com/MCPRUNNER/gossisMCP/pkg/templates"
 )
 
+type ReportPage struct {
+	Title string                   `json:"title"`
+	Data  []map[string]interface{} `json:"data"`
+}
+
 // HandleRenderTemplate renders an HTML template using JSON data and writes the output file.
 func HandleRenderTemplate(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	args, _ := request.Params.Arguments.(map[string]interface{})
@@ -51,12 +56,67 @@ func HandleRenderTemplate(_ context.Context, request mcp.CallToolRequest, packag
 								m["package"] = name
 							}
 						}
+
+						// Normalize to a generic "results" key so templates stay tool-agnostic
+						switch {
+						case m["results"] != nil:
+							// keep existing
+						case m["analysis"] != nil:
+							m["results"] = m["analysis"]
+						case m["message"] != nil:
+							m["results"] = m["message"]
+						default:
+							m["results"] = m
+						}
+						delete(m, "analysis")
+						delete(m, "message")
 					}
 				}
-				// re-marshal payload to jsonData for rendering
-				if b, merr := json.MarshalIndent(payload, "", "  "); merr == nil {
+				// Create ReportPage struct for rendering
+				var dataSlice []map[string]interface{}
+				if arr, ok := payload["data"].([]interface{}); ok {
+					for _, item := range arr {
+						if m, ok := item.(map[string]interface{}); ok {
+							dataSlice = append(dataSlice, m)
+						}
+					}
+				}
+				page := ReportPage{
+					Title: "Logging Analysis Report",
+					Data:  dataSlice,
+				}
+				if b, merr := json.MarshalIndent(page, "", "  "); merr == nil {
 					jsonData = b
 				}
+			}
+		} else {
+			// No top-level data array: normalize the single payload and wrap it
+			if fRaw, ok := payload["file"]; ok {
+				if fstr, ok := fRaw.(string); ok && fstr != "" {
+					base := filepath.Base(fstr)
+					name := strings.TrimSuffix(base, filepath.Ext(base))
+					payload["package"] = name
+				}
+			}
+			switch {
+			case payload["results"] != nil:
+				// keep existing
+			case payload["analysis"] != nil:
+				payload["results"] = payload["analysis"]
+			case payload["message"] != nil:
+				payload["results"] = payload["message"]
+			default:
+				payload["results"] = payload
+			}
+			delete(payload, "analysis")
+			delete(payload, "message")
+
+			page := ReportPage{
+				Title: "Logging Analysis Report",
+				Data:  []map[string]interface{}{payload},
+			}
+			if b, merr := json.MarshalIndent(page, "", "  "); merr == nil {
+				jsonData = b
 			}
 		}
 	}
