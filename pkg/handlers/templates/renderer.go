@@ -81,12 +81,23 @@ func HandleRenderTemplate(_ context.Context, request mcp.CallToolRequest, packag
 						}
 					}
 				}
+
+				// Determine title from template name
+				title := "Analysis Report"
+				if strings.Contains(templatePath, "dataflow") {
+					title = "Data Flow Analysis Report"
+				} else if strings.Contains(templatePath, "logging") {
+					title = "Logging Analysis Report"
+				}
+
 				page := ReportPage{
-					Title: "Logging Analysis Report",
+					Title: title,
 					Data:  dataSlice,
 				}
 				if b, merr := json.MarshalIndent(page, "", "  "); merr == nil {
 					jsonData = b
+					// Debug: write the marshaled data to see what's being passed to template
+					_ = os.WriteFile(filepath.Join(filepath.Dir(outputPath), "debug_template_data.json"), b, 0644)
 				}
 			}
 		} else {
@@ -111,8 +122,16 @@ func HandleRenderTemplate(_ context.Context, request mcp.CallToolRequest, packag
 			delete(payload, "analysis")
 			delete(payload, "message")
 
+			// Determine title from template name
+			title := "Analysis Report"
+			if strings.Contains(templatePath, "dataflow") {
+				title = "Data Flow Analysis Report"
+			} else if strings.Contains(templatePath, "logging") {
+				title = "Logging Analysis Report"
+			}
+
 			page := ReportPage{
-				Title: "Logging Analysis Report",
+				Title: title,
 				Data:  []map[string]interface{}{payload},
 			}
 			if b, merr := json.MarshalIndent(page, "", "  "); merr == nil {

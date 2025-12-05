@@ -116,7 +116,7 @@ func (wf *Workflow) Validate() error {
 }
 
 // Execute walks each enabled step, resolving parameter placeholders and invoking the provided runner.
-func (wf *Workflow) Execute(ctx context.Context, runner RunnerFunc) (map[string]map[string]StepResult, error) {
+func (wf *Workflow) Execute(ctx context.Context, runner RunnerFunc, workflowPath string) (map[string]map[string]StepResult, error) {
 	if runner == nil {
 		return nil, errors.New("runner cannot be nil")
 	}
@@ -182,6 +182,11 @@ func (wf *Workflow) Execute(ctx context.Context, runner RunnerFunc) (map[string]
 				results[step.Name]["Result"] = StepResult{Value: joined}
 			}
 
+			// Write combined outputs immediately after loop step completes if output_file_path is set
+			if step.OutputFilePath != "" && workflowPath != "" {
+				_, _ = WriteCombinedStepOutputs(workflowPath, wf, results)
+			}
+
 			continue
 		}
 
@@ -212,6 +217,11 @@ func (wf *Workflow) Execute(ctx context.Context, runner RunnerFunc) (map[string]
 		} else {
 			// Default output name when none is specified
 			results[step.Name]["Result"] = StepResult{Value: outputValue}
+		}
+
+		// Write combined outputs immediately after step completes if output_file_path is set
+		if step.OutputFilePath != "" && workflowPath != "" {
+			_, _ = WriteCombinedStepOutputs(workflowPath, wf, results)
 		}
 	}
 
@@ -580,7 +590,7 @@ func RunFile(ctx context.Context, workflowPath string, runner RunnerFunc) (*Work
 		return nil, nil, err
 	}
 
-	results, err := wf.Execute(ctx, runner)
+	results, err := wf.Execute(ctx, runner, workflowPath)
 	if err != nil {
 		return wf, nil, err
 	}

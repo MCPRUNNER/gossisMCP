@@ -7,9 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 
+	"github.com/MCPRUNNER/gossisMCP/pkg/formatter"
 	"github.com/MCPRUNNER/gossisMCP/pkg/types"
 )
 
@@ -23,27 +25,79 @@ func HandleComparePackages(_ context.Context, request mcp.CallToolRequest, packa
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
+	// Get format parameter (default to "text")
+	formatStr := request.GetString("format", "text")
+	format := formatter.OutputFormat(formatStr)
+
 	resolvedPath1 := resolveFilePath(filePath1, packageDirectory)
 	resolvedPath2 := resolveFilePath(filePath2, packageDirectory)
 
 	data1, err := os.ReadFile(resolvedPath1)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to read first file: %v", err)), nil
+		result := formatter.CreateAnalysisResult("compare_packages", filePath1, nil, fmt.Errorf("failed to read first file: %v", err))
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "compare_packages",
+				"file_path": filePath1,
+				"package":   filepath.Base(filePath1),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     fmt.Sprintf("failed to read first file: %v", err),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Package comparison error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 	data1 = []byte(strings.ReplaceAll(string(data1), "DTS:", ""))
 	var pkg1 types.SSISPackage
 	if err := xml.Unmarshal(data1, &pkg1); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse first file: %v", err)), nil
+		result := formatter.CreateAnalysisResult("compare_packages", filePath1, nil, fmt.Errorf("failed to parse first file: %v", err))
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "compare_packages",
+				"file_path": filePath1,
+				"package":   filepath.Base(filePath1),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     fmt.Sprintf("failed to parse first file: %v", err),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Package comparison error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	data2, err := os.ReadFile(resolvedPath2)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to read second file: %v", err)), nil
+		result := formatter.CreateAnalysisResult("compare_packages", filePath2, nil, fmt.Errorf("failed to read second file: %v", err))
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "compare_packages",
+				"file_path": filePath2,
+				"package":   filepath.Base(filePath2),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     fmt.Sprintf("failed to read second file: %v", err),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Package comparison error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 	data2 = []byte(strings.ReplaceAll(string(data2), "DTS:", ""))
 	var pkg2 types.SSISPackage
 	if err := xml.Unmarshal(data2, &pkg2); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse second file: %v", err)), nil
+		result := formatter.CreateAnalysisResult("compare_packages", filePath2, nil, fmt.Errorf("failed to parse second file: %v", err))
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "compare_packages",
+				"file_path": filePath2,
+				"package":   filepath.Base(filePath2),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     fmt.Sprintf("failed to parse second file: %v", err),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Package comparison error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	var result strings.Builder
@@ -72,10 +126,30 @@ func HandleComparePackages(_ context.Context, request mcp.CallToolRequest, packa
 	result.WriteString("\nðŸš¨ Event Handlers:\n")
 	compareEventHandlers(pkg1.EventHandlers.EventHandlers, pkg2.EventHandlers.EventHandlers, &result)
 
-	result.WriteString("\nðŸ”€ Precedence Constraints:\n")
+	result.WriteString("\n📀 Precedence Constraints:\n")
 	comparePrecedenceConstraints(pkg1.PrecedenceConstraints.Constraints, pkg2.PrecedenceConstraints.Constraints, &result)
 
-	return mcp.NewToolResultText(result.String()), nil
+	analysisResult := formatter.CreateAnalysisResult("compare_packages", fmt.Sprintf("%s vs %s", filePath1, filePath2), result.String(), nil)
+
+	// For JSON format, return structured data
+	if format == formatter.FormatJSON {
+		jsonResult := map[string]interface{}{
+			"tool_name":  analysisResult.ToolName,
+			"file_path1": filePath1,
+			"file_path2": filePath2,
+			"package1":   filepath.Base(filePath1),
+			"package2":   filepath.Base(filePath2),
+			"timestamp":  analysisResult.Timestamp,
+			"status":     analysisResult.Status,
+			"analysis":   analysisResult.Data,
+		}
+		if analysisResult.Error != "" {
+			jsonResult["error"] = analysisResult.Error
+		}
+		return mcp.NewToolResultStructured(jsonResult, "Package comparison"), nil
+	}
+
+	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 
 func compareProperties(props1, props2 []types.Property, result *strings.Builder) {

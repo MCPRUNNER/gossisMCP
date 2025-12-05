@@ -47,12 +47,23 @@
             "output_file_path": "../Output/logging_analysis.json"
         },
         {
-            "Name": "RenderReport",
+            "Name": "RenderDataflowReport",
             "Type": "#render_template",
             "Parameters": {
                 "template_file_path": "../templates/dataflow_analysis.gotmpl",
                 "json_file_path": "../Output/dataflow_analysis.json",
                 "output_file_path": "../Output/dataflow_analysis.html"
+            },
+            "Enabled": true,
+            "Output": {"Name": "Message", "Format": "text"}
+        },
+        {
+            "Name": "RenderLoggingReport",
+            "Type": "#render_template",
+            "Parameters": {
+                "template_file_path": "../templates/logging_analysis.gotmpl",
+                "json_file_path": "../Output/logging_analysis.json",
+                "output_file_path": "../Output/logging_analysis.html"
             },
             "Enabled": true,
             "Output": {"Name": "Message", "Format": "text"}

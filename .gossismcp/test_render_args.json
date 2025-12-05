@@ -1,0 +1,5 @@
+{
+  "template_file_path": ".gossismcp/templates/dataflow_analysis.gotmpl",
+  "json_file_path": ".gossismcp/Output/dataflow_analysis.json",
+  "output_file_path": ".gossismcp/Output/test_render.html"
+}
