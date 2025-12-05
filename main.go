@@ -1454,6 +1454,18 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 				return "", err
 			}
 			result = res
+		case "analyze_data_flow_detailed":
+			res, err := analysis.HandleAnalyzeDataFlowDetailed(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "validate_best_practices":
+			res, err := packagehandlers.HandleValidateBestPractices(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
 		default:
 			return "", fmt.Errorf("workflow runner: tool %q is not supported", tool)
 		}

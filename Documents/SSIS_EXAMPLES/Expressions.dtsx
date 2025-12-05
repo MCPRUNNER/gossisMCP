@@ -5,6 +5,7 @@
   DTS:CreationName="Microsoft.Package"
   DTS:CreatorComputerName="T15P"
   DTS:CreatorName="RSYSLAB\U00001"
+  DTS:Description="Package takes dbo.syssislogs from the PROTO database and saves them to a csv file"
   DTS:DTSID="{41ADF117-4E99-43F4-B9E7-34245C58A5D6}"
   DTS:EnableConfig="True"
   DTS:ExecutableType="Microsoft.Package"
@@ -12,8 +13,8 @@
   DTS:LocaleID="1033"
   DTS:ObjectName="Expressions"
   DTS:PackageType="5"
-  DTS:VersionBuild="23"
-  DTS:VersionGUID="{6BDE3E14-16C4-4A9E-A443-7B8C7D9E8090}">
+  DTS:VersionBuild="24"
+  DTS:VersionGUID="{3F21EA33-2BF6-4B65-ADB0-FCB4D2025C2E}">
   <DTS:Property
     DTS:Name="PackageFormatVersion">8</DTS:Property>
   <DTS:ConnectionManagers>
@@ -975,10 +976,6 @@
       <GraphLayout
         Capacity="8" xmlns="clr-namespace:Microsoft.SqlServer.IntegrationServices.Designer.Model.Serialization;assembly=Microsoft.SqlServer.IntegrationServices.Graph" xmlns:mssgle="clr-namespace:Microsoft.SqlServer.Graph.LayoutEngine;assembly=Microsoft.SqlServer.Graph" xmlns:assembly="http://schemas.microsoft.com/winfx/2006/xaml">
         <NodeLayout
-          Size="186,42"
-          Id="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS"
-          TopLeft="156,226" />
-        <NodeLayout
           Size="162,42"
           Id="Package\SSIS_LOGS_TO_CSV\Expressions_csv"
           TopLeft="512,298" />
@@ -986,6 +983,10 @@
           Size="171,42"
           Id="Package\SSIS_LOGS_TO_CSV\Convert_databytes"
           TopLeft="443,121" />
+        <NodeLayout
+          Size="186,42"
+          Id="Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS"
+          TopLeft="156,226" />
         <EdgeLayout
           Id="Package\SSIS_LOGS_TO_CSV.Paths[OLE DB Source Output]"
           TopLeft="249,226">

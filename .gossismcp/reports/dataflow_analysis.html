@@ -4,44 +4,44 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SSIS Data Flow Analysis</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ddd; padding: 8px; vertical-align: top; }
-    th { background: #f5f5f5; text-align: left; }
-    tr:nth-child(even) { background: #fafafa; }
-    .status-success { color: #0a7d05; font-weight: 600; }
-    .status-error { color: #b00020; font-weight: 600; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
-    pre { white-space: pre-wrap; margin: 0; }
-    .wrap { word-break: break-word; }
-  </style>
+  <link rel="stylesheet" href="gossismcp.css">
+   
 </head>
 <body>
-  <h1>SSIS Data Flow Analysis</h1>
-
-  
-  
-  <table>
+  <div class="container">
+    <header>
+      <h1>SSIS Data Flow Analysis</h1>
+      <p class="subtitle">Comprehensive data flow analysis across all SSIS packages</p>
+    </header>
+    
+    <div class="content">
+      
+      
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-label">Total Packages</div>
+          <div class="stat-value">13</div>
+        </div>
+      </div>
+      
+      <div class="table-wrapper">
+        <table>
     <thead>
       <tr>
         <th>Package</th>
-        <th>File Path</th>
         <th>Status</th>
         <th>Timestamp</th>
-        <th>Tool</th>
         <th>Results</th>
       </tr>
     </thead>
     <tbody>
 
       <tr>
-        <td class="mono wrap">ConfigFile.dtsx</td>
-        <td class="mono wrap">c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\ConfigFile.dtsx</td>
+        <td class="package-name mono wrap">ConfigFile.dtsx</td>
         <td><span class="status-success">success</span></td>
-        <td class="mono">2025-12-05T12:10:20-05:00</td>
-        <td class="mono">analyze_data_flow</td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
         <td>
           <pre class="mono">Data Flow Analysis:
 
@@ -66,11 +66,9 @@ Data Paths:
       </tr>
 
       <tr>
-        <td class="mono wrap">ConfigTables.dtsx</td>
-        <td class="mono wrap">c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\ConfigTables.dtsx</td>
+        <td class="package-name mono wrap">ConfigTables.dtsx</td>
         <td><span class="status-success">success</span></td>
-        <td class="mono">2025-12-05T12:10:20-05:00</td>
-        <td class="mono">analyze_data_flow</td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
         <td>
           <pre class="mono">Data Flow Analysis:
 
@@ -95,11 +93,9 @@ Data Paths:
       </tr>
 
       <tr>
-        <td class="mono wrap">DupeAlertFail.dtsx</td>
-        <td class="mono wrap">c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\DupeAlertFail.dtsx</td>
+        <td class="package-name mono wrap">DupeAlertFail.dtsx</td>
         <td><span class="status-success">success</span></td>
-        <td class="mono">2025-12-05T12:10:20-05:00</td>
-        <td class="mono">analyze_data_flow</td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
         <td>
           <pre class="mono">Data Flow Analysis:
 
@@ -141,11 +137,9 @@ Data Paths:
       </tr>
 
       <tr>
-        <td class="mono wrap">EXECProcess.dtsx</td>
-        <td class="mono wrap">c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\EXECProcess.dtsx</td>
+        <td class="package-name mono wrap">EXECProcess.dtsx</td>
         <td><span class="status-success">success</span></td>
-        <td class="mono">2025-12-05T12:10:20-05:00</td>
-        <td class="mono">Data Flow Analysis</td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
         <td>
           <pre class="mono">Data Flow Analysis:
 
@@ -155,11 +149,9 @@ No Data Flow Tasks found in this package.
       </tr>
 
       <tr>
-        <td class="mono wrap">ExportColumn.dtsx</td>
-        <td class="mono wrap">c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\ExportColumn.dtsx</td>
+        <td class="package-name mono wrap">ExportColumn.dtsx</td>
         <td><span class="status-success">success</span></td>
-        <td class="mono">2025-12-05T12:10:20-05:00</td>
-        <td class="mono">analyze_data_flow</td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
         <td>
           <pre class="mono">Data Flow Analysis:
 
@@ -187,11 +179,9 @@ Data Paths:
       </tr>
 
       <tr>
-        <td class="mono wrap">Expressions.dtsx</td>
-        <td class="mono wrap">c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\Expressions.dtsx</td>
+        <td class="package-name mono wrap">Expressions.dtsx</td>
         <td><span class="status-success">success</span></td>
-        <td class="mono">2025-12-05T12:10:20-05:00</td>
-        <td class="mono">analyze_data_flow</td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
         <td>
           <pre class="mono">Data Flow Analysis:
 
@@ -219,11 +209,9 @@ Data Paths:
       </tr>
 
       <tr>
-        <td class="mono wrap">Loader.dtsx</td>
-        <td class="mono wrap">c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\Loader.dtsx</td>
+        <td class="package-name mono wrap">Loader.dtsx</td>
         <td><span class="status-success">success</span></td>
-        <td class="mono">2025-12-05T12:10:20-05:00</td>
-        <td class="mono">analyze_data_flow</td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
         <td>
           <pre class="mono">Data Flow Analysis:
 
@@ -251,11 +239,9 @@ Data Paths:
       </tr>
 
       <tr>
-        <td class="mono wrap">MSMQRec.dtsx</td>
-        <td class="mono wrap">c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\MSMQRec.dtsx</td>
+        <td class="package-name mono wrap">MSMQRec.dtsx</td>
         <td><span class="status-success">success</span></td>
-        <td class="mono">2025-12-05T12:10:20-05:00</td>
-        <td class="mono">Data Flow Analysis</td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
         <td>
           <pre class="mono">Data Flow Analysis:
 
@@ -265,11 +251,9 @@ No Data Flow Tasks found in this package.
       </tr>
 
       <tr>
-        <td class="mono wrap">MSMQSender.dtsx</td>
-        <td class="mono wrap">c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\MSMQSender.dtsx</td>
+        <td class="package-name mono wrap">MSMQSender.dtsx</td>
         <td><span class="status-success">success</span></td>
-        <td class="mono">2025-12-05T12:10:20-05:00</td>
-        <td class="mono">Data Flow Analysis</td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
         <td>
           <pre class="mono">Data Flow Analysis:
 
@@ -279,11 +263,9 @@ No Data Flow Tasks found in this package.
       </tr>
 
       <tr>
-        <td class="mono wrap">Package2.dtsx</td>
-        <td class="mono wrap">c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\Package2.dtsx</td>
+        <td class="package-name mono wrap">Package2.dtsx</td>
         <td><span class="status-success">success</span></td>
-        <td class="mono">2025-12-05T12:10:20-05:00</td>
-        <td class="mono">Data Flow Analysis</td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
         <td>
           <pre class="mono">Data Flow Analysis:
 
@@ -293,11 +275,9 @@ No Data Flow Tasks found in this package.
       </tr>
 
       <tr>
-        <td class="mono wrap">RunMultu.dtsx</td>
-        <td class="mono wrap">c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\RunMultu.dtsx</td>
+        <td class="package-name mono wrap">RunMultu.dtsx</td>
         <td><span class="status-success">success</span></td>
-        <td class="mono">2025-12-05T12:10:20-05:00</td>
-        <td class="mono">Data Flow Analysis</td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
         <td>
           <pre class="mono">Data Flow Analysis:
 
@@ -307,11 +287,9 @@ No Data Flow Tasks found in this package.
       </tr>
 
       <tr>
-        <td class="mono wrap">Scanner.dtsx</td>
-        <td class="mono wrap">c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\Scanner.dtsx</td>
+        <td class="package-name mono wrap">Scanner.dtsx</td>
         <td><span class="status-success">success</span></td>
-        <td class="mono">2025-12-05T12:10:20-05:00</td>
-        <td class="mono">analyze_data_flow</td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
         <td>
           <pre class="mono">Data Flow Analysis:
 
@@ -364,11 +342,9 @@ Data Paths:
       </tr>
 
       <tr>
-        <td class="mono wrap">WMIDataReader.dtsx</td>
-        <td class="mono wrap">c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\WMIDataReader.dtsx</td>
+        <td class="package-name mono wrap">WMIDataReader.dtsx</td>
         <td><span class="status-success">success</span></td>
-        <td class="mono">2025-12-05T12:10:20-05:00</td>
-        <td class="mono">analyze_data_flow</td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
         <td>
           <pre class="mono">Data Flow Analysis:
 
@@ -380,7 +356,14 @@ No components found in data flow.
       </tr>
 
     </tbody>
-  </table>
-  
+      </table>
+      </div>
+      
+      
+      <footer>
+        Generated by SSIS Analyzer MCP | Workflow-based Package Analysis
+      </footer>
+    </div>
+  </div>
 </body>
 </html>
