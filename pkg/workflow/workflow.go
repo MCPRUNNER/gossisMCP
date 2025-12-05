@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -444,4 +445,124 @@ func ToolResultToString(result *mcp.CallToolResult) (string, error) {
 	}
 
 	return combined, nil
+}
+
+// parseTopLevelJSONValues decodes one or more top-level JSON values from the
+// provided string. It returns a slice with each decoded value. This handles
+// concatenated JSON objects, arrays, and primitive values robustly.
+func parseTopLevelJSONValues(s string) ([]interface{}, error) {
+	dec := json.NewDecoder(strings.NewReader(s))
+	dec.UseNumber()
+	var out []interface{}
+	for {
+		var v interface{}
+		if err := dec.Decode(&v); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+// WriteCombinedStepOutputs writes aggregated outputs for any workflow steps
+// that declare a step-level OutputFilePath. It returns a list of display
+// paths (relative to the workflow when possible) for files written.
+func WriteCombinedStepOutputs(workflowPath string, wf *Workflow, results map[string]map[string]StepResult) ([]string, error) {
+	var written []string
+	workflowDir := filepath.Dir(workflowPath)
+
+	for _, step := range wf.Steps {
+		if strings.TrimSpace(step.OutputFilePath) == "" {
+			continue
+		}
+
+		outName := "Result"
+		if step.Output != nil && step.Output.Name != "" {
+			outName = step.Output.Name
+		}
+		stepOutputs, ok := results[step.Name]
+		if !ok {
+			continue
+		}
+		sr, ok := stepOutputs[outName]
+		if !ok || strings.TrimSpace(sr.Value) == "" {
+			continue
+		}
+
+		combinedPath := ResolveRelativePath(workflowPath, step.OutputFilePath)
+
+		contentToWrite := sr.Value
+		if strings.EqualFold(step.Output.Format, "json") || strings.EqualFold(sr.Format, "json") {
+			vals, perr := parseTopLevelJSONValues(sr.Value)
+			if perr == nil && len(vals) > 0 {
+				// Normalize into a single array of items for the `data` field.
+				var dataArray []interface{}
+				if len(vals) == 1 {
+					if arr, ok := vals[0].([]interface{}); ok {
+						dataArray = arr
+					} else {
+						dataArray = []interface{}{vals[0]}
+					}
+				} else {
+					dataArray = vals
+				}
+
+				// Inject a computed `package` field (basename without extension)
+				for i := range dataArray {
+					if obj, ok := dataArray[i].(map[string]interface{}); ok {
+						if f, ok := obj["file"].(string); ok && f != "" {
+							base := filepath.Base(f)
+							name := strings.TrimSuffix(base, filepath.Ext(base))
+							obj["package"] = name
+							dataArray[i] = obj
+						}
+					}
+				}
+				wrapper := map[string]interface{}{"data": dataArray}
+				if data, err := json.MarshalIndent(wrapper, "", "  "); err == nil {
+					contentToWrite = string(data)
+				}
+			}
+		}
+
+		if err := os.MkdirAll(filepath.Dir(combinedPath), 0o755); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to create combined output dir %s: %v\n", filepath.Dir(combinedPath), err)
+			continue
+		}
+		if err := os.WriteFile(combinedPath, []byte(contentToWrite+"\n"), 0o644); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to write combined output %s: %v\n", combinedPath, err)
+			continue
+		}
+		display := combinedPath
+		if rel, relErr := filepath.Rel(workflowDir, combinedPath); relErr == nil && !strings.HasPrefix(rel, "..") {
+			display = rel
+		}
+		written = append(written, display)
+	}
+
+	return written, nil
+}
+
+// RunFile loads the workflow at the given path and executes it using the
+// provided RunnerFunc. The RunnerFunc is responsible for invoking tools
+// (handlers) and returning the textual result for each invocation.
+func RunFile(ctx context.Context, workflowPath string, runner RunnerFunc) (*Workflow, map[string]map[string]StepResult, error) {
+	if runner == nil {
+		return nil, nil, errors.New("runner cannot be nil")
+	}
+
+	wf, err := LoadFromFile(workflowPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	results, err := wf.Execute(ctx, runner)
+	if err != nil {
+		return wf, nil, err
+	}
+
+	return wf, results, nil
 }

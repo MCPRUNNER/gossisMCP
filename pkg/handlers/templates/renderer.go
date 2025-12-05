@@ -2,6 +2,7 @@ package templatehandlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,6 +33,32 @@ func HandleRenderTemplate(_ context.Context, request mcp.CallToolRequest, packag
 	jsonData, err := extractJSONPayload(args, packageDirectory)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Enhance payload: if it contains a top-level "data" array of objects
+	// and those objects have a "file" field, add a computed "package" field
+	// (basename without extension) so templates can render concise package names.
+	var payload map[string]interface{}
+	if err := json.Unmarshal(jsonData, &payload); err == nil {
+		if raw, ok := payload["data"]; ok {
+			if arr, ok := raw.([]interface{}); ok {
+				for i := range arr {
+					if m, ok := arr[i].(map[string]interface{}); ok {
+						if fRaw, ok := m["file"]; ok {
+							if fstr, ok := fRaw.(string); ok && fstr != "" {
+								base := filepath.Base(fstr)
+								name := strings.TrimSuffix(base, filepath.Ext(base))
+								m["package"] = name
+							}
+						}
+					}
+				}
+				// re-marshal payload to jsonData for rendering
+				if b, merr := json.MarshalIndent(payload, "", "  "); merr == nil {
+					jsonData = b
+				}
+			}
+		}
 	}
 
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {

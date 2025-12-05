@@ -1377,11 +1377,6 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 		return mcp.NewToolResultError("workflow_runner expects a file, not a directory"), nil
 	}
 
-	wf, err := workflow.LoadFromFile(workflowPath)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to load workflow: %v", err)), nil
-	}
-
 	workflowDir := filepath.Dir(workflowPath)
 	var writtenOutputs []string
 
@@ -1519,75 +1514,17 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 		return text, nil
 	}
 
-	results, err := wf.Execute(ctx, runner)
+	wf, results, err := workflow.RunFile(ctx, workflowPath, runner)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Workflow execution failed: %v", err)), nil
 	}
 
-	// If any steps declared a step-level output_file_path (combined output),
-	// write the aggregated step result to that location. This allows workflows
-	// to both emit per-item files (via Parameters.output_file_path) and also
-	// produce a combined file for the whole loop (via Step.output_file_path).
-	for _, step := range wf.Steps {
-		if strings.TrimSpace(step.OutputFilePath) == "" {
-			continue
-		}
-		// Find the step's output value
-		outName := "Result"
-		if step.Output != nil && step.Output.Name != "" {
-			outName = step.Output.Name
-		}
-		stepOutputs, ok := results[step.Name]
-		if !ok {
-			continue
-		}
-		sr, ok := stepOutputs[outName]
-		if !ok || strings.TrimSpace(sr.Value) == "" {
-			continue
-		}
-
-		combinedPath := workflow.ResolveRelativePath(workflowPath, step.OutputFilePath)
-
-		// If the output format is JSON, try to convert concatenated JSON objects
-		// into a single JSON array for the combined file.
-		contentToWrite := sr.Value
-		if strings.EqualFold(step.Output.Format, "json") || strings.EqualFold(sr.Format, "json") {
-			vals, perr := parseTopLevelJSONValues(sr.Value)
-			if perr == nil && len(vals) > 0 {
-				// If the single parsed value is already a JSON array, use it as-is.
-				if len(vals) == 1 {
-					if _, ok := vals[0].([]interface{}); ok {
-						if data, err := json.MarshalIndent(vals[0], "", "  "); err == nil {
-							contentToWrite = string(data)
-						}
-						// continue to next step
-					} else {
-						if data, err := json.MarshalIndent(vals, "", "  "); err == nil {
-							contentToWrite = string(data)
-						}
-					}
-				} else {
-					if data, err := json.MarshalIndent(vals, "", "  "); err == nil {
-						contentToWrite = string(data)
-					}
-				}
-			}
-		}
-
-		if err := os.MkdirAll(filepath.Dir(combinedPath), 0o755); err != nil {
-			// ignore write failure here and continue—summary will still be returned
-			fmt.Fprintf(os.Stderr, "failed to create combined output dir %s: %v\n", filepath.Dir(combinedPath), err)
-			continue
-		}
-		if err := os.WriteFile(combinedPath, []byte(contentToWrite+"\n"), 0o644); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to write combined output %s: %v\n", combinedPath, err)
-			continue
-		}
-		display := combinedPath
-		if rel, relErr := filepath.Rel(workflowDir, combinedPath); relErr == nil && !strings.HasPrefix(rel, "..") {
-			display = rel
-		}
-		writtenOutputs = append(writtenOutputs, display)
+	// Write any combined step outputs declared by the workflow steps.
+	if combined, cerr := workflow.WriteCombinedStepOutputs(workflowPath, wf, results); cerr == nil {
+		writtenOutputs = append(writtenOutputs, combined...)
+	} else {
+		// helper already prints errors to stderr; still append any files that were written
+		writtenOutputs = append(writtenOutputs, combined...)
 	}
 
 	summary := createWorkflowExecutionSummary(workflowPath, wf, results, writtenOutputs)

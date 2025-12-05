@@ -1,5 +1,0 @@
-{
-  "analysis": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
-  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\MSMQSender.dtsx",
-  "format": "json"
-}
