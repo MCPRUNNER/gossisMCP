@@ -88,3 +88,57 @@ func TestHandleRenderTemplateWithJSONFile(t *testing.T) {
 		t.Fatalf("unexpected rendered output: %q", got)
 	}
 }
+
+func TestHandleRenderTemplateWithDataArray(t *testing.T) {
+	baseDir := t.TempDir()
+
+	// Template that iterates over data array
+	templateContent := `{{ range index . "data" }}{{ index . "package" }}: {{ index . "results" }}
+{{ end }}`
+	templatePath := filepath.Join(baseDir, "report.tmpl")
+	if err := os.WriteFile(templatePath, []byte(templateContent), 0o644); err != nil {
+		t.Fatalf("failed to write template: %v", err)
+	}
+
+	// JSON with data array (as produced by workflow loop outputs)
+	jsonData := `{
+  "data": [
+    {"file": "test1.dtsx", "package": "test1", "results": "Analysis 1"},
+    {"file": "test2.dtsx", "package": "test2", "results": "Analysis 2"}
+  ]
+}`
+	jsonPath := filepath.Join(baseDir, "data.json")
+	if err := os.WriteFile(jsonPath, []byte(jsonData), 0o644); err != nil {
+		t.Fatalf("failed to write json: %v", err)
+	}
+
+	request := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Arguments: map[string]interface{}{
+				"template_file_path": templatePath,
+				"output_file_path":   filepath.Join(baseDir, "output.txt"),
+				"json_file_path":     jsonPath,
+			},
+		},
+	}
+
+	result, err := HandleRenderTemplate(context.Background(), request, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil || result.IsError {
+		t.Fatalf("expected successful tool result, got %+v", result)
+	}
+
+	data, err := os.ReadFile(filepath.Join(baseDir, "output.txt"))
+	if err != nil {
+		t.Fatalf("failed to read rendered output: %v", err)
+	}
+	output := string(data)
+	if !strings.Contains(output, "test1: Analysis 1") {
+		t.Fatalf("expected output to contain 'test1: Analysis 1', got: %q", output)
+	}
+	if !strings.Contains(output, "test2: Analysis 2") {
+		t.Fatalf("expected output to contain 'test2: Analysis 2', got: %q", output)
+	}
+}

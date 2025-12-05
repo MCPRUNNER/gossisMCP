@@ -62,10 +62,11 @@ func TestWriteCombinedStepOutputs_WritesJSONArray(t *testing.T) {
 		},
 	}
 
-	// concatenated JSON objects
+	// concatenated JSON objects from a loop - simulates analyze_logging_configuration loop output
 	results := map[string]map[string]StepResult{
 		"StepA": {
-			"Result": {Value: `{"a":1}{"b":2}`, Format: "json"},
+			"Result": {Value: `{"file":"test1.dtsx","analysis":"result1"}
+{"file":"test2.dtsx","analysis":"result2"}`, Format: "json"},
 		},
 	}
 
@@ -94,6 +95,23 @@ func TestWriteCombinedStepOutputs_WritesJSONArray(t *testing.T) {
 	}
 	if len(arr) != 2 {
 		t.Fatalf("expected 2 elements in combined 'data' array, got %d", len(arr))
+	}
+
+	// Verify that analysis field was normalized to results
+	obj1, ok := arr[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected first element to be an object")
+	}
+	if _, hasResults := obj1["results"]; !hasResults {
+		t.Fatalf("expected 'results' field in first element")
+	}
+	if _, hasAnalysis := obj1["analysis"]; hasAnalysis {
+		t.Fatalf("expected 'analysis' field to be removed from first element")
+	}
+
+	// Verify package field was added
+	if pkg, ok := obj1["package"].(string); !ok || pkg != "test1" {
+		t.Fatalf("expected 'package' field to be 'test1', got %v", obj1["package"])
 	}
 }
 
