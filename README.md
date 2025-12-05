@@ -2,6 +2,14 @@
 
 This is a comprehensive Model Context Protocol (MCP) server written in Go that provides 80+ advanced tools for analyzing SSIS (SQL Server Integration Services) DTSX files. It offers detailed insights into package structure, data flow components (10 source types, 10 transform types, 6 destination types), control flow tasks, logging configurations, performance metrics, and best practices validation.
 
+## Documentation
+
+- [Main README](README.md) - This file with comprehensive server documentation
+- [Example run for workflows](Documents/Query_EXAMPLES/WORKFLOW_RUN_EXAMPLE.md)
+- [Workflow Usage Guide](Documents/WORKFLOWS_README.md) - Instructions for using workflows
+- [MSMQ Integration Examples](Documents/Query_EXAMPLES/MSMQ_README.md) - Detailed analysis of MSMQ message queue packages with architecture diagrams
+- [SSIS Feature Recommendations](Documents/EXAMPLE_QUERY.md) - Recommended features and implementation roadmap for SSIS packages
+
 ## Features
 
 - **Package Analysis**: Parse DTSX files and extract comprehensive package information
@@ -800,12 +808,6 @@ All recommended missing features from the original feature request have been suc
 - 🔄 **1 Remaining Feature**: SSIS Catalog Integration (database connectivity to SSISDB for deployed package analysis)
 
 The server has evolved from supporting basic package parsing to providing enterprise-grade SSIS development and maintenance capabilities with 80+ specialized analysis tools.
-
-## Documentation
-
-- [Main README](README.md) - This file with comprehensive server documentation
-- [MSMQ Integration Examples](Documents/Query_EXAMPLES/MSMQ_README.md) - Detailed analysis of MSMQ message queue packages with architecture diagrams
-- [SSIS Feature Recommendations](Documents/EXAMPLE_QUERY.md) - Recommended features and implementation roadmap for SSIS packages
 
 ## License
 
