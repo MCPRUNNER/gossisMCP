@@ -1,0 +1,5 @@
+{
+  "analysis": "Logging Configuration Analysis:\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\Expressions.dtsx",
+  "format": "json"
+}

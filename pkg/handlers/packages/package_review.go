@@ -2,9 +2,11 @@ package packages
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -391,7 +393,8 @@ func HandleAnalyzeLoggingConfiguration(_ context.Context, request mcp.CallToolRe
 
 	if !strings.Contains(cleaned, "LoggingOptions") {
 		report.WriteString("[WARN] No logging configuration found in this package.\n")
-		return mcp.NewToolResultText(report.String()), nil
+		// Do not early-return; continue to produce a JSON result so workflow outputs
+		// are consistently JSON formatted for every package.
 	}
 
 	report.WriteString("[OK] Logging configuration detected.\n\n")
@@ -465,7 +468,32 @@ func HandleAnalyzeLoggingConfiguration(_ context.Context, request mcp.CallToolRe
 		report.WriteString("- Confirm SQL log tables are monitored and maintained.\n")
 	}
 
-	return mcp.NewToolResultText(report.String()), nil
+	formatStr := "text"
+	args := request.Params.Arguments
+	if argsMap, ok := args.(map[string]interface{}); ok {
+		if f, ok := argsMap["format"].(string); ok {
+			formatStr = f
+		}
+	}
+	jsonResult := map[string]interface{}{
+		"analysis": report.String(),
+		"file":     filePath,
+		"format":   formatStr,
+	}
+	jsonBytes, err := json.Marshal(jsonResult)
+	if err != nil {
+		return mcp.NewToolResultText("JSON marshal error: " + err.Error()), nil
+	}
+	if argsMap, ok := args.(map[string]interface{}); ok {
+		if outputFilePath, ok := argsMap["output_file_path"].(string); ok && outputFilePath != "" {
+			resolvedPath := resolveFilePath(outputFilePath, packageDirectory)
+			os.MkdirAll(filepath.Dir(resolvedPath), 0755)
+			os.WriteFile(resolvedPath, jsonBytes, 0644)
+		}
+	}
+	// Return a structured result so callers (workflow runner) can detect and
+	// format JSON consistently when format=="json".
+	return mcp.NewToolResultStructured(jsonResult, "Logging analysis"), nil
 }
 
 func extractPropertyValue(xmlContent, propertyName string) string {

@@ -1,0 +1,53 @@
+[{
+  "analysis": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\ConfigFile.dtsx",
+  "format": "json"
+},{
+  "analysis": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\ConfigTables.dtsx",
+  "format": "json"
+},{
+  "analysis": "Logging Configuration Analysis:\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\DupeAlertFail.dtsx",
+  "format": "json"
+},{
+  "analysis": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\EXECProcess.dtsx",
+  "format": "json"
+},{
+  "analysis": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\ExportColumn.dtsx",
+  "format": "json"
+},{
+  "analysis": "Logging Configuration Analysis:\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\Expressions.dtsx",
+  "format": "json"
+},{
+  "analysis": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\Loader.dtsx",
+  "format": "json"
+},{
+  "analysis": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\MSMQRec.dtsx",
+  "format": "json"
+},{
+  "analysis": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\MSMQSender.dtsx",
+  "format": "json"
+},{
+  "analysis": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\Package2.dtsx",
+  "format": "json"
+},{
+  "analysis": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\RunMultu.dtsx",
+  "format": "json"
+},{
+  "analysis": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\Scanner.dtsx",
+  "format": "json"
+},{
+  "analysis": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+  "file": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES\\WMIDataReader.dtsx",
+  "format": "json"
+}]

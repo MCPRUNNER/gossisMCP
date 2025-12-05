@@ -1,0 +1,26 @@
+ analyze_row_count
+analyze_character_map
+analyze_copy_column
+analyze_containers
+analyze_custom_components
+compare_packages
+mcp_ssis-analyzer_analyze_code_quality
+read_text_file
+scan_credentials
+detect_encryption
+check_compliance
+ 
+ 
+ parse_dtsx, extract_tasks, extract_connections, extract_precedence_constraints, extract_variables, 
+ extract_parameters, extract_script_code, validate_best_practices, ask_about_dtsx, analyze_message_queue_tasks, 
+
+ analyze_script_task, detect_hardcoded_values, analyze_logging_configuration, list_packages, analyze_data_flow, 
+ analyze_data_flow_detailed, analyze_source, analyze_destination, analyze_ole_db_destination, analyze_flat_file_destination, 
+ analyze_sql_server_destination, analyze_ole_db_source, analyze_ado_net_source, analyze_odbc_source, analyze_flat_file_source, 
+---
+
+ add   output_file_path  to  analyze_excel_source, analyze_access_source, analyze_xml_source, analyze_raw_file_source, analyze_cdc_source, analyze_sap_bw_source, 
+ analyze_export_column, analyze_data_conversion, analyze_union_all, analyze_multicast, analyze_derived_column, analyze_lookup, 
+
+ add   output_file_path  to  analyze_conditional_split, analyze_sort, analyze_aggregate, analyze_merge_join, optimize_buffer_size, analyze_parallel_processing, 
+ profile_memory_usage, batch_analyze, workflow_runner.

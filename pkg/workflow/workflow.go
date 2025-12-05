@@ -27,11 +27,13 @@ type Workflow struct {
 
 // Step models a single workflow operation.
 type Step struct {
-	Name       string                 `json:"Name" yaml:"Name"`
-	Type       string                 `json:"Type" yaml:"Type"`
-	Parameters map[string]interface{} `json:"Parameters" yaml:"Parameters"`
-	Enabled    bool                   `json:"Enabled" yaml:"Enabled"`
-	Output     *StepOutput            `json:"Output" yaml:"Output"`
+	Name           string                 `json:"Name" yaml:"Name"`
+	Type           string                 `json:"Type" yaml:"Type"`
+	Parameters     map[string]interface{} `json:"Parameters" yaml:"Parameters"`
+	Enabled        bool                   `json:"Enabled" yaml:"Enabled"`
+	Output         *StepOutput            `json:"Output" yaml:"Output"`
+	Loop           *LoopConfig            `json:"loop" yaml:"loop"`
+	OutputFilePath string                 `json:"output_file_path" yaml:"output_file_path"`
 }
 
 // StepOutput declares the named output captured from a workflow step.
@@ -40,13 +42,21 @@ type StepOutput struct {
 	Format string `json:"Format" yaml:"Format"`
 }
 
+// LoopConfig describes a fan-out configuration for a step.
+// input_data should resolve to a JSON array or an object containing an array field.
+// Each element is substituted into parameters via {item_name}.
+type LoopConfig struct {
+	InputData string `json:"input_data" yaml:"input_data"`
+	ItemName  string `json:"item_name" yaml:"item_name"`
+}
+
 // StepResult captures the resolved value emitted by a workflow step.
 type StepResult struct {
 	Value  string
 	Format string
 }
 
-var placeholderExpr = regexp.MustCompile(`\{([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\}`)
+var placeholderExpr = regexp.MustCompile(`\{([A-Za-z0-9_-]+)\.([A-Za-z0-9_.-]+)\}`)
 
 // LoadFromFile loads a workflow definition from JSON or YAML.
 func LoadFromFile(path string) (*Workflow, error) {
@@ -91,6 +101,15 @@ func (wf *Workflow) Validate() error {
 		if strings.TrimSpace(step.Type) == "" {
 			return fmt.Errorf("step %s is missing a Type", step.Name)
 		}
+
+		if step.Loop != nil {
+			if strings.TrimSpace(step.Loop.InputData) == "" {
+				return fmt.Errorf("step %s loop is missing input_data", step.Name)
+			}
+			if strings.TrimSpace(step.Loop.ItemName) == "" {
+				return fmt.Errorf("step %s loop is missing item_name", step.Name)
+			}
+		}
 	}
 	return nil
 }
@@ -111,6 +130,60 @@ func (wf *Workflow) Execute(ctx context.Context, runner RunnerFunc) (map[string]
 			continue
 		}
 
+		if step.Loop != nil {
+			loopItems, err := resolveLoopItems(step.Loop, results)
+			if err != nil {
+				return nil, fmt.Errorf("step %s loop: %w", step.Name, err)
+			}
+
+			var aggregated []string
+			for idx, item := range loopItems {
+				resolvedParams := make(map[string]interface{}, len(step.Parameters))
+				for key, value := range step.Parameters {
+					resolved, err := resolveParameterValue(value, results)
+					if err != nil {
+						return nil, fmt.Errorf("step %s parameter %s (loop %d): %w", step.Name, key, idx, err)
+					}
+					// If this is an output file path, expand the placeholder into a safe filename
+					if strVal, ok := resolved.(string); ok && key == "output_file_path" {
+						if strings.Contains(strVal, fmt.Sprintf("{%s}", step.Loop.ItemName)) {
+							// Derive a safe filename from the item (strip dirs and extension)
+							base := filepath.Base(item)
+							name := strings.TrimSuffix(base, filepath.Ext(base))
+							resolvedParams[key] = strings.ReplaceAll(strVal, fmt.Sprintf("{%s}", step.Loop.ItemName), name)
+							continue
+						}
+					}
+					resolvedParams[key] = applyLoopItem(resolved, step.Loop.ItemName, item)
+				}
+				if step.OutputFilePath != "" {
+					if _, exists := resolvedParams["output_file_path"]; !exists {
+						resolvedParams["output_file_path"] = step.OutputFilePath
+					}
+				}
+
+				toolName := strings.TrimPrefix(step.Type, "#")
+				outputValue, err := runner(ctx, toolName, resolvedParams)
+				if err != nil {
+					return nil, fmt.Errorf("step %s (loop %d): %w", step.Name, idx, err)
+				}
+				aggregated = append(aggregated, outputValue)
+			}
+
+			if results[step.Name] == nil {
+				results[step.Name] = make(map[string]StepResult)
+			}
+
+			joined := strings.Join(aggregated, "\n")
+			if step.Output != nil && step.Output.Name != "" {
+				results[step.Name][step.Output.Name] = StepResult{Value: joined, Format: step.Output.Format}
+			} else {
+				results[step.Name]["Result"] = StepResult{Value: joined}
+			}
+
+			continue
+		}
+
 		resolvedParams := make(map[string]interface{}, len(step.Parameters))
 		for key, value := range step.Parameters {
 			resolved, err := resolveParameterValue(value, results)
@@ -118,6 +191,9 @@ func (wf *Workflow) Execute(ctx context.Context, runner RunnerFunc) (map[string]
 				return nil, fmt.Errorf("step %s parameter %s: %w", step.Name, key, err)
 			}
 			resolvedParams[key] = resolved
+		}
+		if step.OutputFilePath != "" {
+			resolvedParams["output_file_path"] = step.OutputFilePath
 		}
 
 		toolName := strings.TrimPrefix(step.Type, "#")
@@ -181,19 +257,143 @@ func resolvePlaceholderString(input string, outputs map[string]map[string]StepRe
 		if len(match) != 3 {
 			continue
 		}
-		stepName, outputName := match[1], match[2]
+		stepName, outputPath := match[1], match[2]
 		stepOutputs, ok := outputs[stepName]
 		if !ok {
 			return "", fmt.Errorf("referenced step %q has not produced outputs", stepName)
 		}
-		output, ok := stepOutputs[outputName]
+
+		parts := strings.SplitN(outputPath, ".", 2)
+		baseOutput := parts[0]
+		output, ok := stepOutputs[baseOutput]
 		if !ok {
-			return "", fmt.Errorf("step %q does not contain output %q", stepName, outputName)
+			return "", fmt.Errorf("step %q does not contain output %q", stepName, baseOutput)
 		}
-		result = strings.ReplaceAll(result, match[0], output.Value)
+
+		replacement := output.Value
+		if len(parts) == 2 {
+			extracted, err := extractFieldFromJSON(output.Value, parts[1])
+			if err != nil {
+				return "", fmt.Errorf("step %q output %q: %w", stepName, outputPath, err)
+			}
+			replacement = extracted
+		}
+
+		result = strings.ReplaceAll(result, match[0], replacement)
 	}
 
 	return result, nil
+}
+
+func resolveLoopItems(loop *LoopConfig, outputs map[string]map[string]StepResult) ([]string, error) {
+	if loop == nil {
+		return nil, nil
+	}
+
+	resolvedInput, err := resolvePlaceholderString(loop.InputData, outputs)
+	if err != nil {
+		return nil, err
+	}
+
+	var asAny interface{}
+	if json.Unmarshal([]byte(resolvedInput), &asAny) == nil {
+		switch v := asAny.(type) {
+		case []interface{}:
+			return stringifySlice(v), nil
+		case map[string]interface{}:
+			for _, key := range []string{"packages_absolute", "packages", "items", "files"} {
+				if arr, ok := v[key].([]interface{}); ok {
+					return stringifySlice(arr), nil
+				}
+			}
+			return nil, fmt.Errorf("loop input_data JSON object did not contain an array field")
+		case string:
+			return []string{v}, nil
+		default:
+			return nil, fmt.Errorf("loop input_data JSON is not an array")
+		}
+	}
+
+	fields := splitToFields(resolvedInput)
+	if len(fields) == 0 {
+		return nil, fmt.Errorf("loop input_data did not yield any items")
+	}
+	return fields, nil
+}
+
+func stringifySlice(values []interface{}) []string {
+	out := make([]string, 0, len(values))
+	for _, v := range values {
+		switch t := v.(type) {
+		case string:
+			if strings.TrimSpace(t) != "" {
+				out = append(out, t)
+			}
+		default:
+			if data, err := json.Marshal(t); err == nil {
+				out = append(out, string(data))
+			}
+		}
+	}
+	return out
+}
+
+func splitToFields(input string) []string {
+	parts := strings.FieldsFunc(input, func(r rune) bool {
+		return r == '\n' || r == ',' || r == ';'
+	})
+	var out []string
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
+func applyLoopItem(value interface{}, itemName string, itemValue string) interface{} {
+	text, ok := value.(string)
+	if !ok {
+		return value
+	}
+	placeholder := fmt.Sprintf("{%s}", itemName)
+	return strings.ReplaceAll(text, placeholder, itemValue)
+}
+
+func extractFieldFromJSON(jsonText, fieldPath string) (string, error) {
+	var data interface{}
+	if err := json.Unmarshal([]byte(jsonText), &data); err != nil {
+		return "", fmt.Errorf("output is not valid JSON: %w", err)
+	}
+
+	current := data
+	for _, part := range strings.Split(fieldPath, ".") {
+		obj, ok := current.(map[string]interface{})
+		if !ok {
+			return "", fmt.Errorf("field %s not found", fieldPath)
+		}
+		next, exists := obj[part]
+		if !exists {
+			return "", fmt.Errorf("field %s not found", fieldPath)
+		}
+		current = next
+	}
+
+	switch v := current.(type) {
+	case string:
+		return v, nil
+	case float64, bool, int, int64, uint64:
+		return fmt.Sprint(v), nil
+	case nil:
+		return "", nil
+	default:
+		marshaled, err := json.Marshal(v)
+		if err != nil {
+			return "", err
+		}
+		return string(marshaled), nil
+	}
 }
 
 // ResolveRelativePath expands paths relative to the workflow file location.
@@ -211,19 +411,24 @@ func ToolResultToString(result *mcp.CallToolResult) (string, error) {
 		return "", errors.New("tool result is nil")
 	}
 
+	// Prefer structured content when present (so JSON results are preserved)
+	if result.StructuredContent != nil {
+		data, err := json.MarshalIndent(result.StructuredContent, "", "  ")
+		if err != nil {
+			return "", fmt.Errorf("failed to encode structured tool result: %w", err)
+		}
+		if result.IsError {
+			return "", errors.New(string(data))
+		}
+		return string(data), nil
+	}
+
+	// Fall back to textual content if no structured content exists
 	var parts []string
 	for _, content := range result.Content {
 		if textContent, ok := mcp.AsTextContent(content); ok {
 			parts = append(parts, textContent.Text)
 		}
-	}
-
-	if len(parts) == 0 && result.StructuredContent != nil {
-		data, err := json.MarshalIndent(result.StructuredContent, "", "  ")
-		if err != nil {
-			return "", fmt.Errorf("failed to encode structured tool result: %w", err)
-		}
-		parts = append(parts, string(data))
 	}
 
 	combined := strings.TrimSpace(strings.Join(parts, "\n"))
