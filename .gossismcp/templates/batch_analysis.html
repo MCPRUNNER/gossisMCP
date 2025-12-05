@@ -1,0 +1,119 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{.title}}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 1080px; margin: 2rem auto; color: #1f2933; }
+    h1 { margin-bottom: 0.25rem; }
+    .meta { color: #627d98; margin-bottom: 1.25rem; font-size: 0.95rem; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+    .card { background: #f5f7fa; padding: 0.75rem 1rem; border-radius: 0.5rem; box-shadow: inset 0 0 0 1px #d9e2ec; }
+    .card strong { display: block; font-size: 1.75rem; margin-bottom: 0.25rem; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: #243b53; color: #f0f4f8; }
+    th, td { padding: 0.6rem 0.75rem; text-align: left; vertical-align: top; }
+    tbody tr:nth-child(even) { background: #f5f7fa; }
+    tbody tr:hover { background: #d9e2ec; }
+    .badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; }
+    .badge-success { background: #2d9d78; color: #f0fff4; }
+    .badge-fail { background: #c81e1e; color: #fff5f5; }
+    .muted { color: #829ab1; font-size: 0.9rem; }
+    .task-types { display: flex; flex-direction: column; gap: 0.15rem; }
+  </style>
+</head>
+<body>
+  <h1>{{.title}}</h1>
+  <div class="meta">Generated {{.date}} · Source: {{.source}}</div>
+
+  {{if .summary}}
+    <p>{{.summary}}</p>
+  {{end}}
+
+  <div class="summary-grid">
+    <div class="card">
+      <strong>{{.total_packages}}</strong>
+      <span>Total Packages</span>
+    </div>
+    <div class="card">
+      <strong>{{.successful}}</strong>
+      <span>Successful</span>
+    </div>
+    <div class="card">
+      <strong>{{.failed}}</strong>
+      <span>Failed</span>
+    </div>
+    <div class="card">
+      <strong>{{.total_duration}}</strong>
+      <span>Total Duration</span>
+      <span class="muted">microseconds</span>
+    </div>
+    <div class="card">
+      <strong>{{.average_duration}}</strong>
+      <span>Average Duration</span>
+      <span class="muted">microseconds</span>
+    </div>
+  </div>
+
+  {{if .package_summaries}}
+    <table>
+      <thead>
+        <tr>
+          <th>Package</th>
+          <th>Path</th>
+          <th>Status</th>
+          <th>Duration (µs)</th>
+          <th>Connections</th>
+          <th>Tasks</th>
+          <th>Variables</th>
+          <th>Parameters</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .package_summaries}}
+          <tr>
+            <td>
+              <strong>{{.analysis_result.package_name}}</strong>
+            </td>
+            <td>
+              <div>{{.package_path}}</div>
+            </td>
+            <td>
+              {{if .success}}
+                <span class="badge badge-success">Success</span>
+              {{else}}
+                <span class="badge badge-fail">Failed</span>
+              {{end}}
+            </td>
+            <td>{{.duration}}</td>
+            <td>{{.analysis_result.connection_count}}</td>
+            <td>
+              <div><strong>{{.analysis_result.task_count}}</strong> total</div>
+              <div class="task-types">
+                {{if .analysis_result.task_types}}
+                  {{range $kind, $count := .analysis_result.task_types}}
+                    <span>{{$kind}} ({{$count}})</span>
+                  {{end}}
+                {{else}}
+                  <span class="muted">—</span>
+                {{end}}
+              </div>
+            </td>
+            <td>{{.analysis_result.variable_count}}</td>
+            <td>
+              {{if .analysis_result.parameter_count}}
+                <div><strong>{{.analysis_result.parameter_count}}</strong> parameters</div>
+              {{else}}
+                <span class="muted">No parameters</span>
+              {{end}}
+            </td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  {{else}}
+    <p><em>No package summaries provided.</em></p>
+  {{end}}
+</body>
+</html>

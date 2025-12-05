@@ -21,6 +21,7 @@ import (
 	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/extraction"
 	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/optimization"
 	packagehandlers "github.com/MCPRUNNER/gossisMCP/pkg/handlers/packages"
+	templatehandlers "github.com/MCPRUNNER/gossisMCP/pkg/handlers/templates"
 	"github.com/MCPRUNNER/gossisMCP/pkg/workflow"
 )
 
@@ -453,6 +454,27 @@ func main() {
 	)
 	s.AddTool(listPackagesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return packagehandlers.HandleListPackages(ctx, request, packageDirectory, excludeFile)
+	})
+
+	renderTemplateTool := mcp.NewTool("render_template",
+		mcp.WithDescription("Render an html/template using JSON data and write the output to a file"),
+		mcp.WithString("template_file_path",
+			mcp.Required(),
+			mcp.Description("Path to the template file (relative to package directory if set)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Required(),
+			mcp.Description("Destination path for the rendered output (relative to package directory if set)"),
+		),
+		mcp.WithString("json_data",
+			mcp.Description("Inline JSON payload to apply to the template"),
+		),
+		mcp.WithString("json_file_path",
+			mcp.Description("Path to a JSON file containing the template data (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(renderTemplateTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return templatehandlers.HandleRenderTemplate(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze data flow components
@@ -1159,6 +1181,10 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 		normalizeWorkflowPathArg(normalized, workflowPath, "file_path")
 		normalizeWorkflowPathArg(normalized, workflowPath, "outputFilePath")
 		normalizeWorkflowPathArg(normalized, workflowPath, "templateFilePath")
+		normalizeWorkflowPathArg(normalized, workflowPath, "output_file_path")
+		normalizeWorkflowPathArg(normalized, workflowPath, "template_file_path")
+		normalizeWorkflowPathArg(normalized, workflowPath, "json_file_path")
+		normalizeWorkflowPathArg(normalized, workflowPath, "jsonFilePath")
 
 		if tool == "list_packages" {
 			if format := stringFromAny(normalized["format"]); format == "" {
@@ -1204,6 +1230,12 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 				return "", err
 			}
 			result = res
+		case "render_template":
+			res, err := templatehandlers.HandleRenderTemplate(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
 		default:
 			return "", fmt.Errorf("workflow runner: tool %q is not supported", tool)
 		}
@@ -1213,12 +1245,34 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 			return "", err
 		}
 
-		if outputPath := stringFromAny(normalized["outputFilePath"]); outputPath != "" {
+		renderedPath := ""
+		if tool == "render_template" {
+			renderedPath = stringFromAny(normalized["outputFilePath"])
+			if renderedPath == "" {
+				renderedPath = stringFromAny(normalized["output_file_path"])
+			}
+		}
+
+		outputPath := stringFromAny(normalized["outputFilePath"])
+		if outputPath == "" {
+			outputPath = stringFromAny(normalized["output_file_path"])
+		}
+		if tool == "render_template" {
+			outputPath = ""
+		}
+		if outputPath != "" {
 			if err := writeWorkflowOutput(outputPath, text); err != nil {
 				return "", err
 			}
 			display := outputPath
 			if rel, relErr := filepath.Rel(workflowDir, outputPath); relErr == nil && !strings.HasPrefix(rel, "..") {
+				display = rel
+			}
+			writtenOutputs = append(writtenOutputs, display)
+		}
+		if tool == "render_template" && renderedPath != "" {
+			display := renderedPath
+			if rel, relErr := filepath.Rel(workflowDir, renderedPath); relErr == nil && !strings.HasPrefix(rel, "..") {
 				display = rel
 			}
 			writtenOutputs = append(writtenOutputs, display)

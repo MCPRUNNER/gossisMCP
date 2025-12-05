@@ -1,0 +1,503 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 1080px; margin: 2rem auto; color: #1f2933; }
+    h1 { margin-bottom: 0.25rem; }
+    .meta { color: #627d98; margin-bottom: 1.25rem; font-size: 0.95rem; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+    .card { background: #f5f7fa; padding: 0.75rem 1rem; border-radius: 0.5rem; box-shadow: inset 0 0 0 1px #d9e2ec; }
+    .card strong { display: block; font-size: 1.75rem; margin-bottom: 0.25rem; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: #243b53; color: #f0f4f8; }
+    th, td { padding: 0.6rem 0.75rem; text-align: left; vertical-align: top; }
+    tbody tr:nth-child(even) { background: #f5f7fa; }
+    tbody tr:hover { background: #d9e2ec; }
+    .badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; }
+    .badge-success { background: #2d9d78; color: #f0fff4; }
+    .badge-fail { background: #c81e1e; color: #fff5f5; }
+    .muted { color: #829ab1; font-size: 0.9rem; }
+    .task-types { display: flex; flex-direction: column; gap: 0.15rem; }
+  </style>
+</head>
+<body>
+  <h1></h1>
+  <div class="meta">Generated  · Source: </div>
+
+  
+
+  <div class="summary-grid">
+    <div class="card">
+      <strong>13</strong>
+      <span>Total Packages</span>
+    </div>
+    <div class="card">
+      <strong>13</strong>
+      <span>Successful</span>
+    </div>
+    <div class="card">
+      <strong>0</strong>
+      <span>Failed</span>
+    </div>
+    <div class="card">
+      <strong>6.0773e&#43;06</strong>
+      <span>Total Duration</span>
+      <span class="muted">microseconds</span>
+    </div>
+    <div class="card">
+      <strong>467484</strong>
+      <span>Average Duration</span>
+      <span class="muted">microseconds</span>
+    </div>
+  </div>
+
+  
+    <table>
+      <thead>
+        <tr>
+          <th>Package</th>
+          <th>Path</th>
+          <th>Status</th>
+          <th>Duration (µs)</th>
+          <th>Connections</th>
+          <th>Tasks</th>
+          <th>Variables</th>
+          <th>Parameters</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+          <tr>
+            <td>
+              <strong>WMIDataReader</strong>
+            </td>
+            <td>
+              <div>c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\WMIDataReader.dtsx</div>
+            </td>
+            <td>
+              
+                <span class="badge badge-success">Success</span>
+              
+            </td>
+            <td>551500</td>
+            <td>2</td>
+            <td>
+              <div><strong>3</strong> total</div>
+              <div class="task-types">
+                
+                  
+                    <span>Microsoft.Pipeline (1)</span>
+                  
+                    <span>Microsoft.WmiDataReaderTask (2)</span>
+                  
+                
+              </div>
+            </td>
+            <td>0</td>
+            <td>
+              
+                <span class="muted">No parameters</span>
+              
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+              <strong>MSMQRec</strong>
+            </td>
+            <td>
+              <div>c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\MSMQRec.dtsx</div>
+            </td>
+            <td>
+              
+                <span class="badge badge-success">Success</span>
+              
+            </td>
+            <td>1.2918e&#43;06</td>
+            <td>1</td>
+            <td>
+              <div><strong>2</strong> total</div>
+              <div class="task-types">
+                
+                  
+                    <span>Microsoft.MessageQueueTask (1)</span>
+                  
+                    <span>Microsoft.ScriptTask (1)</span>
+                  
+                
+              </div>
+            </td>
+            <td>1</td>
+            <td>
+              
+                <span class="muted">No parameters</span>
+              
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+              <strong>Package2</strong>
+            </td>
+            <td>
+              <div>c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\Package2.dtsx</div>
+            </td>
+            <td>
+              
+                <span class="badge badge-success">Success</span>
+              
+            </td>
+            <td>0</td>
+            <td>0</td>
+            <td>
+              <div><strong>0</strong> total</div>
+              <div class="task-types">
+                
+                  <span class="muted">—</span>
+                
+              </div>
+            </td>
+            <td>0</td>
+            <td>
+              
+                <span class="muted">No parameters</span>
+              
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+              <strong>MSMQSender</strong>
+            </td>
+            <td>
+              <div>c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\MSMQSender.dtsx</div>
+            </td>
+            <td>
+              
+                <span class="badge badge-success">Success</span>
+              
+            </td>
+            <td>522300</td>
+            <td>1</td>
+            <td>
+              <div><strong>1</strong> total</div>
+              <div class="task-types">
+                
+                  
+                    <span>Microsoft.MessageQueueTask (1)</span>
+                  
+                
+              </div>
+            </td>
+            <td>0</td>
+            <td>
+              
+                <span class="muted">No parameters</span>
+              
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+              <strong>ConfigTables</strong>
+            </td>
+            <td>
+              <div>c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\ConfigTables.dtsx</div>
+            </td>
+            <td>
+              
+                <span class="badge badge-success">Success</span>
+              
+            </td>
+            <td>2.3656e&#43;06</td>
+            <td>3</td>
+            <td>
+              <div><strong>1</strong> total</div>
+              <div class="task-types">
+                
+                  
+                    <span>Microsoft.Pipeline (1)</span>
+                  
+                
+              </div>
+            </td>
+            <td>1</td>
+            <td>
+              
+                <span class="muted">No parameters</span>
+              
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+              <strong>Package1</strong>
+            </td>
+            <td>
+              <div>c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\EXECProcess.dtsx</div>
+            </td>
+            <td>
+              
+                <span class="badge badge-success">Success</span>
+              
+            </td>
+            <td>0</td>
+            <td>0</td>
+            <td>
+              <div><strong>1</strong> total</div>
+              <div class="task-types">
+                
+                  
+                    <span>Microsoft.ExecuteProcess (1)</span>
+                  
+                
+              </div>
+            </td>
+            <td>0</td>
+            <td>
+              
+                <span class="muted">No parameters</span>
+              
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+              <strong>ConfigFile</strong>
+            </td>
+            <td>
+              <div>c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\ConfigFile.dtsx</div>
+            </td>
+            <td>
+              
+                <span class="badge badge-success">Success</span>
+              
+            </td>
+            <td>2.3656e&#43;06</td>
+            <td>2</td>
+            <td>
+              <div><strong>1</strong> total</div>
+              <div class="task-types">
+                
+                  
+                    <span>Microsoft.Pipeline (1)</span>
+                  
+                
+              </div>
+            </td>
+            <td>1</td>
+            <td>
+              
+                <span class="muted">No parameters</span>
+              
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+              <strong>RunMulti</strong>
+            </td>
+            <td>
+              <div>c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\RunMultu.dtsx</div>
+            </td>
+            <td>
+              
+                <span class="badge badge-success">Success</span>
+              
+            </td>
+            <td>0</td>
+            <td>2</td>
+            <td>
+              <div><strong>2</strong> total</div>
+              <div class="task-types">
+                
+                  
+                    <span>Microsoft.ExecutePackageTask (2)</span>
+                  
+                
+              </div>
+            </td>
+            <td>0</td>
+            <td>
+              
+                <span class="muted">No parameters</span>
+              
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+              <strong>DupeAlertFail</strong>
+            </td>
+            <td>
+              <div>c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\DupeAlertFail.dtsx</div>
+            </td>
+            <td>
+              
+                <span class="badge badge-success">Success</span>
+              
+            </td>
+            <td>2.4003e&#43;06</td>
+            <td>1</td>
+            <td>
+              <div><strong>3</strong> total</div>
+              <div class="task-types">
+                
+                  
+                    <span>Microsoft.ExecuteSQLTask (1)</span>
+                  
+                    <span>Microsoft.Pipeline (2)</span>
+                  
+                
+              </div>
+            </td>
+            <td>4</td>
+            <td>
+              
+                <span class="muted">No parameters</span>
+              
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+              <strong>ExportColumn</strong>
+            </td>
+            <td>
+              <div>c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\ExportColumn.dtsx</div>
+            </td>
+            <td>
+              
+                <span class="badge badge-success">Success</span>
+              
+            </td>
+            <td>1.1088e&#43;06</td>
+            <td>1</td>
+            <td>
+              <div><strong>1</strong> total</div>
+              <div class="task-types">
+                
+                  
+                    <span>Microsoft.Pipeline (1)</span>
+                  
+                
+              </div>
+            </td>
+            <td>0</td>
+            <td>
+              
+                <span class="muted">No parameters</span>
+              
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+              <strong>Loader</strong>
+            </td>
+            <td>
+              <div>c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\Loader.dtsx</div>
+            </td>
+            <td>
+              
+                <span class="badge badge-success">Success</span>
+              
+            </td>
+            <td>1.0468e&#43;06</td>
+            <td>2</td>
+            <td>
+              <div><strong>2</strong> total</div>
+              <div class="task-types">
+                
+                  
+                    <span>Microsoft.ExecuteSQLTask (1)</span>
+                  
+                    <span>Microsoft.Pipeline (1)</span>
+                  
+                
+              </div>
+            </td>
+            <td>0</td>
+            <td>
+              
+                <span class="muted">No parameters</span>
+              
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+              <strong>Expressions</strong>
+            </td>
+            <td>
+              <div>c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\Expressions.dtsx</div>
+            </td>
+            <td>
+              
+                <span class="badge badge-success">Success</span>
+              
+            </td>
+            <td>2.1562e&#43;06</td>
+            <td>2</td>
+            <td>
+              <div><strong>1</strong> total</div>
+              <div class="task-types">
+                
+                  
+                    <span>Microsoft.Pipeline (1)</span>
+                  
+                
+              </div>
+            </td>
+            <td>5</td>
+            <td>
+              
+                <span class="muted">No parameters</span>
+              
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+              <strong>Scanner</strong>
+            </td>
+            <td>
+              <div>c:\Users\U00001\source\repos\gossisMCP\Documents\SSIS_EXAMPLES\Scanner.dtsx</div>
+            </td>
+            <td>
+              
+                <span class="badge badge-success">Success</span>
+              
+            </td>
+            <td>3.7117e&#43;06</td>
+            <td>5</td>
+            <td>
+              <div><strong>5</strong> total</div>
+              <div class="task-types">
+                
+                  
+                    <span>Microsoft.ExecuteSQLTask (1)</span>
+                  
+                    <span>Microsoft.Pipeline (3)</span>
+                  
+                    <span>Microsoft.ScriptTask (1)</span>
+                  
+                
+              </div>
+            </td>
+            <td>1</td>
+            <td>
+              
+                <span class="muted">No parameters</span>
+              
+            </td>
+          </tr>
+        
+      </tbody>
+    </table>
+  
+</body>
+</html>
