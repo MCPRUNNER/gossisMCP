@@ -169,7 +169,24 @@ func HandleAnalyzeDataFlow(_ context.Context, request mcp.CallToolRequest, packa
 		result.WriteString("\n")
 	}
 
-	analysisResult := formatter.CreateAnalysisResult("Data Flow Analysis", filePath, result.String(), nil)
+	analysisResult := formatter.CreateAnalysisResult("analyze_data_flow", filePath, result.String(), nil)
+
+	// For JSON format, return structured data for consistency with other analysis tools
+	if format == formatter.FormatJSON {
+		jsonResult := map[string]interface{}{
+			"tool_name": analysisResult.ToolName,
+			"file_path": analysisResult.FilePath,
+			"package":   filepath.Base(analysisResult.FilePath),
+			"timestamp": analysisResult.Timestamp,
+			"status":    analysisResult.Status,
+			"analysis":  analysisResult.Data,
+		}
+		if analysisResult.Error != "" {
+			jsonResult["error"] = analysisResult.Error
+		}
+		return mcp.NewToolResultStructured(jsonResult, "Data flow analysis"), nil
+	}
+
 	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 
@@ -214,7 +231,7 @@ func HandleAnalyzeDataFlowDetailed(_ context.Context, request mcp.CallToolReques
 	// Check if this package contains data flow tasks
 	if !strings.Contains(xmlContent, "Microsoft.Pipeline") {
 		result.WriteString("No Data Flow Tasks found in this package.\n")
-		analysisResult := formatter.CreateAnalysisResult("Detailed Data Flow Analysis", filePath, result.String(), nil)
+		analysisResult := formatter.CreateAnalysisResult("analyze_data_flow_detailed", filePath, result.String(), nil)
 		return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 	}
 
@@ -357,7 +374,7 @@ func HandleAnalyzeDataFlowDetailed(_ context.Context, request mcp.CallToolReques
 		}
 	}
 
-	analysisResult := formatter.CreateAnalysisResult("Detailed Data Flow Analysis", filePath, result.String(), nil)
+	analysisResult := formatter.CreateAnalysisResult("analyze_data_flow_detailed", filePath, result.String(), nil)
 	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 

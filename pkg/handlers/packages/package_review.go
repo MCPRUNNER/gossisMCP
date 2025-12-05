@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 
@@ -468,18 +469,18 @@ func HandleAnalyzeLoggingConfiguration(_ context.Context, request mcp.CallToolRe
 		report.WriteString("- Confirm SQL log tables are monitored and maintained.\n")
 	}
 
-	formatStr := "text"
 	args := request.Params.Arguments
-	if argsMap, ok := args.(map[string]interface{}); ok {
-		if f, ok := argsMap["format"].(string); ok {
-			formatStr = f
-		}
-	}
+	
+	// Standardize output structure to match analyze_data_flow
 	jsonResult := map[string]interface{}{
-		"analysis": report.String(),
-		"file":     filePath,
-		"format":   formatStr,
+		"tool_name":  "analyze_logging_configuration",
+		"file_path":  filePath,
+		"package":    filepath.Base(filePath),
+		"timestamp":  time.Now().Format(time.RFC3339),
+		"status":     "success",
+		"analysis":   report.String(),
 	}
+	
 	jsonBytes, err := json.Marshal(jsonResult)
 	if err != nil {
 		return mcp.NewToolResultText("JSON marshal error: " + err.Error()), nil

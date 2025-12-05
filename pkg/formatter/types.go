@@ -15,6 +15,7 @@ const (
 type AnalysisResult struct {
 	ToolName  string                 `json:"tool_name"`
 	FilePath  string                 `json:"file_path"`
+	Package  string                 `json:"package"`
 	Timestamp string                 `json:"timestamp"`
 	Status    string                 `json:"status"`
 	Data      interface{}            `json:"data,omitempty"`

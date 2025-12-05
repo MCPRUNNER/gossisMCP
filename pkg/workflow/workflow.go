@@ -525,6 +525,8 @@ func WriteCombinedStepOutputs(workflowPath string, wf *Workflow, results map[str
 						switch {
 						case obj["results"] != nil:
 							// keep existing
+						case obj["data"] != nil:
+							obj["results"] = obj["data"]
 						case obj["analysis"] != nil:
 							obj["results"] = obj["analysis"]
 						case obj["message"] != nil:
@@ -535,6 +537,7 @@ func WriteCombinedStepOutputs(workflowPath string, wf *Workflow, results map[str
 						// Remove legacy keys so the combined JSON is tool-agnostic
 						delete(obj, "analysis")
 						delete(obj, "message")
+						delete(obj, "data")
 
 						dataArray[i] = obj
 					}

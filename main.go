@@ -1442,6 +1442,12 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 				return "", err
 			}
 			result = res
+		case "analyze_data_flow":
+			res, err := analysis.HandleAnalyzeDataFlow(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
 		case "render_template":
 			res, err := templatehandlers.HandleRenderTemplate(stepCtx, req, packageDirectory)
 			if err != nil {
