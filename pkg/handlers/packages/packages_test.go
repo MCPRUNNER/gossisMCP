@@ -1,11 +1,15 @@
 package packages
 
 import (
+	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mark3labs/mcp-go/mcp"
 
 	"github.com/MCPRUNNER/gossisMCP/pkg/types"
 )
@@ -62,12 +66,73 @@ func TestListPackages(t *testing.T) {
 			t.Fatalf("failed to create file %s: %v", file, err)
 		}
 	}
-	results, err := ListPackages(dir)
+	results, err := ListPackages(dir, "")
 	if err != nil {
 		t.Fatalf("unexpected error listing packages: %v", err)
 	}
 	if len(results) != 2 {
 		t.Fatalf("expected two DTSX files, got %v", results)
+	}
+
+	excludePath := filepath.Join(dir, ".gossisignore")
+	if err := os.WriteFile(excludePath, []byte("nested/\n"), 0o644); err != nil {
+		t.Fatalf("failed to write exclude file: %v", err)
+	}
+	filtered, err := ListPackages(dir, "")
+	if err != nil {
+		t.Fatalf("unexpected error listing packages with exclude: %v", err)
+	}
+	if len(filtered) != 1 || !strings.Contains(filtered[0], "one.dtsx") {
+		t.Fatalf("expected exclude file to remove nested package, got %v", filtered)
+	}
+}
+
+func TestHandleListPackagesJSONOutput(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "sample.dtsx"), []byte("<xml />"), 0o644); err != nil {
+		t.Fatalf("failed to create DTSX file: %v", err)
+	}
+
+	request := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Arguments: map[string]interface{}{
+				"directory": dir,
+				"format":    "json",
+			},
+		},
+	}
+
+	result, err := HandleListPackages(context.Background(), request, "", "")
+	if err != nil {
+		t.Fatalf("unexpected error handling list_packages: %v", err)
+	}
+
+	if len(result.Content) == 0 {
+		t.Fatal("expected textual content in list_packages result")
+	}
+	textContent, ok := mcp.AsTextContent(result.Content[0])
+	if !ok {
+		t.Fatalf("expected text content, got %T", result.Content[0])
+	}
+
+	var payload struct {
+		Directory        string   `json:"directory"`
+		Count            int      `json:"count"`
+		Packages         []string `json:"packages"`
+		PackagesAbsolute []string `json:"packages_absolute"`
+	}
+	if err := json.Unmarshal([]byte(textContent.Text), &payload); err != nil {
+		t.Fatalf("failed to decode JSON payload: %v", err)
+	}
+
+	if payload.Count != 1 {
+		t.Fatalf("expected count 1, got %d", payload.Count)
+	}
+	if len(payload.Packages) != 1 || len(payload.PackagesAbsolute) != 1 {
+		t.Fatalf("expected a single package entry, got %+v", payload)
+	}
+	if !strings.Contains(payload.Packages[0], "sample.dtsx") {
+		t.Fatalf("unexpected package path: %v", payload.Packages[0])
 	}
 }
 

@@ -2,6 +2,14 @@
 
 This is a comprehensive Model Context Protocol (MCP) server written in Go that provides 80+ advanced tools for analyzing SSIS (SQL Server Integration Services) DTSX files. It offers detailed insights into package structure, data flow components (10 source types, 10 transform types, 6 destination types), control flow tasks, logging configurations, performance metrics, and best practices validation.
 
+## Documentation
+
+- [Main README](README.md) - This file with comprehensive server documentation
+- [Example run for workflows](Documents/Query_EXAMPLES/WORKFLOW_RUN_EXAMPLE.md)
+- [Workflow Usage Guide](Documents/WORKFLOWS_README.md) - Instructions for using workflows
+- [MSMQ Integration Examples](Documents/Query_EXAMPLES/MSMQ_README.md) - Detailed analysis of MSMQ message queue packages with architecture diagrams
+- [SSIS Feature Recommendations](Documents/EXAMPLE_QUERY.md) - Recommended features and implementation roadmap for SSIS packages
+
 ## Features
 
 - **Package Analysis**: Parse DTSX files and extract comprehensive package information
@@ -249,7 +257,8 @@ The server supports configuration files in JSON or YAML format for more advanced
     "port": "8086"
   },
   "packages": {
-    "directory": "path/to/ssis/packages"
+    "directory": "path/to/ssis/packages",
+    "exclude_file": ".gossisignore"
   },
   "logging": {
     "level": "info",
@@ -257,6 +266,8 @@ The server supports configuration files in JSON or YAML format for more advanced
   }
 }
 ```
+
+Create a `.gossisignore` file in the same directory as the configured `packages.directory` to skip folders (for example `bin/` or `obj/`) during directory scans used by tools like `list_packages` and `batch_analyze`. Use one pattern per line; lines starting with `#` are treated as comments.
 
 **Example YAML configuration (`config.yaml`):**
 
@@ -266,16 +277,20 @@ server:
   port: "8086"
 packages:
   directory: "path/to/ssis/packages"
+  exclude_file: ".gossisignore"
 logging:
   level: "info"
   format: "text"
 ```
+
+The same `.gossisignore` file is honored when using the YAML configuration.
 
 **Configuration Options:**
 
 - `server.http_mode`: Whether to run in HTTP streaming mode (boolean)
 - `server.port`: HTTP server port (string)
 - `packages.directory`: Root directory for SSIS packages (string)
+- `packages.exclude_file`: Optional path to a `.gossisignore`-style file for excluding subpaths during scans (string, relative to `packages.directory` if not absolute)
 - `logging.level`: Log level - "debug", "info", "warn", "error" (string)
 - `logging.format`: Log format - "text" or "json" (string)
 
@@ -439,7 +454,9 @@ This configuration provides both HTTP and stdio transport options. The HTTP tran
 14. **list_packages**
 
     - Description: Recursively list all DTSX packages found in the package directory
-    - Parameters: None (uses the configured package directory)
+
+- Parameters: None (uses the configured package directory)
+- Notes: Create a `.gossisignore` file in the package directory to skip paths (for example `bin/` or `obj/`); blank lines and `#` comments are ignored.
 
 15. **batch_analyze**
 
@@ -791,12 +808,6 @@ All recommended missing features from the original feature request have been suc
 - 🔄 **1 Remaining Feature**: SSIS Catalog Integration (database connectivity to SSISDB for deployed package analysis)
 
 The server has evolved from supporting basic package parsing to providing enterprise-grade SSIS development and maintenance capabilities with 80+ specialized analysis tools.
-
-## Documentation
-
-- [Main README](README.md) - This file with comprehensive server documentation
-- [MSMQ Integration Examples](Documents/Query_EXAMPLES/MSMQ_README.md) - Detailed analysis of MSMQ message queue packages with architecture diagrams
-- [SSIS Feature Recommendations](Documents/EXAMPLE_QUERY.md) - Recommended features and implementation roadmap for SSIS packages
 
 ## License
 

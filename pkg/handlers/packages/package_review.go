@@ -2,14 +2,18 @@ package packages
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 
+	"github.com/MCPRUNNER/gossisMCP/pkg/formatter"
 	"github.com/MCPRUNNER/gossisMCP/pkg/types"
 )
 
@@ -20,11 +24,27 @@ func HandleValidateBestPractices(_ context.Context, request mcp.CallToolRequest,
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
+	// Get format parameter (default to "text")
+	formatStr := request.GetString("format", "text")
+	format := formatter.OutputFormat(formatStr)
+
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+		result := formatter.CreateAnalysisResult("validate_best_practices", filePath, nil, err)
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "validate_best_practices",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     err.Error(),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Best practices validation error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	cleaned := strings.ReplaceAll(string(data), "DTS:", "")
@@ -32,7 +52,19 @@ func HandleValidateBestPractices(_ context.Context, request mcp.CallToolRequest,
 
 	var pkg types.SSISPackage
 	if err := xml.Unmarshal([]byte(cleaned), &pkg); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+		result := formatter.CreateAnalysisResult("validate_best_practices", filePath, nil, fmt.Errorf("failed to parse XML: %v", err))
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "validate_best_practices",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     fmt.Sprintf("Failed to parse XML: %v", err),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Best practices validation error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	var report strings.Builder
@@ -64,7 +96,25 @@ func HandleValidateBestPractices(_ context.Context, request mcp.CallToolRequest,
 
 	report.WriteString("- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.\n")
 
-	return mcp.NewToolResultText(report.String()), nil
+	analysisResult := formatter.CreateAnalysisResult("validate_best_practices", filePath, report.String(), nil)
+
+	// For JSON format, return structured data
+	if format == formatter.FormatJSON {
+		jsonResult := map[string]interface{}{
+			"tool_name": analysisResult.ToolName,
+			"file_path": analysisResult.FilePath,
+			"package":   filepath.Base(analysisResult.FilePath),
+			"timestamp": analysisResult.Timestamp,
+			"status":    analysisResult.Status,
+			"analysis":  analysisResult.Data,
+		}
+		if analysisResult.Error != "" {
+			jsonResult["error"] = analysisResult.Error
+		}
+		return mcp.NewToolResultStructured(jsonResult, "Best practices validation"), nil
+	}
+
+	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 
 // HandleAskAboutDtsx answers lightweight questions about a DTSX file.
@@ -79,11 +129,27 @@ func HandleAskAboutDtsx(_ context.Context, request mcp.CallToolRequest, packageD
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
+	// Get format parameter (default to "text")
+	formatStr := request.GetString("format", "text")
+	format := formatter.OutputFormat(formatStr)
+
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+		result := formatter.CreateAnalysisResult("ask_about_dtsx", filePath, nil, err)
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "ask_about_dtsx",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     err.Error(),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "DTSX query error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	cleaned := strings.ReplaceAll(string(data), "DTS:", "")
@@ -91,7 +157,19 @@ func HandleAskAboutDtsx(_ context.Context, request mcp.CallToolRequest, packageD
 
 	var pkg types.SSISPackage
 	if err := xml.Unmarshal([]byte(cleaned), &pkg); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+		result := formatter.CreateAnalysisResult("ask_about_dtsx", filePath, nil, fmt.Errorf("failed to parse XML: %v", err))
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "ask_about_dtsx",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     fmt.Sprintf("failed to parse XML: %v", err),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "DTSX query error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	answer := strings.Builder{}
@@ -147,7 +225,25 @@ func HandleAskAboutDtsx(_ context.Context, request mcp.CallToolRequest, packageD
 		}
 	}
 
-	return mcp.NewToolResultText(answer.String()), nil
+	analysisResult := formatter.CreateAnalysisResult("ask_about_dtsx", filePath, answer.String(), nil)
+
+	// For JSON format, return structured data
+	if format == formatter.FormatJSON {
+		jsonResult := map[string]interface{}{
+			"tool_name": analysisResult.ToolName,
+			"file_path": analysisResult.FilePath,
+			"package":   filepath.Base(analysisResult.FilePath),
+			"timestamp": analysisResult.Timestamp,
+			"status":    analysisResult.Status,
+			"analysis":  analysisResult.Data,
+		}
+		if analysisResult.Error != "" {
+			jsonResult["error"] = analysisResult.Error
+		}
+		return mcp.NewToolResultStructured(jsonResult, "DTSX query"), nil
+	}
+
+	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 
 // HandleAnalyzeMessageQueueTasks inspects Message Queue tasks inside a package.
@@ -303,18 +399,46 @@ func HandleDetectHardcodedValues(_ context.Context, request mcp.CallToolRequest,
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
+	// Get format parameter (default to "text")
+	formatStr := request.GetString("format", "text")
+	format := formatter.OutputFormat(formatStr)
+
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
 
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+		result := formatter.CreateAnalysisResult("detect_hardcoded_values", filePath, nil, err)
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "detect_hardcoded_values",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     err.Error(),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Hard-coded values detection error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	cleaned := strings.ReplaceAll(string(data), "DTS:", "")
 
 	var pkg types.SSISPackage
 	if err := xml.Unmarshal([]byte(cleaned), &pkg); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+		result := formatter.CreateAnalysisResult("detect_hardcoded_values", filePath, nil, fmt.Errorf("failed to parse XML: %v", err))
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "detect_hardcoded_values",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     fmt.Sprintf("failed to parse XML: %v", err),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Hard-coded values detection error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	var report strings.Builder
@@ -362,7 +486,25 @@ func HandleDetectHardcodedValues(_ context.Context, request mcp.CallToolRequest,
 		report.WriteString("No obvious hard-coded values detected. Manual review recommended for sensitive scenarios.\n")
 	}
 
-	return mcp.NewToolResultText(report.String()), nil
+	analysisResult := formatter.CreateAnalysisResult("detect_hardcoded_values", filePath, report.String(), nil)
+
+	// For JSON format, return structured data
+	if format == formatter.FormatJSON {
+		jsonResult := map[string]interface{}{
+			"tool_name": analysisResult.ToolName,
+			"file_path": analysisResult.FilePath,
+			"package":   filepath.Base(analysisResult.FilePath),
+			"timestamp": analysisResult.Timestamp,
+			"status":    analysisResult.Status,
+			"analysis":  analysisResult.Data,
+		}
+		if analysisResult.Error != "" {
+			jsonResult["error"] = analysisResult.Error
+		}
+		return mcp.NewToolResultStructured(jsonResult, "Hard-coded values detection"), nil
+	}
+
+	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 
 // HandleAnalyzeLoggingConfiguration reviews logging configuration blocks.
@@ -391,7 +533,8 @@ func HandleAnalyzeLoggingConfiguration(_ context.Context, request mcp.CallToolRe
 
 	if !strings.Contains(cleaned, "LoggingOptions") {
 		report.WriteString("[WARN] No logging configuration found in this package.\n")
-		return mcp.NewToolResultText(report.String()), nil
+		// Do not early-return; continue to produce a JSON result so workflow outputs
+		// are consistently JSON formatted for every package.
 	}
 
 	report.WriteString("[OK] Logging configuration detected.\n\n")
@@ -465,7 +608,32 @@ func HandleAnalyzeLoggingConfiguration(_ context.Context, request mcp.CallToolRe
 		report.WriteString("- Confirm SQL log tables are monitored and maintained.\n")
 	}
 
-	return mcp.NewToolResultText(report.String()), nil
+	args := request.Params.Arguments
+
+	// Standardize output structure to match analyze_data_flow
+	jsonResult := map[string]interface{}{
+		"tool_name": "analyze_logging_configuration",
+		"file_path": filePath,
+		"package":   filepath.Base(filePath),
+		"timestamp": time.Now().Format(time.RFC3339),
+		"status":    "success",
+		"analysis":  report.String(),
+	}
+
+	jsonBytes, err := json.Marshal(jsonResult)
+	if err != nil {
+		return mcp.NewToolResultText("JSON marshal error: " + err.Error()), nil
+	}
+	if argsMap, ok := args.(map[string]interface{}); ok {
+		if outputFilePath, ok := argsMap["output_file_path"].(string); ok && outputFilePath != "" {
+			resolvedPath := resolveFilePath(outputFilePath, packageDirectory)
+			os.MkdirAll(filepath.Dir(resolvedPath), 0755)
+			os.WriteFile(resolvedPath, jsonBytes, 0644)
+		}
+	}
+	// Return a structured result so callers (workflow runner) can detect and
+	// format JSON consistently when format=="json".
+	return mcp.NewToolResultStructured(jsonResult, "Logging analysis"), nil
 }
 
 func extractPropertyValue(xmlContent, propertyName string) string {

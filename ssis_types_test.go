@@ -12,7 +12,7 @@ import (
 // TestSSISPackageParsing tests basic DTSX package parsing
 func TestSSISPackageParsing(t *testing.T) {
 	// Sample DTSX content (namespace stripped as done in main.go)
-	dtsxContent := `<Executable xmlns="www.microsoft.com/SqlServer/Dts">
+	dtsxContent := `<Executable xmlns="www.microsoft.com/SqlServer/Dts" ObjectName="SamplePackage" refId="Package" CreationName="Microsoft.Package">
   <Property Name="PackageFormatVersion">8</Property>
   <Variables>
     <Variable ObjectName="TestVariable">
@@ -26,8 +26,12 @@ func TestSSISPackageParsing(t *testing.T) {
 	err := xml.Unmarshal([]byte(dtsxContent), &pkg)
 	require.NoError(t, err)
 
-	// Test basic package properties - SSISPackage doesn't have root attributes
-	// so we test the nested elements that exist
+	// Root attributes should be captured
+	assert.Equal(t, "SamplePackage", pkg.ObjectName)
+	assert.Equal(t, "Package", pkg.RefID)
+	assert.Equal(t, "Microsoft.Package", pkg.CreationName)
+
+	// Test basic package properties
 	assert.Len(t, pkg.Properties, 1)
 	assert.Equal(t, "PackageFormatVersion", pkg.Properties[0].Name)
 	assert.Equal(t, "8", pkg.Properties[0].Value)
@@ -130,7 +134,7 @@ func TestSSISEmptyPackage(t *testing.T) {
 // TestSSISXMLParsingWithoutNamespace tests XML parsing without namespace (simulating main.go behavior)
 func TestSSISXMLParsingWithoutNamespace(t *testing.T) {
 	// Start with namespaced XML like real DTSX files
-	dtsxContent := `<Executable xmlns="www.microsoft.com/SqlServer/Dts">
+	dtsxContent := `<Executable xmlns="www.microsoft.com/SqlServer/Dts" ObjectName="NamespacePackage">
   <Variables>
     <Variable ObjectName="TestVar">
       <VariableValue DataType="3">123</VariableValue>
@@ -147,4 +151,5 @@ func TestSSISXMLParsingWithoutNamespace(t *testing.T) {
 
 	assert.Len(t, pkg.Variables.Vars, 1)
 	assert.Equal(t, "123", pkg.Variables.Vars[0].Value)
+	assert.Equal(t, "NamespacePackage", pkg.ObjectName)
 }

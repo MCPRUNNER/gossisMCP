@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -20,6 +22,8 @@ import (
 	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/extraction"
 	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/optimization"
 	packagehandlers "github.com/MCPRUNNER/gossisMCP/pkg/handlers/packages"
+	templatehandlers "github.com/MCPRUNNER/gossisMCP/pkg/handlers/templates"
+	"github.com/MCPRUNNER/gossisMCP/pkg/workflow"
 )
 
 // Config represents the application configuration
@@ -38,7 +42,8 @@ type ServerConfig struct {
 
 // PackageConfig holds package directory configuration
 type PackageConfig struct {
-	Directory string `json:"directory" yaml:"directory"`
+	Directory   string `json:"directory" yaml:"directory"`
+	ExcludeFile string `json:"exclude_file" yaml:"exclude_file"`
 }
 
 // LoggingConfig holds logging configuration
@@ -55,7 +60,8 @@ func DefaultConfig() Config {
 			Port:     "8086",
 		},
 		Packages: PackageConfig{
-			Directory: "",
+			Directory:   "",
+			ExcludeFile: "",
 		},
 		Logging: LoggingConfig{
 			Level:  "info",
@@ -208,6 +214,7 @@ func main() {
 
 	// Determine package directory from config, environment variable, or default
 	packageDirectory := config.Packages.Directory
+	excludeFile := config.Packages.ExcludeFile
 	if packageDirectory == "" {
 		packageDirectory = os.Getenv("GOSSIS_PKG_DIRECTORY")
 	}
@@ -250,6 +257,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(parseTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return extraction.HandleParseDtsx(ctx, request, packageDirectory)
@@ -264,6 +274,12 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(extractTasksTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -280,6 +296,12 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(extractConnectionsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return extraction.HandleExtractConnections(ctx, request, packageDirectory)
@@ -294,6 +316,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(extractPrecedenceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -310,6 +335,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(extractVariablesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return extraction.HandleExtractVariables(ctx, request, packageDirectory)
@@ -324,6 +352,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(extractParametersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -340,6 +371,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(extractScriptTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return extraction.HandleExtractScriptCode(ctx, request, packageDirectory)
@@ -354,6 +388,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(validateBestPracticesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -374,6 +411,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(askTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return packagehandlers.HandleAskAboutDtsx(ctx, request, packageDirectory)
@@ -388,6 +428,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeMessageQueueTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -404,6 +447,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeScriptTaskTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return packagehandlers.HandleAnalyzeScriptTask(ctx, request, packageDirectory)
@@ -418,6 +464,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(detectHardcodedValuesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -434,6 +483,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeLoggingTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return packagehandlers.HandleAnalyzeLoggingConfiguration(ctx, request, packageDirectory)
@@ -445,9 +497,33 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(listPackagesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return packagehandlers.HandleListPackages(ctx, request, packageDirectory)
+		return packagehandlers.HandleListPackages(ctx, request, packageDirectory, excludeFile)
+	})
+
+	renderTemplateTool := mcp.NewTool("render_template",
+		mcp.WithDescription("Render an html/template using JSON data and write the output to a file"),
+		mcp.WithString("template_file_path",
+			mcp.Required(),
+			mcp.Description("Path to the template file (relative to package directory if set)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Required(),
+			mcp.Description("Destination path for the rendered output (relative to package directory if set)"),
+		),
+		mcp.WithString("json_data",
+			mcp.Description("Inline JSON payload to apply to the template"),
+		),
+		mcp.WithString("json_file_path",
+			mcp.Description("Path to a JSON file containing the template data (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(renderTemplateTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return templatehandlers.HandleRenderTemplate(ctx, request, packageDirectory)
 	})
 
 	// Tool to analyze data flow components
@@ -459,6 +535,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeDataFlowTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -474,6 +553,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeDataFlowDetailedTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -494,6 +576,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeSource(ctx, request, packageDirectory)
@@ -513,6 +598,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeDestination(ctx, request, packageDirectory)
@@ -527,6 +615,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeOLEDBDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -543,6 +634,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeFlatFileDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeFlatFileDestination(ctx, request, packageDirectory)
@@ -557,6 +651,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeSQLServerDestinationTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -573,6 +670,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeOLEDBSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeOLEDBSource(ctx, request, packageDirectory)
@@ -587,6 +687,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeADONETSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -603,6 +706,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeODBCSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeODBCSource(ctx, request, packageDirectory)
@@ -617,6 +723,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeFlatFileSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -633,6 +742,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeExcelSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeExcelSource(ctx, request, packageDirectory)
@@ -647,6 +759,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeAccessSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -663,6 +778,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeXMLSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeXMLSource(ctx, request, packageDirectory)
@@ -677,6 +795,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeRawFileSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -693,6 +814,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeCDCSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeCDCSource(ctx, request, packageDirectory)
@@ -707,6 +831,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeSAPBWSourceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -723,6 +850,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeExportColumnTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeExportColumn(ctx, request, packageDirectory)
@@ -737,6 +867,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeDataConversionTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -753,6 +886,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeUnionAllTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeUnionAll(ctx, request, packageDirectory)
@@ -767,6 +903,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeMulticastTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -783,6 +922,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeDerivedColumnTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeDerivedColumn(ctx, request, packageDirectory)
@@ -797,6 +939,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeLookupTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -813,6 +958,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeConditionalSplitTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeConditionalSplit(ctx, request, packageDirectory)
@@ -827,6 +975,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeSortTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -843,6 +994,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeAggregateTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeAggregate(ctx, request, packageDirectory)
@@ -858,6 +1012,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeMergeJoinTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeMergeJoin(ctx, request, packageDirectory)
@@ -869,6 +1026,12 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeRowCountTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -882,6 +1045,12 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeCharacterMapTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeCharacterMap(ctx, request, packageDirectory)
@@ -893,6 +1062,12 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeCopyColumnTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -906,6 +1081,12 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeContainersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeContainers(ctx, request, packageDirectory)
@@ -917,6 +1098,12 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(analyzeCustomComponentsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -933,6 +1120,12 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the second DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(comparePackagesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return packagehandlers.HandleComparePackages(ctx, request, packageDirectory)
@@ -944,6 +1137,12 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeCodeQualityTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleAnalyzeCodeQuality(ctx, request, packageDirectory)
@@ -954,6 +1153,12 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the text file to read (relative to package directory if set, or absolute path)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(readTextFileTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -969,6 +1174,12 @@ func main() {
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
 		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(scanCredentialsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return analysis.HandleScanCredentials(ctx, request, packageDirectory)
@@ -980,6 +1191,12 @@ func main() {
 		mcp.WithString("file_path",
 			mcp.Required(),
 			mcp.Description("Path to the DTSX file (relative to package directory if set)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(detectEncryptionTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -995,6 +1212,12 @@ func main() {
 		),
 		mcp.WithString("compliance_standard",
 			mcp.Description("Compliance standard to check (gdpr, hipaa, pci, or 'all' for comprehensive check)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(checkComplianceTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -1013,6 +1236,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(optimizeBufferSizeTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return optimization.HandleOptimizeBufferSize(ctx, request, packageDirectory)
@@ -1028,6 +1254,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(analyzeParallelProcessingTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return optimization.HandleAnalyzeParallelProcessing(ctx, request, packageDirectory)
@@ -1042,6 +1271,9 @@ func main() {
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
 	)
 	s.AddTool(profileMemoryUsageTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -1064,10 +1296,15 @@ func main() {
 		mcp.WithNumber("max_concurrent",
 			mcp.Description("Maximum number of concurrent analyses (default: 4)"),
 		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
 	)
 	s.AddTool(batchAnalyzeTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return packagehandlers.HandleBatchAnalyze(ctx, request, packageDirectory)
 	})
+
+	registerWorkflowRunnerTool(s, packageDirectory, excludeFile)
 
 	if config.Server.HTTPMode {
 		// Run in HTTP streaming mode
@@ -1078,6 +1315,514 @@ func main() {
 			fmt.Printf("Server error: %v\n", err)
 		}
 	}
+}
+
+func registerWorkflowRunnerTool(s *server.MCPServer, packageDirectory, excludeFile string) {
+	workflowRunnerTool := mcp.NewTool("workflow_runner",
+		mcp.WithDescription("Execute a workflow definition file and run each referenced MCP tool step sequentially"),
+		mcp.WithString("file_path",
+			mcp.Required(),
+			mcp.Description("Path to the workflow definition (JSON or YAML)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: markdown (default) or json"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the workflow summary (relative to package directory if set)"),
+		),
+	)
+
+	s.AddTool(workflowRunnerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleWorkflowRunner(ctx, request, packageDirectory, excludeFile)
+	})
+}
+
+type workflowStepSummary struct {
+	Name    string                         `json:"name"`
+	Type    string                         `json:"type"`
+	Enabled bool                           `json:"enabled"`
+	Outputs map[string]workflow.StepResult `json:"outputs,omitempty"`
+}
+
+type workflowExecutionSummary struct {
+	WorkflowPath string                `json:"workflow_path"`
+	Steps        []workflowStepSummary `json:"steps"`
+	FilesWritten []string              `json:"files_written,omitempty"`
+}
+
+func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, packageDirectory, excludeFile string) (*mcp.CallToolResult, error) {
+	args, _ := request.Params.Arguments.(map[string]interface{})
+
+	workflowPath := extractStringArg(args, "file_path")
+	if workflowPath == "" {
+		workflowPath = extractStringArg(args, "workflow_file")
+	}
+	if workflowPath == "" {
+		return mcp.NewToolResultError("workflow_runner requires a file_path parameter"), nil
+	}
+
+	if !filepath.IsAbs(workflowPath) {
+		abs, err := filepath.Abs(workflowPath)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to resolve workflow path: %v", err)), nil
+		}
+		workflowPath = abs
+	}
+
+	info, err := os.Stat(workflowPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to access workflow file: %v", err)), nil
+	}
+	if info.IsDir() {
+		return mcp.NewToolResultError("workflow_runner expects a file, not a directory"), nil
+	}
+
+	workflowDir := filepath.Dir(workflowPath)
+	var writtenOutputs []string
+
+	runner := func(stepCtx context.Context, tool string, params map[string]interface{}) (string, error) {
+		normalized := cloneArguments(params)
+
+		normalizeWorkflowPathArg(normalized, workflowPath, "directory")
+		normalizeWorkflowPathArg(normalized, workflowPath, "file_path")
+		normalizeWorkflowPathArg(normalized, workflowPath, "outputFilePath")
+		normalizeWorkflowPathArg(normalized, workflowPath, "templateFilePath")
+		normalizeWorkflowPathArg(normalized, workflowPath, "output_file_path")
+		normalizeWorkflowPathArg(normalized, workflowPath, "template_file_path")
+		normalizeWorkflowPathArg(normalized, workflowPath, "json_file_path")
+		normalizeWorkflowPathArg(normalized, workflowPath, "jsonFilePath")
+
+		if tool == "list_packages" {
+			if format := stringFromAny(normalized["format"]); format == "" {
+				normalized["format"] = "json"
+			}
+			if dir := stringFromAny(normalized["directory"]); dir == "" && packageDirectory != "" {
+				normalized["directory"] = packageDirectory
+			}
+		}
+
+		if tool == "batch_analyze" {
+			if rawJSON, ok := normalized["jsonData"]; ok {
+				jsonText, ok := rawJSON.(string)
+				if !ok {
+					return "", fmt.Errorf("batch_analyze: jsonData must be a string value")
+				}
+				files, err := extractFilePathsFromJSON(jsonText)
+				if err != nil {
+					return "", err
+				}
+				normalized["file_paths"] = toInterfaceSlice(files)
+				delete(normalized, "jsonData")
+			}
+		}
+
+		req := mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Arguments: normalized,
+			},
+		}
+
+		var result *mcp.CallToolResult
+		switch tool {
+		case "list_packages":
+			res, err := packagehandlers.HandleListPackages(stepCtx, req, packageDirectory, excludeFile)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "batch_analyze":
+			res, err := packagehandlers.HandleBatchAnalyze(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_logging_configuration":
+			res, err := packagehandlers.HandleAnalyzeLoggingConfiguration(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_data_flow":
+			res, err := analysis.HandleAnalyzeDataFlow(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "render_template":
+			res, err := templatehandlers.HandleRenderTemplate(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_data_flow_detailed":
+			res, err := analysis.HandleAnalyzeDataFlowDetailed(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "validate_best_practices":
+			res, err := packagehandlers.HandleValidateBestPractices(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		default:
+			return "", fmt.Errorf("workflow runner: tool %q is not supported", tool)
+		}
+
+		text, err := workflow.ToolResultToString(result)
+		if err != nil {
+			return "", err
+		}
+
+		renderedPath := ""
+		if tool == "render_template" {
+			renderedPath = stringFromAny(normalized["outputFilePath"])
+			if renderedPath == "" {
+				renderedPath = stringFromAny(normalized["output_file_path"])
+			}
+		}
+
+		outputPath := stringFromAny(normalized["outputFilePath"])
+		if outputPath == "" {
+			outputPath = stringFromAny(normalized["output_file_path"])
+		}
+		if tool == "render_template" {
+			outputPath = ""
+		}
+		if outputPath != "" {
+			// If the tool returned structured content, prefer writing that JSON
+			if result != nil && result.StructuredContent != nil {
+				data, marshalErr := json.MarshalIndent(result.StructuredContent, "", "  ")
+				if marshalErr != nil {
+					return "", fmt.Errorf("failed to marshal structured tool result: %w", marshalErr)
+				}
+				if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+					return "", fmt.Errorf("failed to create workflow output directory %s: %w", filepath.Dir(outputPath), err)
+				}
+				if err := os.WriteFile(outputPath, append(data, '\n'), 0o644); err != nil {
+					return "", fmt.Errorf("failed to write workflow output %s: %w", outputPath, err)
+				}
+			} else {
+				// If no structured content is available, only write text when the
+				// destination file doesn't already exist or is empty — this avoids
+				// overwriting files that handlers may have already created.
+				if fi, statErr := os.Stat(outputPath); statErr == nil && fi.Size() > 0 {
+					// file exists and is non-empty; skip overwriting
+				} else {
+					if err := writeWorkflowOutput(outputPath, text); err != nil {
+						return "", err
+					}
+				}
+			}
+			display := outputPath
+			if rel, relErr := filepath.Rel(workflowDir, outputPath); relErr == nil && !strings.HasPrefix(rel, "..") {
+				display = rel
+			}
+			writtenOutputs = append(writtenOutputs, display)
+		}
+		if tool == "render_template" && renderedPath != "" {
+			display := renderedPath
+			if rel, relErr := filepath.Rel(workflowDir, renderedPath); relErr == nil && !strings.HasPrefix(rel, "..") {
+				display = rel
+			}
+			writtenOutputs = append(writtenOutputs, display)
+		}
+
+		return text, nil
+	}
+
+	wf, results, err := workflow.RunFile(ctx, workflowPath, runner)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Workflow execution failed: %v", err)), nil
+	}
+
+	// Write any combined step outputs declared by the workflow steps.
+	if combined, cerr := workflow.WriteCombinedStepOutputs(workflowPath, wf, results); cerr == nil {
+		writtenOutputs = append(writtenOutputs, combined...)
+	} else {
+		// helper already prints errors to stderr; still append any files that were written
+		writtenOutputs = append(writtenOutputs, combined...)
+	}
+
+	summary := createWorkflowExecutionSummary(workflowPath, wf, results, writtenOutputs)
+
+	format := strings.ToLower(extractStringArg(args, "format"))
+	switch format {
+	case "json":
+		data, marshalErr := json.MarshalIndent(summary, "", "  ")
+		if marshalErr != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to marshal workflow summary: %v", marshalErr)), nil
+		}
+		return mcp.NewToolResultText(string(data)), nil
+	default:
+		markdown := formatWorkflowSummaryMarkdown(summary)
+		return mcp.NewToolResultText(markdown), nil
+	}
+}
+
+func cloneArguments(params map[string]interface{}) map[string]interface{} {
+	if params == nil {
+		return map[string]interface{}{}
+	}
+	cloned := make(map[string]interface{}, len(params))
+	for key, value := range params {
+		cloned[key] = value
+	}
+	return cloned
+}
+
+func normalizeWorkflowPathArg(args map[string]interface{}, workflowPath, key string) {
+	raw, exists := args[key]
+	if !exists {
+		return
+	}
+	value, ok := raw.(string)
+	if !ok {
+		return
+	}
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return
+	}
+	args[key] = workflow.ResolveRelativePath(workflowPath, trimmed)
+}
+
+func stringFromAny(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+	if s, ok := value.(string); ok {
+		return strings.TrimSpace(s)
+	}
+	return ""
+}
+
+func extractStringArg(args map[string]interface{}, key string) string {
+	if args == nil {
+		return ""
+	}
+	return stringFromAny(args[key])
+}
+
+func extractFilePathsFromJSON(jsonText string) ([]string, error) {
+	var payload struct {
+		Directory        string   `json:"directory"`
+		Packages         []string `json:"packages"`
+		PackagesAbsolute []string `json:"packages_absolute"`
+	}
+
+	if err := json.Unmarshal([]byte(jsonText), &payload); err != nil {
+		return nil, fmt.Errorf("failed to parse jsonData payload: %w", err)
+	}
+
+	var files []string
+	if len(payload.PackagesAbsolute) > 0 {
+		for _, path := range payload.PackagesAbsolute {
+			if path == "" {
+				continue
+			}
+			files = append(files, filepath.Clean(path))
+		}
+	} else {
+		base := payload.Directory
+		for _, pkg := range payload.Packages {
+			if pkg == "" {
+				continue
+			}
+			if filepath.IsAbs(pkg) || base == "" {
+				files = append(files, filepath.Clean(pkg))
+			} else {
+				files = append(files, filepath.Clean(filepath.Join(base, pkg)))
+			}
+		}
+	}
+
+	if len(files) == 0 {
+		return nil, fmt.Errorf("jsonData did not contain any package paths")
+	}
+
+	return files, nil
+}
+
+func toInterfaceSlice(values []string) []interface{} {
+	out := make([]interface{}, 0, len(values))
+	for _, value := range values {
+		out = append(out, value)
+	}
+	return out
+}
+
+func writeWorkflowOutput(outputPath, content string) error {
+	if outputPath == "" {
+		return nil
+	}
+	dir := filepath.Dir(outputPath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("failed to create workflow output directory %s: %w", dir, err)
+	}
+	// Overwrite the output file so each workflow run produces consistent,
+	// self-contained JSON files rather than appending mixed content.
+	if err := os.WriteFile(outputPath, []byte(content+"\n"), 0o644); err != nil {
+		return fmt.Errorf("failed to write workflow output %s: %w", outputPath, err)
+	}
+	return nil
+}
+
+func createWorkflowExecutionSummary(workflowPath string, wf *workflow.Workflow, results map[string]map[string]workflow.StepResult, files []string) workflowExecutionSummary {
+	summaries := make([]workflowStepSummary, 0, len(wf.Steps))
+	for _, step := range wf.Steps {
+		summary := workflowStepSummary{
+			Name:    step.Name,
+			Type:    step.Type,
+			Enabled: step.Enabled,
+		}
+		if step.Enabled {
+			if outputs, ok := results[step.Name]; ok && len(outputs) > 0 {
+				summary.Outputs = outputs
+			}
+		}
+		summaries = append(summaries, summary)
+	}
+
+	return workflowExecutionSummary{
+		WorkflowPath: workflowPath,
+		Steps:        summaries,
+		FilesWritten: files,
+	}
+}
+
+func formatWorkflowSummaryMarkdown(summary workflowExecutionSummary) string {
+	var builder strings.Builder
+
+	builder.WriteString(fmt.Sprintf("# Workflow Execution: %s\n\n", filepath.Base(summary.WorkflowPath)))
+	builder.WriteString(fmt.Sprintf("- **Workflow Path**: %s\n", summary.WorkflowPath))
+	builder.WriteString(fmt.Sprintf("- **Total Steps**: %d\n", len(summary.Steps)))
+
+	executed := 0
+	for _, step := range summary.Steps {
+		if step.Enabled {
+			executed++
+		}
+	}
+	builder.WriteString(fmt.Sprintf("- **Steps Executed**: %d\n\n", executed))
+
+	if len(summary.FilesWritten) > 0 {
+		builder.WriteString("## Files Written\n\n")
+		for _, file := range summary.FilesWritten {
+			builder.WriteString(fmt.Sprintf("- %s\n", file))
+		}
+		builder.WriteString("\n")
+	}
+
+	builder.WriteString("## Step Outputs\n\n")
+	for _, step := range summary.Steps {
+		builder.WriteString(fmt.Sprintf("### %s (%s)\n\n", step.Name, strings.TrimPrefix(step.Type, "#")))
+		if !step.Enabled {
+			builder.WriteString("_Step disabled_\n\n")
+			continue
+		}
+		if len(step.Outputs) == 0 {
+			builder.WriteString("_No outputs captured._\n\n")
+			continue
+		}
+
+		keys := make([]string, 0, len(step.Outputs))
+		for key := range step.Outputs {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+
+		for _, key := range keys {
+			output := step.Outputs[key]
+			builder.WriteString(fmt.Sprintf("- **%s**", key))
+			if output.Format != "" {
+				builder.WriteString(fmt.Sprintf(" (%s)", output.Format))
+			}
+			builder.WriteString("\n\n```")
+			builder.WriteString("\n")
+			builder.WriteString(output.Value)
+			builder.WriteString("\n```")
+			builder.WriteString("\n\n")
+		}
+	}
+
+	return builder.String()
+}
+
+// extractJSONObjects scans input for top-level JSON objects and returns them
+// as raw JSON strings. It attempts to be resilient to braces inside strings
+// by tracking string quoting and escape characters.
+func extractJSONObjects(s string) []string {
+	var out []string
+	i := 0
+	length := len(s)
+	for i < length {
+		// Find next '{'
+		start := strings.IndexByte(s[i:], '{')
+		if start == -1 {
+			break
+		}
+		start += i
+		depth := 0
+		inString := false
+		escaped := false
+		found := false
+		for j := start; j < length; j++ {
+			c := s[j]
+			if escaped {
+				escaped = false
+				continue
+			}
+			if c == '\\' {
+				escaped = true
+				continue
+			}
+			if c == '"' {
+				inString = !inString
+				continue
+			}
+			if inString {
+				continue
+			}
+			if c == '{' {
+				depth++
+			} else if c == '}' {
+				depth--
+				if depth == 0 {
+					obj := strings.TrimSpace(s[start : j+1])
+					out = append(out, obj)
+					i = j + 1
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			break
+		}
+	}
+	return out
+}
+
+// parseTopLevelJSONValues decodes one or more top-level JSON values from the
+// provided string. It returns a slice with each decoded value. This handles
+// concatenated JSON objects, arrays, and primitive values robustly.
+func parseTopLevelJSONValues(s string) ([]interface{}, error) {
+	dec := json.NewDecoder(strings.NewReader(s))
+	dec.UseNumber()
+	var out []interface{}
+	for {
+		var v interface{}
+		if err := dec.Decode(&v); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, nil
 }
 
 func handleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {

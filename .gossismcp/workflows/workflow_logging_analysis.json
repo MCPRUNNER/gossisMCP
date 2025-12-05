@@ -1,0 +1,40 @@
+{
+    "Steps": [
+        {
+            "Name": "GetMyPackages",
+            "Type": "#list_packages",
+            "Parameters": {
+                "directory": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES",
+                "format": "json"
+            },
+            "Enabled": true,
+            "Output": {"Name": "Content", "Format": "JSON"}
+        },
+        {
+            "Name": "AnalyzeLogging",
+            "Type": "#analyze_logging_configuration",
+            "loop": {
+                "input_data": "{GetMyPackages.Content.packages_absolute}",
+                "item_name": "pkg"
+            },
+            "Parameters": {
+                "file_path": "{pkg}",
+                "format": "json"
+            },
+            "Enabled": true,
+            "Output": {"Name": "Message", "Format": "json"},
+            "output_file_path": "../Output/logging_analysis.json"
+        },
+        {
+            "Name": "RenderReport",
+            "Type": "#render_template",
+            "Parameters": {
+                "template_file_path": "../templates/logging_analysis.gotmpl",
+                "json_file_path": "../Output/logging_analysis.json",
+                "output_file_path": "../Output/logging_analysis.html"
+            },
+            "Enabled": true,
+            "Output": {"Name": "Message", "Format": "text"}
+        }
+    ]
+}

@@ -1,6 +1,7 @@
 package formatter
 
 import (
+	"path/filepath"
 	"time"
 )
 
@@ -24,9 +25,11 @@ func GetFormatter(format OutputFormat) OutputFormatter {
 
 // CreateAnalysisResult creates a new analysis result
 func CreateAnalysisResult(toolName, filePath string, data interface{}, err error) *AnalysisResult {
+
 	result := &AnalysisResult{
 		ToolName:  toolName,
 		FilePath:  filePath,
+		Package:   filepath.Base(filePath),
 		Timestamp: time.Now().Format(time.RFC3339),
 		Data:      data,
 		Metadata:  make(map[string]interface{}),

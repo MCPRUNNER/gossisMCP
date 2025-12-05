@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/MCPRUNNER/gossisMCP/pkg/formatter"
 	"github.com/MCPRUNNER/gossisMCP/pkg/types"
@@ -169,7 +170,24 @@ func HandleAnalyzeDataFlow(_ context.Context, request mcp.CallToolRequest, packa
 		result.WriteString("\n")
 	}
 
-	analysisResult := formatter.CreateAnalysisResult("Data Flow Analysis", filePath, result.String(), nil)
+	analysisResult := formatter.CreateAnalysisResult("analyze_data_flow", filePath, result.String(), nil)
+
+	// For JSON format, return structured data for consistency with other analysis tools
+	if format == formatter.FormatJSON {
+		jsonResult := map[string]interface{}{
+			"tool_name": analysisResult.ToolName,
+			"file_path": analysisResult.FilePath,
+			"package":   filepath.Base(analysisResult.FilePath),
+			"timestamp": analysisResult.Timestamp,
+			"status":    analysisResult.Status,
+			"analysis":  analysisResult.Data,
+		}
+		if analysisResult.Error != "" {
+			jsonResult["error"] = analysisResult.Error
+		}
+		return mcp.NewToolResultStructured(jsonResult, "Data flow analysis"), nil
+	}
+
 	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 
@@ -202,7 +220,18 @@ func HandleAnalyzeDataFlowDetailed(_ context.Context, request mcp.CallToolReques
 
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		result := formatter.CreateAnalysisResult("Detailed Data Flow Analysis", filePath, nil, err)
+		result := formatter.CreateAnalysisResult("analyze_data_flow_detailed", filePath, nil, err)
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "analyze_data_flow_detailed",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     err.Error(),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Detailed data flow analysis error"), nil
+		}
 		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
@@ -214,7 +243,7 @@ func HandleAnalyzeDataFlowDetailed(_ context.Context, request mcp.CallToolReques
 	// Check if this package contains data flow tasks
 	if !strings.Contains(xmlContent, "Microsoft.Pipeline") {
 		result.WriteString("No Data Flow Tasks found in this package.\n")
-		analysisResult := formatter.CreateAnalysisResult("Detailed Data Flow Analysis", filePath, result.String(), nil)
+		analysisResult := formatter.CreateAnalysisResult("analyze_data_flow_detailed", filePath, result.String(), nil)
 		return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 	}
 
@@ -357,7 +386,24 @@ func HandleAnalyzeDataFlowDetailed(_ context.Context, request mcp.CallToolReques
 		}
 	}
 
-	analysisResult := formatter.CreateAnalysisResult("Detailed Data Flow Analysis", filePath, result.String(), nil)
+	analysisResult := formatter.CreateAnalysisResult("analyze_data_flow_detailed", filePath, result.String(), nil)
+
+	// For JSON format, return structured data for consistency with other analysis tools
+	if format == formatter.FormatJSON {
+		jsonResult := map[string]interface{}{
+			"tool_name": analysisResult.ToolName,
+			"file_path": analysisResult.FilePath,
+			"package":   filepath.Base(analysisResult.FilePath),
+			"timestamp": analysisResult.Timestamp,
+			"status":    analysisResult.Status,
+			"analysis":  analysisResult.Data,
+		}
+		if analysisResult.Error != "" {
+			jsonResult["error"] = analysisResult.Error
+		}
+		return mcp.NewToolResultStructured(jsonResult, "Detailed data flow analysis"), nil
+	}
+
 	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 
@@ -3723,7 +3769,18 @@ func HandleAnalyzeCodeQuality(_ context.Context, request mcp.CallToolRequest, pa
 
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		result := formatter.CreateAnalysisResult("Code Quality Metrics Analysis", filePath, nil, err)
+		result := formatter.CreateAnalysisResult("analyze_code_quality", filePath, nil, err)
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "analyze_code_quality",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     err.Error(),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Code quality analysis error"), nil
+		}
 		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
@@ -3732,7 +3789,18 @@ func HandleAnalyzeCodeQuality(_ context.Context, request mcp.CallToolRequest, pa
 
 	var pkg types.SSISPackage
 	if err := xml.Unmarshal(data, &pkg); err != nil {
-		result := formatter.CreateAnalysisResult("Code Quality Metrics Analysis", filePath, nil, err)
+		result := formatter.CreateAnalysisResult("analyze_code_quality", filePath, nil, fmt.Errorf("failed to parse XML: %v", err))
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "analyze_code_quality",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     fmt.Sprintf("failed to parse XML: %v", err),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Code quality analysis error"), nil
+		}
 		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
@@ -3782,7 +3850,24 @@ func HandleAnalyzeCodeQuality(_ context.Context, request mcp.CallToolRequest, pa
 	result.WriteString("\n💡 Recommendations:\n")
 	addQualityRecommendations(&result, overallScore, structuralScore, scriptMetrics, expressionMetrics, variableMetrics)
 
-	analysisResult := formatter.CreateAnalysisResult("Code Quality Metrics Analysis", filePath, result.String(), nil)
+	analysisResult := formatter.CreateAnalysisResult("analyze_code_quality", filePath, result.String(), nil)
+
+	// For JSON format, return structured data
+	if format == formatter.FormatJSON {
+		jsonResult := map[string]interface{}{
+			"tool_name": analysisResult.ToolName,
+			"file_path": analysisResult.FilePath,
+			"package":   filepath.Base(analysisResult.FilePath),
+			"timestamp": analysisResult.Timestamp,
+			"status":    analysisResult.Status,
+			"analysis":  analysisResult.Data,
+		}
+		if analysisResult.Error != "" {
+			jsonResult["error"] = analysisResult.Error
+		}
+		return mcp.NewToolResultStructured(jsonResult, "Code quality analysis"), nil
+	}
+
 	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 
@@ -4382,12 +4467,28 @@ func HandleScanCredentials(_ context.Context, request mcp.CallToolRequest, packa
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
+	// Get format parameter (default to "text")
+	formatStr := request.GetString("format", "text")
+	format := formatter.OutputFormat(formatStr)
+
 	// Resolve the file path against the package directory
 	resolvedPath := ResolveFilePath(filePath, packageDirectory)
 
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+		result := formatter.CreateAnalysisResult("scan_credentials", filePath, nil, err)
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "scan_credentials",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     err.Error(),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Credential scan error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	// Remove namespace prefixes for easier parsing
@@ -4395,7 +4496,19 @@ func HandleScanCredentials(_ context.Context, request mcp.CallToolRequest, packa
 
 	var pkg types.SSISPackage
 	if err := xml.Unmarshal(data, &pkg); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+		result := formatter.CreateAnalysisResult("scan_credentials", filePath, nil, fmt.Errorf("failed to parse XML: %v", err))
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "scan_credentials",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     fmt.Sprintf("failed to parse XML: %v", err),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Credential scan error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	var result strings.Builder
@@ -4652,7 +4765,25 @@ func HandleScanCredentials(_ context.Context, request mcp.CallToolRequest, packa
 		result.WriteString("• Audit and monitor access to sensitive data\n")
 	}
 
-	return mcp.NewToolResultText(result.String()), nil
+	analysisResult := formatter.CreateAnalysisResult("scan_credentials", filePath, result.String(), nil)
+
+	// For JSON format, return structured data
+	if format == formatter.FormatJSON {
+		jsonResult := map[string]interface{}{
+			"tool_name": analysisResult.ToolName,
+			"file_path": analysisResult.FilePath,
+			"package":   filepath.Base(analysisResult.FilePath),
+			"timestamp": analysisResult.Timestamp,
+			"status":    analysisResult.Status,
+			"analysis":  analysisResult.Data,
+		}
+		if analysisResult.Error != "" {
+			jsonResult["error"] = analysisResult.Error
+		}
+		return mcp.NewToolResultStructured(jsonResult, "Credential scan"), nil
+	}
+
+	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 
 // HandleDetectEncryption handles encryption detection and recommendations from DTSX files
@@ -4662,12 +4793,28 @@ func HandleDetectEncryption(_ context.Context, request mcp.CallToolRequest, pack
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
+	// Get format parameter (default to "text")
+	formatStr := request.GetString("format", "text")
+	format := formatter.OutputFormat(formatStr)
+
 	// Resolve the file path against the package directory
 	resolvedPath := ResolveFilePath(filePath, packageDirectory)
 
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+		result := formatter.CreateAnalysisResult("detect_encryption", filePath, nil, err)
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "detect_encryption",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     err.Error(),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Encryption detection error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	// Remove namespace prefixes for easier parsing
@@ -4675,7 +4822,19 @@ func HandleDetectEncryption(_ context.Context, request mcp.CallToolRequest, pack
 
 	var pkg types.SSISPackage
 	if err := xml.Unmarshal(data, &pkg); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+		result := formatter.CreateAnalysisResult("detect_encryption", filePath, nil, fmt.Errorf("failed to parse XML: %v", err))
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "detect_encryption",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     fmt.Sprintf("failed to parse XML: %v", err),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Encryption detection error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	var result strings.Builder
@@ -4810,7 +4969,25 @@ func HandleDetectEncryption(_ context.Context, request mcp.CallToolRequest, pack
 	result.WriteString("• Consider column-level encryption for sensitive data\n")
 	result.WriteString("• Implement proper key rotation policies\n")
 
-	return mcp.NewToolResultText(result.String()), nil
+	analysisResult := formatter.CreateAnalysisResult("detect_encryption", filePath, result.String(), nil)
+
+	// For JSON format, return structured data
+	if format == formatter.FormatJSON {
+		jsonResult := map[string]interface{}{
+			"tool_name": analysisResult.ToolName,
+			"file_path": analysisResult.FilePath,
+			"package":   filepath.Base(analysisResult.FilePath),
+			"timestamp": analysisResult.Timestamp,
+			"status":    analysisResult.Status,
+			"analysis":  analysisResult.Data,
+		}
+		if analysisResult.Error != "" {
+			jsonResult["error"] = analysisResult.Error
+		}
+		return mcp.NewToolResultStructured(jsonResult, "Encryption detection"), nil
+	}
+
+	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 
 // HandleCheckCompliance handles compliance checking for various standards from DTSX files
@@ -4822,12 +4999,28 @@ func HandleCheckCompliance(_ context.Context, request mcp.CallToolRequest, packa
 
 	complianceStandard := request.GetString("compliance_standard", "all")
 
+	// Get format parameter (default to "text")
+	formatStr := request.GetString("format", "text")
+	format := formatter.OutputFormat(formatStr)
+
 	// Resolve the file path against the package directory
 	resolvedPath := ResolveFilePath(filePath, packageDirectory)
 
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+		result := formatter.CreateAnalysisResult("check_compliance", filePath, nil, err)
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "check_compliance",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     err.Error(),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Compliance check error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	// Remove namespace prefixes for easier parsing
@@ -4835,7 +5028,19 @@ func HandleCheckCompliance(_ context.Context, request mcp.CallToolRequest, packa
 
 	var pkg types.SSISPackage
 	if err := xml.Unmarshal(data, &pkg); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse XML: %v", err)), nil
+		result := formatter.CreateAnalysisResult("check_compliance", filePath, nil, fmt.Errorf("failed to parse XML: %v", err))
+		if format == formatter.FormatJSON {
+			jsonResult := map[string]interface{}{
+				"tool_name": "check_compliance",
+				"file_path": filePath,
+				"package":   filepath.Base(filePath),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"status":    "error",
+				"error":     fmt.Sprintf("failed to parse XML: %v", err),
+			}
+			return mcp.NewToolResultStructured(jsonResult, "Compliance check error"), nil
+		}
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
 	}
 
 	var result strings.Builder
@@ -5036,7 +5241,25 @@ func HandleCheckCompliance(_ context.Context, request mcp.CallToolRequest, packa
 		result.WriteString("• Regular compliance audits and monitoring\n")
 	}
 
-	return mcp.NewToolResultText(result.String()), nil
+	analysisResult := formatter.CreateAnalysisResult("check_compliance", filePath, result.String(), nil)
+
+	// For JSON format, return structured data
+	if format == formatter.FormatJSON {
+		jsonResult := map[string]interface{}{
+			"tool_name": analysisResult.ToolName,
+			"file_path": analysisResult.FilePath,
+			"package":   filepath.Base(analysisResult.FilePath),
+			"timestamp": analysisResult.Timestamp,
+			"status":    analysisResult.Status,
+			"analysis":  analysisResult.Data,
+		}
+		if analysisResult.Error != "" {
+			jsonResult["error"] = analysisResult.Error
+		}
+		return mcp.NewToolResultStructured(jsonResult, "Compliance check"), nil
+	}
+
+	return mcp.NewToolResultText(formatter.FormatAnalysisResult(analysisResult, format)), nil
 }
 
 // HandleAnalyzeSource provides unified analysis for various SSIS source components

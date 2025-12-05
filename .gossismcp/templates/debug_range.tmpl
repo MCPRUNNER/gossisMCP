@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head><title>Debug Range</title></head>
+<body>
+<h1>Debug Range Output</h1>
+{{ $rows := index . "data" }}
+<p>Rows type: {{ printf "%T" $rows }}</p>
+<p>Rows length: {{ len $rows }}</p>
+<ul>
+{{ range $i, $it := $rows }}
+  <li>Item {{ $i }}: {{ index $it "package" }} - {{ index $it "file" }}</li>
+{{ end }}
+</ul>
+</body>
+</html>

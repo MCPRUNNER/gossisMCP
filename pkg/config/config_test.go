@@ -44,7 +44,7 @@ func TestMergeConfigs(t *testing.T) {
 			HTTPMode: true,
 			Port:     "1234",
 		},
-		Packages: PackageConfig{Directory: "packages"},
+		Packages: PackageConfig{Directory: "packages", ExcludeFile: ".customignore"},
 		Logging:  LoggingConfig{Level: "debug", Format: "json"},
 	}
 	merged := mergeConfigs(base, override)
@@ -53,6 +53,9 @@ func TestMergeConfigs(t *testing.T) {
 	}
 	if merged.Packages.Directory != "packages" {
 		t.Fatalf("expected package directory override, got %s", merged.Packages.Directory)
+	}
+	if merged.Packages.ExcludeFile != ".customignore" {
+		t.Fatalf("expected exclude file override, got %s", merged.Packages.ExcludeFile)
 	}
 	if merged.Logging.Level != "debug" || merged.Logging.Format != "json" {
 		t.Fatalf("expected logging overrides, got %+v", merged.Logging)
@@ -78,7 +81,7 @@ func TestLoadConfigFromJSON(t *testing.T) {
 	escapedDir := strings.ReplaceAll(tempDir, "\\", "\\\\")
 	contents := `{
         "server": {"http_mode": true, "port": "9090"},
-        "packages": {"directory": "` + escapedDir + `"},
+        "packages": {"directory": "` + escapedDir + `", "exclude_file": "skip.list"},
         "logging": {"level": "error", "format": "text"}
     }`
 	if err := os.WriteFile(filePath, []byte(contents), 0o644); err != nil {
@@ -97,6 +100,9 @@ func TestLoadConfigFromJSON(t *testing.T) {
 	}
 	if cfg.Packages.Directory != tempDir {
 		t.Fatalf("expected package directory %s, got %s", tempDir, cfg.Packages.Directory)
+	}
+	if cfg.Packages.ExcludeFile != "skip.list" {
+		t.Fatalf("expected exclude file skip.list, got %s", cfg.Packages.ExcludeFile)
 	}
 }
 
