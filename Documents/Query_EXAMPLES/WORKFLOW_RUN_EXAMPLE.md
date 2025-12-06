@@ -8,9 +8,9 @@
 
 ## Results
 
-1. [logging_analysis.html](reports/logging_analysis.html)
-1. [best_practices_validation.html](reports/best_practices_validation.html)
-1. [dataflow_analysis_detailed.html](reports/dataflow_analysis_detailed.html)
+1. [logging_analysis.html](../reports/logging_analysis.html)
+1. [best_practices_validation.html](../reports/best_practices_validation.html)
+1. [dataflow_analysis_detailed.html](../reports/dataflow_analysis_detailed.html)
 
 ## Workflow Definition
 
