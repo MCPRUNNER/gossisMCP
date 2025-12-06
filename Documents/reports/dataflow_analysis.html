@@ -1,0 +1,369 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSIS Data Flow Analysis</title>
+  <link rel="stylesheet" href="gossismcp.css">
+   
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>SSIS Data Flow Analysis</h1>
+      <p class="subtitle">Comprehensive data flow analysis across all SSIS packages</p>
+    </header>
+    
+    <div class="content">
+      
+      
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-label">Total Packages</div>
+          <div class="stat-value">13</div>
+        </div>
+      </div>
+      
+      <div class="table-wrapper">
+        <table>
+    <thead>
+      <tr>
+        <th>Package</th>
+        <th>Status</th>
+        <th>Timestamp</th>
+        <th>Results</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td class="package-name mono wrap">ConfigFile.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
+        <td>
+          <pre class="mono">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Flat File Destination (Destination)
+    Description: Flat File Destination
+
+  - OLE DB Source (Source)
+    Description: OLE DB Source
+    SqlCommand: select * from production.product where color=?
+
+Data Paths:
+  - :  → 
+  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Flat File Destination.Inputs[Flat File Destination Input]
+
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">ConfigTables.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
+        <td>
+          <pre class="mono">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Flat File Destination (Destination)
+    Description: Flat File Destination
+
+  - OLE DB Source (Source)
+    Description: OLE DB Source
+    SqlCommand: select * from production.product where color=?
+
+Data Paths:
+  - :  → 
+  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Flat File Destination.Inputs[Flat File Destination Input]
+
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">DupeAlertFail.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
+        <td>
+          <pre class="mono">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Audit (Unknown)
+    Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.
+
+  - GET-DUPES (Source)
+    Description: OLE DB Source
+
+  - SAVE DUPES TO demo-dest_dupes (Destination)
+    Description: OLE DB Destination
+
+  -  (Unknown)
+
+  - Audit (Unknown)
+    Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.
+
+  - dest-no-dupes-allowed (Destination)
+    Description: OLE DB Destination
+
+  - source-dupes-allowed (Source)
+    Description: OLE DB Source
+
+Data Paths:
+  - :  → 
+  - Audit Output 1: Audit.Outputs[Audit Output 1] → SAVE DUPES TO demo-dest_dupes.Inputs[OLE DB Destination Input]
+  - OLE DB Source Output: GET-DUPES.Outputs[OLE DB Source Output] → Audit.Inputs[Audit Input 1]
+  - :  → 
+  - Audit Output 1: Audit.Outputs[Audit Output 1] → dest-no-dupes-allowed.Inputs[OLE DB Destination Input]
+  - OLE DB Source Output: source-dupes-allowed.Outputs[OLE DB Source Output] → Audit.Inputs[Audit Input 1]
+
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">EXECProcess.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
+        <td>
+          <pre class="mono">Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">ExportColumn.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
+        <td>
+          <pre class="mono">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Data Conversion (Unknown)
+    Description: Data Conversion
+
+  - Export Column (Unknown)
+    Description: Reads data from a data flow and insert it into a file. For example, create image files based on a database column that contains photographs.
+
+  - OLE DB Source (Source)
+    Description: OLE DB Source
+
+Data Paths:
+  - :  → 
+  - Data Conversion Output: Data Conversion.Outputs[Data Conversion Output] → Export Column.Inputs[Export Column Input]
+  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Data Conversion.Inputs[Data Conversion Input]
+
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">Expressions.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
+        <td>
+          <pre class="mono">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Convert_databytes (Unknown)
+    Description: Data Conversion
+
+  - Expressions_csv (Destination)
+    Description: Flat File Destination
+
+  - PROTO_SSIS_LOGS (Source)
+    Description: OLE DB Source
+
+Data Paths:
+  - :  → 
+  - Data Conversion Output: Convert_databytes.Outputs[Data Conversion Output] → Expressions_csv.Inputs[Flat File Destination Input]
+  - OLE DB Source Output: PROTO_SSIS_LOGS.Outputs[OLE DB Source Output] → Convert_databytes.Inputs[Data Conversion Input]
+
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">Loader.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
+        <td>
+          <pre class="mono">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Data Conversion (Unknown)
+    Description: Data Conversion
+
+  - Flat File Source (Source)
+    Description: Flat File Source
+
+  - OLE DB Destination (Destination)
+    Description: OLE DB Destination
+
+Data Paths:
+  - :  → 
+  - Data Conversion Output: Data Conversion.Outputs[Data Conversion Output] → OLE DB Destination.Inputs[OLE DB Destination Input]
+  - Flat File Source Output: Flat File Source.Outputs[Flat File Source Output] → Data Conversion.Inputs[Data Conversion Input]
+
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">MSMQRec.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
+        <td>
+          <pre class="mono">Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">MSMQSender.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
+        <td>
+          <pre class="mono">Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">Package2.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
+        <td>
+          <pre class="mono">Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">RunMultu.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
+        <td>
+          <pre class="mono">Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">Scanner.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
+        <td>
+          <pre class="mono">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Flat File Destination (Destination)
+    Description: Flat File Destination
+
+  - Lookup (Unknown)
+    Description: Joins additional columns to the data flow by looking up values in a table. For example, join to the &#39;employee id&#39; column the employees table to get &#39;hire date&#39; and &#39;employee name&#39;. We recommend this transformation when the lookup table can fit into memory.
+    SqlCommand: select * from [Production].[Product]
+
+  - OLE DB Source (Source)
+    Description: OLE DB Source
+
+  -  (Unknown)
+
+  - Audit (Unknown)
+    Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.
+
+  - GetAllEnvVar (Unknown)
+    Description: Includes and runs custom script code. For example, apply a business rule that limits the range of valid values in an &amp;quot;income&amp;quot; column or add values in two columns and calculate the average of the sum.
+
+  - OLE DB Destination (Destination)
+    Description: OLE DB Destination
+
+  -  (Unknown)
+
+  - Cache Transform (Unknown)
+    Description: Writes data to a cache (a .caw file) with the Cache Connection Manager. Reuse the cache between multiple Lookup transforms to reduce database load. Share the cache to reduce memory usage. Note: cache data is stored in clear text and not recommended for sensitive data.
+
+  - OLE DB Source (Source)
+    Description: OLE DB Source
+
+Data Paths:
+  - :  → 
+  - Lookup Match Output: Lookup.Outputs[Lookup Match Output] → Flat File Destination.Inputs[Flat File Destination Input]
+  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Lookup.Inputs[Lookup Input]
+  - :  → 
+  - Audit Output 1: Audit.Outputs[Audit Output 1] → OLE DB Destination.Inputs[OLE DB Destination Input]
+  - Output: GetAllEnvVar.Outputs[Output] → Audit.Inputs[Audit Input 1]
+  - :  → 
+  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Cache Transform.Inputs[Cache Input]
+
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">WMIDataReader.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:21-05:00</td>
+        <td>
+          <pre class="mono">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+No components found in data flow.
+</pre>
+        </td>
+      </tr>
+
+    </tbody>
+      </table>
+      </div>
+      
+      
+      <footer>
+        Generated by SSIS Analyzer MCP | Workflow-based Package Analysis
+      </footer>
+    </div>
+  </div>
+</body>
+</html>

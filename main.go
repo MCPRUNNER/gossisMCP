@@ -1157,8 +1157,9 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
-		mcp.WithString("line_numbers",
-			mcp.Description("Include line numbers in the output (true or false, default: false)"),
+		mcp.WithBoolean("line_numbers",
+			mcp.DefaultBool(true),
+			mcp.Description("Include enable line numbers in the content (true or false, default: true)"),
 		),
 		mcp.WithString("output_file_path",
 			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
@@ -1870,17 +1871,11 @@ func convertToLines(content string, isLineNumberNeeded bool) []string {
 	return rawLines
 }
 func handleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
-	var isLineNumberNeeded bool
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	lineNumbersStr, err := request.RequireString("line_numbers")
-	if err != nil {
-		isLineNumberNeeded = false
-	} else {
-		isLineNumberNeeded = (lineNumbersStr == "true")
-	}
+	isLineNumberNeeded := request.GetBool("line_numbers", true)
 
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
