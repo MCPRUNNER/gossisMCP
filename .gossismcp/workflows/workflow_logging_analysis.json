@@ -29,7 +29,7 @@
             "Name": "RenderReport",
             "Type": "#render_template",
             "Parameters": {
-                "template_file_path": "../templates/logging_analysis.gotmpl",
+                "template_file_path": "../templates/logging_analysis.tmpl",
                 "json_file_path": "../Output/logging_analysis.json",
                 "output_file_path": "../Output/logging_analysis.html"
             },
