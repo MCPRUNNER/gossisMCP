@@ -38,7 +38,6 @@
     <thead>
       <tr>
         <th>Package</th>
-        <th>File</th>
         <th>Results</th>
       </tr>
     </thead>
@@ -46,7 +45,6 @@
 {{ range $rows }}
       <tr>
         <td class="package-name">{{ index . "package" }}</td>
-        <td class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">{{ index . "file_path" }}</td>
         <td><pre class="analysis">{{ index . "results" }}</pre></td>
       </tr>
 {{ end }}
