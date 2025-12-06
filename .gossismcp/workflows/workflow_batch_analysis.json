@@ -24,9 +24,9 @@
             "Name": "RenderReport",
             "Type": "#render_template",
             "Parameters": {
-                "template_file_path": "../templates/batch_analysis.html",
+                "template_file_path": "../templates/batch_analysis.tmpl",
                 "json_data": "{Batch_Analyze.Content}",
-                "output_file_path": "../Output/batch_analysis.html"
+                "output_file_path": "../reports/batch_analysis.html"
             },
             "Enabled": true,
             "Output": {"Name": "Message", "Format": "text"}

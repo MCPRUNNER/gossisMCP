@@ -1,0 +1,246 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSIS Best Practices Validation</title>
+  <link rel="stylesheet" href="gossismcp.css">
+   
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>SSIS Best Practices Validation</h1>
+      <p class="subtitle">Validation of best practices across all SSIS packages</p>
+    </header>
+    
+    <div class="content">
+      
+      
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-label">Total Packages</div>
+          <div class="stat-value">13</div>
+        </div>
+      </div>
+      
+      <div class="table-wrapper">
+        <table>
+    <thead>
+      <tr>
+        <th>Package</th>
+        <th>Status</th>
+        <th>Timestamp</th>
+        <th>Validation Results</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td class="package-name mono wrap">ConfigFile.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:22-05:00</td>
+        <td>
+          <pre class="mono">Best Practices Validation Report:
+- OK: 1 variables defined
+- OK: 2 connection managers defined
+- OK: 1 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">ConfigTables.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:22-05:00</td>
+        <td>
+          <pre class="mono">Best Practices Validation Report:
+- OK: 1 variables defined
+- OK: 3 connection managers defined
+- OK: 1 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">DupeAlertFail.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:22-05:00</td>
+        <td>
+          <pre class="mono">Best Practices Validation Report:
+- OK: 4 variables defined
+- OK: 1 connection managers defined
+- OK: 3 tasks defined
+- OK: Logging configuration detected
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">EXECProcess.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:22-05:00</td>
+        <td>
+          <pre class="mono">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- WARNING: No connection managers defined
+- OK: 1 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">ExportColumn.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:22-05:00</td>
+        <td>
+          <pre class="mono">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- OK: 1 connection managers defined
+- OK: 1 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">Expressions.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:22-05:00</td>
+        <td>
+          <pre class="mono">Best Practices Validation Report:
+- OK: 5 variables defined
+- OK: 2 connection managers defined
+- OK: 1 tasks defined
+- OK: Logging configuration detected
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">Loader.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:22-05:00</td>
+        <td>
+          <pre class="mono">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- OK: 2 connection managers defined
+- OK: 2 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">MSMQRec.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:22-05:00</td>
+        <td>
+          <pre class="mono">Best Practices Validation Report:
+- OK: 1 variables defined
+- OK: 1 connection managers defined
+- OK: 2 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">MSMQSender.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:22-05:00</td>
+        <td>
+          <pre class="mono">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- OK: 1 connection managers defined
+- OK: 1 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">Package2.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:22-05:00</td>
+        <td>
+          <pre class="mono">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- WARNING: No connection managers defined
+- ERROR: No executable tasks found
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">RunMultu.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:22-05:00</td>
+        <td>
+          <pre class="mono">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- OK: 2 connection managers defined
+- OK: 2 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">Scanner.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:22-05:00</td>
+        <td>
+          <pre class="mono">Best Practices Validation Report:
+- OK: 1 variables defined
+- OK: 5 connection managers defined
+- OK: 5 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="package-name mono wrap">WMIDataReader.dtsx</td>
+        <td><span class="status-success">success</span></td>
+        <td class="timestamp mono">2025-12-05T17:25:22-05:00</td>
+        <td>
+          <pre class="mono">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- OK: 2 connection managers defined
+- OK: 3 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+        </td>
+      </tr>
+
+    </tbody>
+      </table>
+      </div>
+      
+      
+      <footer>
+        Generated by SSIS Analyzer MCP | Workflow-based Package Analysis
+      </footer>
+    </div>
+  </div>
+</body>
+</html>

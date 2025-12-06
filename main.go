@@ -1157,6 +1157,10 @@ func main() {
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
 		),
+		mcp.WithBoolean("line_numbers",
+			mcp.DefaultBool(true),
+			mcp.Description("Include enable line numbers in the content (true or false, default: true)"),
+		),
 		mcp.WithString("output_file_path",
 			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
 		),
@@ -1825,15 +1829,63 @@ func parseTopLevelJSONValues(s string) ([]interface{}, error) {
 	return out, nil
 }
 
+func isFileBinary(filePath string) (bool, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	// Read first 512 bytes (or less if file is smaller)
+	buffer := make([]byte, 512)
+	n, err := file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return false, err
+	}
+
+	// Check for null bytes
+	for i := 0; i < n; i++ {
+		if buffer[i] == 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+func convertToLines(content string, isLineNumberNeeded bool) []string {
+	lines := strings.Split(content, "\n")
+	var rawLines []string
+	if len(lines) == 0 {
+		return rawLines
+	}
+	if !isLineNumberNeeded {
+		for _, line := range lines {
+			rawLines = append(rawLines, fmt.Sprintf(" %s", line))
+		}
+	} else {
+		for i, line := range lines {
+			rawLines = append(rawLines, fmt.Sprintf("%4d: %s", i+1, line))
+		}
+	}
+
+	return rawLines
+}
 func handleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
+	isLineNumberNeeded := request.GetBool("line_numbers", true)
 
 	// Resolve the file path against the package directory
 	resolvedPath := resolveFilePath(filePath, packageDirectory)
-
+	isBinary, err := isFileBinary(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to check if file is binary: %v", err)), nil
+	}
+	if isBinary {
+		return mcp.NewToolResultError("File is binary, cannot read as text"), nil
+	}
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
@@ -1856,29 +1908,33 @@ func handleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageD
 	switch ext {
 	case ".bat", ".cmd":
 		result.WriteString("🛠 Batch File Analysis:\n")
-		analyzeBatchFile(content, &result)
+		analyzeBatchFile(content, isLineNumberNeeded, &result)
 	case ".config", ".cfg":
 		result.WriteString("⚙️ Configuration File Analysis:\n")
-		analyzeConfigFile(content, &result)
+		analyzeConfigFile(content, isLineNumberNeeded, &result)
 	case ".sql":
 		result.WriteString("🗄️ SQL File Analysis:\n")
-		analyzeSQLFile(content, &result)
+		analyzeSQLFile(content, isLineNumberNeeded, &result)
 	default:
 		result.WriteString("📘 Text File Content:\n")
-		analyzeGenericTextFile(content, &result)
+		analyzeGenericTextFile(content, isLineNumberNeeded, &result)
 	}
 
 	return mcp.NewToolResultText(result.String()), nil
 }
 
-func analyzeBatchFile(content string, result *strings.Builder) {
+func analyzeBatchFile(content string, isLineNumberNeeded bool, result *strings.Builder) {
 	lines := strings.Split(content, "\n")
+	//var lines []string
+	//lines = convertToLines(content,isLineNumberNeeded)
+
 	var variables []string
 	var commands []string
 	var calls []string
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
+
 		if line == "" || strings.HasPrefix(line, "REM") || strings.HasPrefix(line, "::") {
 			continue
 		}
@@ -1912,17 +1968,23 @@ func analyzeBatchFile(content string, result *strings.Builder) {
 	result.WriteString(fmt.Sprintf("• Executable Commands: %d\n", len(commands)))
 	if len(commands) > 0 {
 		result.WriteString("  Commands:\n")
-		for i, c := range commands {
-			if i >= 10 {
-				result.WriteString(fmt.Sprintf("    ... and %d more\n", len(commands)-10))
-				break
-			}
+		for _, c := range commands {
 			result.WriteString(fmt.Sprintf("    %s\n", c))
 		}
 	}
+
+	result.WriteString(fmt.Sprintf("• Content Lines: %d\n", len(lines)))
+	for i, c := range lines {
+		if isLineNumberNeeded {
+			result.WriteString(fmt.Sprintf("    %d: %s\n", i+1, c))
+			continue
+		}
+		result.WriteString(fmt.Sprintf("    %s\n", c))
+	}
+
 }
 
-func analyzeConfigFile(content string, result *strings.Builder) {
+func analyzeConfigFile(content string, isLineNumberNeeded bool, result *strings.Builder) {
 	lines := strings.Split(content, "\n")
 	var keyValues []string
 	var sections []string
@@ -1958,21 +2020,26 @@ func analyzeConfigFile(content string, result *strings.Builder) {
 			result.WriteString(fmt.Sprintf("    %s\n", s))
 		}
 	}
-
+	result.WriteString(fmt.Sprintf("• Content Lines: %d\n", len(lines)))
+	for i, c := range lines {
+		if isLineNumberNeeded {
+			result.WriteString(fmt.Sprintf("    %d: %s\n", i+1, c))
+			continue
+		}
+		result.WriteString(fmt.Sprintf("    %s\n", c))
+	}
 	result.WriteString(fmt.Sprintf("• Key-Value Pairs: %d\n", len(keyValues)))
 	if len(keyValues) > 0 {
 		result.WriteString("  Settings:\n")
-		for i, kv := range keyValues {
-			if i >= 20 {
-				result.WriteString(fmt.Sprintf("    ... and %d more\n", len(keyValues)-20))
-				break
-			}
+		for _, kv := range keyValues {
 			result.WriteString(fmt.Sprintf("    %s\n", kv))
 		}
 	}
 }
 
-func analyzeSQLFile(content string, result *strings.Builder) {
+func analyzeSQLFile(content string, isLineNumberNeeded bool, result *strings.Builder) {
+
+	lines := strings.Split(content, "\n")
 	upperContent := strings.ToUpper(content)
 
 	// Count different types of SQL statements
@@ -1997,9 +2064,17 @@ func analyzeSQLFile(content string, result *strings.Builder) {
 	if strings.Contains(upperContent, "BULK INSERT") {
 		result.WriteString("• Contains bulk operations\n")
 	}
+	result.WriteString(fmt.Sprintf("• Content Lines: %d\n", len(lines)))
+	for i, c := range lines {
+		if isLineNumberNeeded {
+			result.WriteString(fmt.Sprintf("    %d: %s\n", i+1, c))
+			continue
+		}
+		result.WriteString(fmt.Sprintf("    %s\n", c))
+	}
 }
 
-func analyzeGenericTextFile(content string, result *strings.Builder) {
+func analyzeGenericTextFile(content string, isLineNumberNeeded bool, result *strings.Builder) {
 	lines := strings.Split(content, "\n")
 	nonEmptyLines := 0
 	totalWords := 0
@@ -2017,16 +2092,13 @@ func analyzeGenericTextFile(content string, result *strings.Builder) {
 	result.WriteString(fmt.Sprintf("• Total Words: %d\n", totalWords))
 	result.WriteString(fmt.Sprintf("• Average Words per Line: %.1f\n\n", float64(totalWords)/float64(nonEmptyLines)))
 
-	// Show first 20 lines
-	result.WriteString("📄 Content Preview (first 20 lines):\n")
+	result.WriteString("📄 Content:\n")
 	for i, line := range lines {
-		if i >= 20 {
-			if len(lines) > 20 {
-				result.WriteString(fmt.Sprintf("... (%d more lines)\n", len(lines)-20))
-			}
-			break
+		if isLineNumberNeeded {
+			result.WriteString(fmt.Sprintf("%4d: %s\n", i+1, strings.TrimRight(line, "\r\n")))
+			continue
 		}
-		result.WriteString(fmt.Sprintf("%4d: %s\n", i+1, strings.TrimRight(line, "\r\n")))
+		result.WriteString(fmt.Sprintf("%s\n", strings.TrimRight(line, "\r\n")))
 	}
 }
 
