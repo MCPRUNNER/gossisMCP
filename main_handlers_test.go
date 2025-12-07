@@ -17,6 +17,7 @@ import (
 	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/extraction"
 	packagehandlers "github.com/MCPRUNNER/gossisMCP/pkg/handlers/packages"
 	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/validation"
+	"github.com/MCPRUNNER/gossisMCP/pkg/util/file"
 )
 
 // TestParseDtsxFile tests the core DTSX parsing functionality
@@ -300,7 +301,7 @@ func TestResolveFilePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resolved := resolveFilePath(tt.filePath, tt.packageDir)
+			resolved := file.ResolveFilePath(tt.filePath, tt.packageDir)
 			assert.True(t, strings.HasSuffix(resolved, tt.expectedSuffix), "Expected path to end with %s, got %s", tt.expectedSuffix, resolved)
 			assert.True(t, strings.Contains(resolved, "test.dtsx"), "Expected path to contain test.dtsx")
 		})

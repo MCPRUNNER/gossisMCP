@@ -5,17 +5,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"gopkg.in/yaml.v3"
 
 	"github.com/MCPRUNNER/gossisMCP/pkg/config"
 	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/analysis"
@@ -23,165 +19,23 @@ import (
 	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/optimization"
 	packagehandlers "github.com/MCPRUNNER/gossisMCP/pkg/handlers/packages"
 	templatehandlers "github.com/MCPRUNNER/gossisMCP/pkg/handlers/templates"
+	analysisutil "github.com/MCPRUNNER/gossisMCP/pkg/util/analysis"
+	"github.com/MCPRUNNER/gossisMCP/pkg/util/file"
+	serverutil "github.com/MCPRUNNER/gossisMCP/pkg/util/server"
+	workflowutil "github.com/MCPRUNNER/gossisMCP/pkg/util/workflow"
 	"github.com/MCPRUNNER/gossisMCP/pkg/workflow"
 )
 
-// Config represents the application configuration
-type Config struct {
-	Server   ServerConfig        `json:"server" yaml:"server"`
-	Packages PackageConfig       `json:"packages" yaml:"packages"`
-	Logging  LoggingConfig       `json:"logging" yaml:"logging"`
-	Plugins  config.PluginConfig `json:"plugins" yaml:"plugins"`
-}
-
-// ServerConfig holds server-related configuration
-type ServerConfig struct {
-	HTTPMode bool   `json:"http_mode" yaml:"http_mode"`
-	Port     string `json:"port" yaml:"port"`
-}
-
-// PackageConfig holds package directory configuration
-type PackageConfig struct {
-	Directory   string `json:"directory" yaml:"directory"`
-	ExcludeFile string `json:"exclude_file" yaml:"exclude_file"`
-}
-
-// LoggingConfig holds logging configuration
-type LoggingConfig struct {
-	Level  string `json:"level" yaml:"level"`
-	Format string `json:"format" yaml:"format"`
-}
-
-// DefaultConfig returns a default configuration
-func DefaultConfig() Config {
-	return Config{
-		Server: ServerConfig{
-			HTTPMode: false,
-			Port:     "8086",
-		},
-		Packages: PackageConfig{
-			Directory:   "",
-			ExcludeFile: "",
-		},
-		Logging: LoggingConfig{
-			Level:  "info",
-			Format: "text",
-		},
-		Plugins: DefaultPluginConfig(),
-	}
-}
-
-// LoadConfig loads configuration from file and environment variables
-func LoadConfig(configPath string) (Config, error) {
-	config := DefaultConfig()
-
-	// Load from config file if specified
-	if configPath != "" {
-		if err := loadConfigFile(configPath, &config); err != nil {
-			return config, fmt.Errorf("failed to load config file: %w", err)
-		}
-	}
-
-	// Load environment-specific overrides
-	if err := loadEnvironmentConfig(&config); err != nil {
-		return config, fmt.Errorf("failed to load environment config: %w", err)
-	}
-
-	// Validate configuration
-	if err := validateConfig(config); err != nil {
-		return config, fmt.Errorf("invalid configuration: %w", err)
-	}
-
-	return config, nil
-}
-
 // loadConfigFile loads configuration from JSON or YAML file
-func loadConfigFile(configPath string, config *Config) error {
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return err
-	}
-
-	// Try JSON first
-	if err := json.Unmarshal(data, config); err != nil {
-		// Try YAML
-		if yamlErr := yaml.Unmarshal(data, config); yamlErr != nil {
-			return fmt.Errorf("failed to parse config as JSON or YAML: %v, %v", err, yamlErr)
-		}
-	}
-
-	return nil
-}
-
 // loadEnvironmentConfig loads configuration overrides from environment variables
-func loadEnvironmentConfig(config *Config) error {
-	// Server configuration
-	if port := os.Getenv("GOSSIS_HTTP_PORT"); port != "" {
-		config.Server.Port = port
-	}
-
-	// Package directory
-	if pkgDir := os.Getenv("GOSSIS_PKG_DIRECTORY"); pkgDir != "" {
-		config.Packages.Directory = pkgDir
-	}
-
-	// Logging configuration
-	if logLevel := os.Getenv("GOSSIS_LOG_LEVEL"); logLevel != "" {
-		config.Logging.Level = logLevel
-	}
-	if logFormat := os.Getenv("GOSSIS_LOG_FORMAT"); logFormat != "" {
-		config.Logging.Format = logFormat
-	}
-
-	return nil
-}
-
 // validateConfig validates the configuration
-func validateConfig(config Config) error {
-	// Validate port
-	if config.Server.Port != "" {
-		if port, err := strconv.Atoi(config.Server.Port); err != nil || port < 1 || port > 65535 {
-			return fmt.Errorf("invalid server port: %s", config.Server.Port)
-		}
-	}
-
-	// Validate package directory if specified
-	if config.Packages.Directory != "" {
-		if _, err := os.Stat(config.Packages.Directory); os.IsNotExist(err) {
-			return fmt.Errorf("package directory does not exist: %s", config.Packages.Directory)
-		}
-	}
-
-	// Validate log level
-	validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
-	if !validLevels[strings.ToLower(config.Logging.Level)] {
-		return fmt.Errorf("invalid log level: %s", config.Logging.Level)
-	}
-
-	// Validate log format
-	validFormats := map[string]bool{"text": true, "json": true}
-	if !validFormats[strings.ToLower(config.Logging.Format)] {
-		return fmt.Errorf("invalid log format: %s", config.Logging.Format)
-	}
-
-	return nil
-}
-
 // configureLogging configures the logging based on the configuration
-func configureLogging(config LoggingConfig) {
+func configureLogging(config config.LoggingConfig) {
 	// Set log level (simplified - in a real implementation you'd use a proper logging library)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	if strings.ToLower(config.Level) == "debug" {
 		log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
 	}
-}
-
-// resolveFilePath resolves a file path against the package directory if it's relative
-func resolveFilePath(filePath, packageDirectory string) string {
-	if packageDirectory == "" || filepath.IsAbs(filePath) {
-		return filePath
-	}
-	return filepath.Join(packageDirectory, filePath)
 }
 
 func main() {
@@ -193,7 +47,7 @@ func main() {
 	flag.Parse()
 
 	// Load configuration
-	config, err := LoadConfig(*configPath)
+	config, err := config.LoadConfig(*configPath)
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
@@ -1354,7 +1208,7 @@ func main() {
 
 	if config.Server.HTTPMode {
 		// Run in HTTP streaming mode
-		runHTTPServer(s, config.Server.Port)
+		serverutil.RunHTTPServer(s, config.Server.Port)
 	} else {
 		// Run in stdio mode (default)
 		if err := server.ServeStdio(s); err != nil {
@@ -1383,25 +1237,12 @@ func registerWorkflowRunnerTool(s *server.MCPServer, packageDirectory, excludeFi
 	})
 }
 
-type workflowStepSummary struct {
-	Name    string                         `json:"name"`
-	Type    string                         `json:"type"`
-	Enabled bool                           `json:"enabled"`
-	Outputs map[string]workflow.StepResult `json:"outputs,omitempty"`
-}
-
-type workflowExecutionSummary struct {
-	WorkflowPath string                `json:"workflow_path"`
-	Steps        []workflowStepSummary `json:"steps"`
-	FilesWritten []string              `json:"files_written,omitempty"`
-}
-
 func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, packageDirectory, excludeFile string) (*mcp.CallToolResult, error) {
 	args, _ := request.Params.Arguments.(map[string]interface{})
 
-	workflowPath := extractStringArg(args, "file_path")
+	workflowPath := workflowutil.ExtractStringArg(args, "file_path")
 	if workflowPath == "" {
-		workflowPath = extractStringArg(args, "workflow_file")
+		workflowPath = workflowutil.ExtractStringArg(args, "workflow_file")
 	}
 	if workflowPath == "" {
 		return mcp.NewToolResultError("workflow_runner requires a file_path parameter"), nil
@@ -1427,23 +1268,23 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 	var writtenOutputs []string
 
 	runner := func(stepCtx context.Context, tool string, params map[string]interface{}) (string, error) {
-		normalized := cloneArguments(params)
+		normalized := workflowutil.CloneArguments(params)
 
-		normalizeWorkflowPathArg(normalized, workflowPath, "directory")
-		normalizeWorkflowPathArg(normalized, workflowPath, "file_path")
-		normalizeWorkflowPathArg(normalized, workflowPath, "outputFilePath")
-		normalizeWorkflowPathArg(normalized, workflowPath, "templateFilePath")
-		normalizeWorkflowPathArg(normalized, workflowPath, "output_file_path")
-		normalizeWorkflowPathArg(normalized, workflowPath, "template_file_path")
-		normalizeWorkflowPathArg(normalized, workflowPath, "json_file_path")
-		normalizeWorkflowPathArg(normalized, workflowPath, "jsonFilePath")
-		normalizeWorkflowPathArrayArg(normalized, workflowPath, "file_paths")
+		workflowutil.NormalizeWorkflowPathArg(normalized, workflowPath, "directory")
+		workflowutil.NormalizeWorkflowPathArg(normalized, workflowPath, "file_path")
+		workflowutil.NormalizeWorkflowPathArg(normalized, workflowPath, "outputFilePath")
+		workflowutil.NormalizeWorkflowPathArg(normalized, workflowPath, "templateFilePath")
+		workflowutil.NormalizeWorkflowPathArg(normalized, workflowPath, "output_file_path")
+		workflowutil.NormalizeWorkflowPathArg(normalized, workflowPath, "template_file_path")
+		workflowutil.NormalizeWorkflowPathArg(normalized, workflowPath, "json_file_path")
+		workflowutil.NormalizeWorkflowPathArg(normalized, workflowPath, "jsonFilePath")
+		workflowutil.NormalizeWorkflowPathArrayArg(normalized, workflowPath, "file_paths")
 
 		if tool == "list_packages" {
-			if format := stringFromAny(normalized["format"]); format == "" {
+			if format := workflowutil.StringFromAny(normalized["format"]); format == "" {
 				normalized["format"] = "json"
 			}
-			if dir := stringFromAny(normalized["directory"]); dir == "" && packageDirectory != "" {
+			if dir := workflowutil.StringFromAny(normalized["directory"]); dir == "" && packageDirectory != "" {
 				normalized["directory"] = packageDirectory
 			}
 		}
@@ -1454,11 +1295,11 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 				if !ok {
 					return "", fmt.Errorf("batch_analyze: jsonData must be a string value")
 				}
-				files, err := extractFilePathsFromJSON(jsonText)
+				files, err := workflowutil.ExtractFilePathsFromJSON(jsonText)
 				if err != nil {
 					return "", err
 				}
-				normalized["file_paths"] = toInterfaceSlice(files)
+				normalized["file_paths"] = workflowutil.ToInterfaceSlice(files)
 				delete(normalized, "jsonData")
 			}
 		}
@@ -1836,15 +1677,15 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 
 		renderedPath := ""
 		if tool == "render_template" {
-			renderedPath = stringFromAny(normalized["outputFilePath"])
+			renderedPath = workflowutil.StringFromAny(normalized["outputFilePath"])
 			if renderedPath == "" {
-				renderedPath = stringFromAny(normalized["output_file_path"])
+				renderedPath = workflowutil.StringFromAny(normalized["output_file_path"])
 			}
 		}
 
-		outputPath := stringFromAny(normalized["outputFilePath"])
+		outputPath := workflowutil.StringFromAny(normalized["outputFilePath"])
 		if outputPath == "" {
-			outputPath = stringFromAny(normalized["output_file_path"])
+			outputPath = workflowutil.StringFromAny(normalized["output_file_path"])
 		}
 		if tool == "render_template" {
 			outputPath = ""
@@ -1869,7 +1710,7 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 				if fi, statErr := os.Stat(outputPath); statErr == nil && fi.Size() > 0 {
 					// file exists and is non-empty; skip overwriting
 				} else {
-					if err := writeWorkflowOutput(outputPath, text); err != nil {
+					if err := workflowutil.WriteWorkflowOutput(outputPath, text); err != nil {
 						return "", err
 					}
 				}
@@ -1904,9 +1745,9 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 		writtenOutputs = append(writtenOutputs, combined...)
 	}
 
-	summary := createWorkflowExecutionSummary(workflowPath, wf, results, writtenOutputs)
+	summary := workflowutil.CreateWorkflowExecutionSummary(workflowPath, wf, results, writtenOutputs)
 
-	format := strings.ToLower(extractStringArg(args, "format"))
+	format := strings.ToLower(workflowutil.ExtractStringArg(args, "format"))
 	switch format {
 	case "json":
 		data, marshalErr := json.MarshalIndent(summary, "", "  ")
@@ -1915,341 +1756,11 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 		}
 		return mcp.NewToolResultText(string(data)), nil
 	default:
-		markdown := formatWorkflowSummaryMarkdown(summary)
+		markdown := workflowutil.FormatWorkflowSummaryMarkdown(summary)
 		return mcp.NewToolResultText(markdown), nil
 	}
 }
 
-func cloneArguments(params map[string]interface{}) map[string]interface{} {
-	if params == nil {
-		return map[string]interface{}{}
-	}
-	cloned := make(map[string]interface{}, len(params))
-	for key, value := range params {
-		cloned[key] = value
-	}
-	return cloned
-}
-
-func normalizeWorkflowPathArg(args map[string]interface{}, workflowPath, key string) {
-	raw, exists := args[key]
-	if !exists {
-		return
-	}
-	value, ok := raw.(string)
-	if !ok {
-		return
-	}
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return
-	}
-	args[key] = workflow.ResolveRelativePath(workflowPath, trimmed)
-}
-
-func normalizeWorkflowPathArrayArg(args map[string]interface{}, workflowPath, key string) {
-	raw, exists := args[key]
-	if !exists {
-		return
-	}
-
-	// Handle array of strings
-	if arr, ok := raw.([]interface{}); ok {
-		normalized := make([]interface{}, len(arr))
-		for i, item := range arr {
-			if str, ok := item.(string); ok {
-				trimmed := strings.TrimSpace(str)
-				if trimmed != "" {
-					normalized[i] = workflow.ResolveRelativePath(workflowPath, trimmed)
-				} else {
-					normalized[i] = str
-				}
-			} else {
-				normalized[i] = item
-			}
-		}
-		args[key] = normalized
-	}
-}
-
-func stringFromAny(value interface{}) string {
-	if value == nil {
-		return ""
-	}
-	if s, ok := value.(string); ok {
-		return strings.TrimSpace(s)
-	}
-	return ""
-}
-
-func extractStringArg(args map[string]interface{}, key string) string {
-	if args == nil {
-		return ""
-	}
-	return stringFromAny(args[key])
-}
-
-func extractFilePathsFromJSON(jsonText string) ([]string, error) {
-	var payload struct {
-		Directory        string   `json:"directory"`
-		Packages         []string `json:"packages"`
-		PackagesAbsolute []string `json:"packages_absolute"`
-	}
-
-	if err := json.Unmarshal([]byte(jsonText), &payload); err != nil {
-		return nil, fmt.Errorf("failed to parse jsonData payload: %w", err)
-	}
-
-	var files []string
-	if len(payload.PackagesAbsolute) > 0 {
-		for _, path := range payload.PackagesAbsolute {
-			if path == "" {
-				continue
-			}
-			files = append(files, filepath.Clean(path))
-		}
-	} else {
-		base := payload.Directory
-		for _, pkg := range payload.Packages {
-			if pkg == "" {
-				continue
-			}
-			if filepath.IsAbs(pkg) || base == "" {
-				files = append(files, filepath.Clean(pkg))
-			} else {
-				files = append(files, filepath.Clean(filepath.Join(base, pkg)))
-			}
-		}
-	}
-
-	if len(files) == 0 {
-		return nil, fmt.Errorf("jsonData did not contain any package paths")
-	}
-
-	return files, nil
-}
-
-func toInterfaceSlice(values []string) []interface{} {
-	out := make([]interface{}, 0, len(values))
-	for _, value := range values {
-		out = append(out, value)
-	}
-	return out
-}
-
-func writeWorkflowOutput(outputPath, content string) error {
-	if outputPath == "" {
-		return nil
-	}
-	dir := filepath.Dir(outputPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("failed to create workflow output directory %s: %w", dir, err)
-	}
-	// Overwrite the output file so each workflow run produces consistent,
-	// self-contained JSON files rather than appending mixed content.
-	if err := os.WriteFile(outputPath, []byte(content+"\n"), 0o644); err != nil {
-		return fmt.Errorf("failed to write workflow output %s: %w", outputPath, err)
-	}
-	return nil
-}
-
-func createWorkflowExecutionSummary(workflowPath string, wf *workflow.Workflow, results map[string]map[string]workflow.StepResult, files []string) workflowExecutionSummary {
-	summaries := make([]workflowStepSummary, 0, len(wf.Steps))
-	for _, step := range wf.Steps {
-		summary := workflowStepSummary{
-			Name:    step.Name,
-			Type:    step.Type,
-			Enabled: step.Enabled,
-		}
-		if step.Enabled {
-			if outputs, ok := results[step.Name]; ok && len(outputs) > 0 {
-				summary.Outputs = outputs
-			}
-		}
-		summaries = append(summaries, summary)
-	}
-
-	return workflowExecutionSummary{
-		WorkflowPath: workflowPath,
-		Steps:        summaries,
-		FilesWritten: files,
-	}
-}
-
-func formatWorkflowSummaryMarkdown(summary workflowExecutionSummary) string {
-	var builder strings.Builder
-
-	builder.WriteString(fmt.Sprintf("# Workflow Execution: %s\n\n", filepath.Base(summary.WorkflowPath)))
-	builder.WriteString(fmt.Sprintf("- **Workflow Path**: %s\n", summary.WorkflowPath))
-	builder.WriteString(fmt.Sprintf("- **Total Steps**: %d\n", len(summary.Steps)))
-
-	executed := 0
-	for _, step := range summary.Steps {
-		if step.Enabled {
-			executed++
-		}
-	}
-	builder.WriteString(fmt.Sprintf("- **Steps Executed**: %d\n\n", executed))
-
-	if len(summary.FilesWritten) > 0 {
-		builder.WriteString("## Files Written\n\n")
-		for _, file := range summary.FilesWritten {
-			builder.WriteString(fmt.Sprintf("- %s\n", file))
-		}
-		builder.WriteString("\n")
-	}
-
-	builder.WriteString("## Step Outputs\n\n")
-	for _, step := range summary.Steps {
-		builder.WriteString(fmt.Sprintf("### %s (%s)\n\n", step.Name, strings.TrimPrefix(step.Type, "#")))
-		if !step.Enabled {
-			builder.WriteString("_Step disabled_\n\n")
-			continue
-		}
-		if len(step.Outputs) == 0 {
-			builder.WriteString("_No outputs captured._\n\n")
-			continue
-		}
-
-		keys := make([]string, 0, len(step.Outputs))
-		for key := range step.Outputs {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-
-		for _, key := range keys {
-			output := step.Outputs[key]
-			builder.WriteString(fmt.Sprintf("- **%s**", key))
-			if output.Format != "" {
-				builder.WriteString(fmt.Sprintf(" (%s)", output.Format))
-			}
-			builder.WriteString("\n\n```")
-			builder.WriteString("\n")
-			builder.WriteString(output.Value)
-			builder.WriteString("\n```")
-			builder.WriteString("\n\n")
-		}
-	}
-
-	return builder.String()
-}
-
-// extractJSONObjects scans input for top-level JSON objects and returns them
-// as raw JSON strings. It attempts to be resilient to braces inside strings
-// by tracking string quoting and escape characters.
-func extractJSONObjects(s string) []string {
-	var out []string
-	i := 0
-	length := len(s)
-	for i < length {
-		// Find next '{'
-		start := strings.IndexByte(s[i:], '{')
-		if start == -1 {
-			break
-		}
-		start += i
-		depth := 0
-		inString := false
-		escaped := false
-		found := false
-		for j := start; j < length; j++ {
-			c := s[j]
-			if escaped {
-				escaped = false
-				continue
-			}
-			if c == '\\' {
-				escaped = true
-				continue
-			}
-			if c == '"' {
-				inString = !inString
-				continue
-			}
-			if inString {
-				continue
-			}
-			if c == '{' {
-				depth++
-			} else if c == '}' {
-				depth--
-				if depth == 0 {
-					obj := strings.TrimSpace(s[start : j+1])
-					out = append(out, obj)
-					i = j + 1
-					found = true
-					break
-				}
-			}
-		}
-		if !found {
-			break
-		}
-	}
-	return out
-}
-
-// parseTopLevelJSONValues decodes one or more top-level JSON values from the
-// provided string. It returns a slice with each decoded value. This handles
-// concatenated JSON objects, arrays, and primitive values robustly.
-func parseTopLevelJSONValues(s string) ([]interface{}, error) {
-	dec := json.NewDecoder(strings.NewReader(s))
-	dec.UseNumber()
-	var out []interface{}
-	for {
-		var v interface{}
-		if err := dec.Decode(&v); err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, err
-		}
-		out = append(out, v)
-	}
-	return out, nil
-}
-
-func isFileBinary(filePath string) (bool, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return false, err
-	}
-	defer file.Close()
-
-	// Read first 512 bytes (or less if file is smaller)
-	buffer := make([]byte, 512)
-	n, err := file.Read(buffer)
-	if err != nil && err != io.EOF {
-		return false, err
-	}
-
-	// Check for null bytes
-	for i := 0; i < n; i++ {
-		if buffer[i] == 0 {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-func convertToLines(content string, isLineNumberNeeded bool) []string {
-	lines := strings.Split(content, "\n")
-	var rawLines []string
-	if len(lines) == 0 {
-		return rawLines
-	}
-	if !isLineNumberNeeded {
-		for _, line := range lines {
-			rawLines = append(rawLines, fmt.Sprintf(" %s", line))
-		}
-	} else {
-		for i, line := range lines {
-			rawLines = append(rawLines, fmt.Sprintf("%4d: %s", i+1, line))
-		}
-	}
-
-	return rawLines
-}
 func handleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
 	if err != nil {
@@ -2258,8 +1769,8 @@ func handleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageD
 	isLineNumberNeeded := request.GetBool("line_numbers", true)
 
 	// Resolve the file path against the package directory
-	resolvedPath := resolveFilePath(filePath, packageDirectory)
-	isBinary, err := isFileBinary(resolvedPath)
+	resolvedPath := file.ResolveFilePath(filePath, packageDirectory)
+	isBinary, err := file.IsFileBinary(resolvedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to check if file is binary: %v", err)), nil
 	}
@@ -2288,211 +1799,17 @@ func handleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageD
 	switch ext {
 	case ".bat", ".cmd":
 		result.WriteString("🛠 Batch File Analysis:\n")
-		analyzeBatchFile(content, isLineNumberNeeded, &result)
+		analysisutil.AnalyzeBatchFile(content, isLineNumberNeeded, &result)
 	case ".config", ".cfg":
 		result.WriteString("⚙️ Configuration File Analysis:\n")
-		analyzeConfigFile(content, isLineNumberNeeded, &result)
+		analysisutil.AnalyzeConfigFile(content, isLineNumberNeeded, &result)
 	case ".sql":
 		result.WriteString("🗄️ SQL File Analysis:\n")
-		analyzeSQLFile(content, isLineNumberNeeded, &result)
+		analysisutil.AnalyzeSQLFile(content, isLineNumberNeeded, &result)
 	default:
 		result.WriteString("📘 Text File Content:\n")
-		analyzeGenericTextFile(content, isLineNumberNeeded, &result)
+		analysisutil.AnalyzeGenericTextFile(content, isLineNumberNeeded, &result)
 	}
 
 	return mcp.NewToolResultText(result.String()), nil
-}
-
-func analyzeBatchFile(content string, isLineNumberNeeded bool, result *strings.Builder) {
-	lines := strings.Split(content, "\n")
-	//var lines []string
-	//lines = convertToLines(content,isLineNumberNeeded)
-
-	var variables []string
-	var commands []string
-	var calls []string
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		if line == "" || strings.HasPrefix(line, "REM") || strings.HasPrefix(line, "::") {
-			continue
-		}
-
-		upperLine := strings.ToUpper(line)
-		if strings.HasPrefix(upperLine, "SET ") {
-			variables = append(variables, line)
-		} else if strings.HasPrefix(upperLine, "CALL ") {
-			calls = append(calls, line)
-		} else if !strings.HasPrefix(upperLine, "ECHO ") && !strings.HasPrefix(upperLine, "@") {
-			commands = append(commands, line)
-		}
-	}
-
-	result.WriteString(fmt.Sprintf("• Variables Set: %d\n", len(variables)))
-	if len(variables) > 0 {
-		result.WriteString("  Variables:\n")
-		for _, v := range variables {
-			result.WriteString(fmt.Sprintf("    %s\n", v))
-		}
-	}
-
-	result.WriteString(fmt.Sprintf("• Function Calls: %d\n", len(calls)))
-	if len(calls) > 0 {
-		result.WriteString("  Calls:\n")
-		for _, c := range calls {
-			result.WriteString(fmt.Sprintf("    %s\n", c))
-		}
-	}
-
-	result.WriteString(fmt.Sprintf("• Executable Commands: %d\n", len(commands)))
-	if len(commands) > 0 {
-		result.WriteString("  Commands:\n")
-		for _, c := range commands {
-			result.WriteString(fmt.Sprintf("    %s\n", c))
-		}
-	}
-
-	result.WriteString(fmt.Sprintf("• Content Lines: %d\n", len(lines)))
-	for i, c := range lines {
-		if isLineNumberNeeded {
-			result.WriteString(fmt.Sprintf("    %d: %s\n", i+1, c))
-			continue
-		}
-		result.WriteString(fmt.Sprintf("    %s\n", c))
-	}
-
-}
-
-func analyzeConfigFile(content string, isLineNumberNeeded bool, result *strings.Builder) {
-	lines := strings.Split(content, "\n")
-	var keyValues []string
-	var sections []string
-
-	currentSection := ""
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
-			continue
-		}
-
-		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			currentSection = line
-			sections = append(sections, line)
-		} else if strings.Contains(line, "=") {
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) == 2 {
-				key := strings.TrimSpace(parts[0])
-				value := strings.TrimSpace(parts[1])
-				if currentSection != "" {
-					keyValues = append(keyValues, fmt.Sprintf("[%s] %s = %s", currentSection, key, value))
-				} else {
-					keyValues = append(keyValues, fmt.Sprintf("%s = %s", key, value))
-				}
-			}
-		}
-	}
-
-	result.WriteString(fmt.Sprintf("• Configuration Sections: %d\n", len(sections)))
-	if len(sections) > 0 {
-		result.WriteString("  Sections:\n")
-		for _, s := range sections {
-			result.WriteString(fmt.Sprintf("    %s\n", s))
-		}
-	}
-	result.WriteString(fmt.Sprintf("• Content Lines: %d\n", len(lines)))
-	for i, c := range lines {
-		if isLineNumberNeeded {
-			result.WriteString(fmt.Sprintf("    %d: %s\n", i+1, c))
-			continue
-		}
-		result.WriteString(fmt.Sprintf("    %s\n", c))
-	}
-	result.WriteString(fmt.Sprintf("• Key-Value Pairs: %d\n", len(keyValues)))
-	if len(keyValues) > 0 {
-		result.WriteString("  Settings:\n")
-		for _, kv := range keyValues {
-			result.WriteString(fmt.Sprintf("    %s\n", kv))
-		}
-	}
-}
-
-func analyzeSQLFile(content string, isLineNumberNeeded bool, result *strings.Builder) {
-
-	lines := strings.Split(content, "\n")
-	upperContent := strings.ToUpper(content)
-
-	// Count different types of SQL statements
-	selectCount := strings.Count(upperContent, "SELECT ")
-	insertCount := strings.Count(upperContent, "INSERT ")
-	updateCount := strings.Count(upperContent, "UPDATE ")
-	deleteCount := strings.Count(upperContent, "DELETE ")
-	createCount := strings.Count(upperContent, "CREATE ")
-
-	result.WriteString("• SQL Statement Counts:\n")
-	result.WriteString(fmt.Sprintf("  - SELECT statements: %d\n", selectCount))
-	result.WriteString(fmt.Sprintf("  - INSERT statements: %d\n", insertCount))
-	result.WriteString(fmt.Sprintf("  - UPDATE statements: %d\n", updateCount))
-	result.WriteString(fmt.Sprintf("  - DELETE statements: %d\n", deleteCount))
-	result.WriteString(fmt.Sprintf("  - CREATE statements: %d\n", createCount))
-
-	// Check for potential SSIS-related patterns
-	if strings.Contains(upperContent, "EXECUTE") || strings.Contains(upperContent, "SP_") {
-		result.WriteString("• Contains stored procedure calls\n")
-	}
-
-	if strings.Contains(upperContent, "BULK INSERT") {
-		result.WriteString("• Contains bulk operations\n")
-	}
-	result.WriteString(fmt.Sprintf("• Content Lines: %d\n", len(lines)))
-	for i, c := range lines {
-		if isLineNumberNeeded {
-			result.WriteString(fmt.Sprintf("    %d: %s\n", i+1, c))
-			continue
-		}
-		result.WriteString(fmt.Sprintf("    %s\n", c))
-	}
-}
-
-func analyzeGenericTextFile(content string, isLineNumberNeeded bool, result *strings.Builder) {
-	lines := strings.Split(content, "\n")
-	nonEmptyLines := 0
-	totalWords := 0
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			nonEmptyLines++
-			words := strings.Fields(line)
-			totalWords += len(words)
-		}
-	}
-
-	result.WriteString(fmt.Sprintf("• Non-empty Lines: %d\n", nonEmptyLines))
-	result.WriteString(fmt.Sprintf("• Total Words: %d\n", totalWords))
-	result.WriteString(fmt.Sprintf("• Average Words per Line: %.1f\n\n", float64(totalWords)/float64(nonEmptyLines)))
-
-	result.WriteString("📄 Content:\n")
-	for i, line := range lines {
-		if isLineNumberNeeded {
-			result.WriteString(fmt.Sprintf("%4d: %s\n", i+1, strings.TrimRight(line, "\r\n")))
-			continue
-		}
-		result.WriteString(fmt.Sprintf("%s\n", strings.TrimRight(line, "\r\n")))
-	}
-}
-
-// runHTTPServer starts an HTTP server with streaming capabilities
-func runHTTPServer(s *server.MCPServer, port string) {
-	// Use the official MCP StreamableHTTPServer for proper MCP HTTP transport
-	streamableServer := server.NewStreamableHTTPServer(s)
-
-	log.Printf("Starting MCP HTTP server on port %s", port)
-	log.Printf("MCP endpoints available at: http://localhost:%s/mcp", port)
-	log.Printf("Health check available at: http://localhost:%s/health", port)
-
-	// Start the server
-	if err := streamableServer.Start(":" + port); err != nil {
-		log.Fatalf("HTTP server error: %v", err)
-	}
 }
