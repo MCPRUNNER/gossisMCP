@@ -19,8 +19,6 @@ import (
 	"github.com/MCPRUNNER/gossisMCP/pkg/handlers/optimization"
 	packagehandlers "github.com/MCPRUNNER/gossisMCP/pkg/handlers/packages"
 	templatehandlers "github.com/MCPRUNNER/gossisMCP/pkg/handlers/templates"
-	analysisutil "github.com/MCPRUNNER/gossisMCP/pkg/util/analysis"
-	"github.com/MCPRUNNER/gossisMCP/pkg/util/file"
 	serverutil "github.com/MCPRUNNER/gossisMCP/pkg/util/server"
 	workflowutil "github.com/MCPRUNNER/gossisMCP/pkg/util/workflow"
 	"github.com/MCPRUNNER/gossisMCP/pkg/workflow"
@@ -1020,7 +1018,7 @@ func main() {
 		),
 	)
 	s.AddTool(readTextFileTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadTextFile(ctx, request, packageDirectory)
+		return extraction.HandleReadTextFile(ctx, request, packageDirectory)
 	})
 
 	// Tool for XPath queries on XML data
@@ -1319,7 +1317,7 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 			}
 			result = res
 		case "read_text_file":
-			res, err := handleReadTextFile(stepCtx, req, packageDirectory)
+			res, err := extraction.HandleReadTextFile(stepCtx, req, packageDirectory)
 			if err != nil {
 				return "", err
 			}
@@ -1759,57 +1757,4 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 		markdown := workflowutil.FormatWorkflowSummaryMarkdown(summary)
 		return mcp.NewToolResultText(markdown), nil
 	}
-}
-
-func handleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
-	filePath, err := request.RequireString("file_path")
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	isLineNumberNeeded := request.GetBool("line_numbers", true)
-
-	// Resolve the file path against the package directory
-	resolvedPath := file.ResolveFilePath(filePath, packageDirectory)
-	isBinary, err := file.IsFileBinary(resolvedPath)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to check if file is binary: %v", err)), nil
-	}
-	if isBinary {
-		return mcp.NewToolResultError("File is binary, cannot read as text"), nil
-	}
-	data, err := os.ReadFile(resolvedPath)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
-	}
-
-	var result strings.Builder
-	result.WriteString("📄 Text File Analysis\n\n")
-	result.WriteString(fmt.Sprintf("File: %s\n", filepath.Base(resolvedPath)))
-	result.WriteString(fmt.Sprintf("Path: %s\n\n", resolvedPath))
-
-	content := string(data)
-	lines := strings.Split(content, "\n")
-	result.WriteString("📊 File Statistics:\n")
-	result.WriteString(fmt.Sprintf("• Total Lines: %d\n", len(lines)))
-	result.WriteString(fmt.Sprintf("• Total Characters: %d\n", len(content)))
-	result.WriteString(fmt.Sprintf("• File Size: %d bytes\n\n", len(data)))
-
-	// Detect file type and parse accordingly
-	ext := strings.ToLower(filepath.Ext(resolvedPath))
-	switch ext {
-	case ".bat", ".cmd":
-		result.WriteString("🛠 Batch File Analysis:\n")
-		analysisutil.AnalyzeBatchFile(content, isLineNumberNeeded, &result)
-	case ".config", ".cfg":
-		result.WriteString("⚙️ Configuration File Analysis:\n")
-		analysisutil.AnalyzeConfigFile(content, isLineNumberNeeded, &result)
-	case ".sql":
-		result.WriteString("🗄️ SQL File Analysis:\n")
-		analysisutil.AnalyzeSQLFile(content, isLineNumberNeeded, &result)
-	default:
-		result.WriteString("📘 Text File Content:\n")
-		analysisutil.AnalyzeGenericTextFile(content, isLineNumberNeeded, &result)
-	}
-
-	return mcp.NewToolResultText(result.String()), nil
 }
