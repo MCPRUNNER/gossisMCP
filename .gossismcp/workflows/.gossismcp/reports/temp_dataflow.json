@@ -1,0 +1,8 @@
+{
+  "tool_name": "Data Flow Analysis",
+  "file_path": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\.gossismcp\\workflows\\Documents\\SSIS_EXAMPLES\\Expressions.dtsx",
+  "package": "Expressions.dtsx",
+  "timestamp": "2025-12-07T09:34:26-05:00",
+  "status": "error",
+  "error": "open c:\\Users\\U00001\\source\\repos\\gossisMCP\\.gossismcp\\workflows\\Documents\\SSIS_EXAMPLES\\Expressions.dtsx: The system cannot find the path specified."
+}

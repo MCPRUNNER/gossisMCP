@@ -1,0 +1,2030 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Merged SSIS Analysis Report</title>
+  <link rel="stylesheet" href="gossismcp.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Merged SSIS Analysis Report</h1>
+      <p class="subtitle">Generated N/A</p>
+    </header>
+
+    <div class="content">
+      
+        
+        <nav class="toc" style="background: var(--surface-color); padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 2rem; box-shadow: var(--shadow-sm);">
+          <h3 style="margin-top: 0; margin-bottom: 0.5rem;">Contents</h3>
+          <ul style="margin: 0; padding-left: 1.5rem;">
+            
+              <li style="margin: 0.25rem 0;"><a href="#best_practices_validation" style="color: var(--primary-color); text-decoration: none;">best_practices_validation</a> (13 items)</li>
+            
+              <li style="margin: 0.25rem 0;"><a href="#dataflow_analysis" style="color: var(--primary-color); text-decoration: none;">dataflow_analysis</a> (13 items)</li>
+            
+              <li style="margin: 0.25rem 0;"><a href="#dataflow_analysis_detailed" style="color: var(--primary-color); text-decoration: none;">dataflow_analysis_detailed</a> (13 items)</li>
+            
+              <li style="margin: 0.25rem 0;"><a href="#logging_analysis" style="color: var(--primary-color); text-decoration: none;">logging_analysis</a> (13 items)</li>
+            
+          </ul>
+        </nav>
+
+        
+        
+          <section id="best_practices_validation" style="margin-bottom: 2.5rem;">
+            <h2 style="color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem;">best_practices_validation</h2>
+            
+            
+              <div class="stats" style="margin-bottom: 1rem;">
+                <div class="stat-card">
+                  <div class="stat-label">Packages Analyzed</div>
+                  <div class="stat-value">13</div>
+                </div>
+              </div>
+              
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width: 20%;">Package</th>
+                      <th style="width: 8%;">Status</th>
+                      <th style="width: 12%;">Tool</th>
+                      <th style="width: 50%;">Results</th>
+                      <th style="width: 10%;">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">ConfigFile.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">validate_best_practices</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Best Practices Validation Report:
+- OK: 1 variables defined
+- OK: 2 connection managers defined
+- OK: 1 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">ConfigTables.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">validate_best_practices</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Best Practices Validation Report:
+- OK: 1 variables defined
+- OK: 3 connection managers defined
+- OK: 1 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">DupeAlertFail.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">validate_best_practices</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Best Practices Validation Report:
+- OK: 4 variables defined
+- OK: 1 connection managers defined
+- OK: 3 tasks defined
+- OK: Logging configuration detected
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">EXECProcess.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">validate_best_practices</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- WARNING: No connection managers defined
+- OK: 1 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">ExportColumn.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">validate_best_practices</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- OK: 1 connection managers defined
+- OK: 1 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Expressions.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">validate_best_practices</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Best Practices Validation Report:
+- OK: 5 variables defined
+- OK: 2 connection managers defined
+- OK: 1 tasks defined
+- OK: Logging configuration detected
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Loader.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">validate_best_practices</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- OK: 2 connection managers defined
+- OK: 2 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">MSMQRec.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">validate_best_practices</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Best Practices Validation Report:
+- OK: 1 variables defined
+- OK: 1 connection managers defined
+- OK: 2 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">MSMQSender.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">validate_best_practices</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- OK: 1 connection managers defined
+- OK: 1 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Package2.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">validate_best_practices</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- WARNING: No connection managers defined
+- ERROR: No executable tasks found
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">RunMultu.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">validate_best_practices</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- OK: 2 connection managers defined
+- OK: 2 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Scanner.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">validate_best_practices</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Best Practices Validation Report:
+- OK: 1 variables defined
+- OK: 5 connection managers defined
+- OK: 5 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">WMIDataReader.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">validate_best_practices</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Best Practices Validation Report:
+- WARNING: No user-defined variables found
+- OK: 2 connection managers defined
+- OK: 3 tasks defined
+- WARNING: No logging configuration found
+- Note: This is a basic validation. Review SSIS best-practices for deeper guidance.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                  </tbody>
+                </table>
+              </div>
+            
+            
+            <a href="#" style="display: inline-block; margin-top: 0.5rem; font-size: 0.85rem; color: var(--primary-color); text-decoration: none;">↑ Back to top</a>
+          </section>
+        
+          <section id="dataflow_analysis" style="margin-bottom: 2.5rem;">
+            <h2 style="color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem;">dataflow_analysis</h2>
+            
+            
+              <div class="stats" style="margin-bottom: 1rem;">
+                <div class="stat-card">
+                  <div class="stat-label">Packages Analyzed</div>
+                  <div class="stat-value">13</div>
+                </div>
+              </div>
+              
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width: 20%;">Package</th>
+                      <th style="width: 8%;">Status</th>
+                      <th style="width: 12%;">Tool</th>
+                      <th style="width: 50%;">Results</th>
+                      <th style="width: 10%;">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">ConfigFile.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Flat File Destination (Destination)
+    Description: Flat File Destination
+
+  - OLE DB Source (Source)
+    Description: OLE DB Source
+    SqlCommand: select * from production.product where color=?
+
+Data Paths:
+  - :  → 
+  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Flat File Destination.Inputs[Flat File Destination Input]
+
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">ConfigTables.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Flat File Destination (Destination)
+    Description: Flat File Destination
+
+  - OLE DB Source (Source)
+    Description: OLE DB Source
+    SqlCommand: select * from production.product where color=?
+
+Data Paths:
+  - :  → 
+  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Flat File Destination.Inputs[Flat File Destination Input]
+
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">DupeAlertFail.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Audit (Unknown)
+    Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.
+
+  - GET-DUPES (Source)
+    Description: OLE DB Source
+
+  - SAVE DUPES TO demo-dest_dupes (Destination)
+    Description: OLE DB Destination
+
+  -  (Unknown)
+
+  - Audit (Unknown)
+    Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.
+
+  - dest-no-dupes-allowed (Destination)
+    Description: OLE DB Destination
+
+  - source-dupes-allowed (Source)
+    Description: OLE DB Source
+
+Data Paths:
+  - :  → 
+  - Audit Output 1: Audit.Outputs[Audit Output 1] → SAVE DUPES TO demo-dest_dupes.Inputs[OLE DB Destination Input]
+  - OLE DB Source Output: GET-DUPES.Outputs[OLE DB Source Output] → Audit.Inputs[Audit Input 1]
+  - :  → 
+  - Audit Output 1: Audit.Outputs[Audit Output 1] → dest-no-dupes-allowed.Inputs[OLE DB Destination Input]
+  - OLE DB Source Output: source-dupes-allowed.Outputs[OLE DB Source Output] → Audit.Inputs[Audit Input 1]
+
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">EXECProcess.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">Data Flow Analysis</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">ExportColumn.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Data Conversion (Unknown)
+    Description: Data Conversion
+
+  - Export Column (Unknown)
+    Description: Reads data from a data flow and insert it into a file. For example, create image files based on a database column that contains photographs.
+
+  - OLE DB Source (Source)
+    Description: OLE DB Source
+
+Data Paths:
+  - :  → 
+  - Data Conversion Output: Data Conversion.Outputs[Data Conversion Output] → Export Column.Inputs[Export Column Input]
+  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Data Conversion.Inputs[Data Conversion Input]
+
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Expressions.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Convert_databytes (Unknown)
+    Description: Data Conversion
+
+  - Expressions_csv (Destination)
+    Description: Flat File Destination
+
+  - PROTO_SSIS_LOGS (Source)
+    Description: OLE DB Source
+
+Data Paths:
+  - :  → 
+  - Data Conversion Output: Convert_databytes.Outputs[Data Conversion Output] → Expressions_csv.Inputs[Flat File Destination Input]
+  - OLE DB Source Output: PROTO_SSIS_LOGS.Outputs[OLE DB Source Output] → Convert_databytes.Inputs[Data Conversion Input]
+
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Loader.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Data Conversion (Unknown)
+    Description: Data Conversion
+
+  - Flat File Source (Source)
+    Description: Flat File Source
+
+  - OLE DB Destination (Destination)
+    Description: OLE DB Destination
+
+Data Paths:
+  - :  → 
+  - Data Conversion Output: Data Conversion.Outputs[Data Conversion Output] → OLE DB Destination.Inputs[OLE DB Destination Input]
+  - Flat File Source Output: Flat File Source.Outputs[Flat File Source Output] → Data Conversion.Inputs[Data Conversion Input]
+
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">MSMQRec.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">Data Flow Analysis</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">MSMQSender.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">Data Flow Analysis</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Package2.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">Data Flow Analysis</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">RunMultu.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">Data Flow Analysis</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Scanner.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+  -  (Unknown)
+
+  - Flat File Destination (Destination)
+    Description: Flat File Destination
+
+  - Lookup (Unknown)
+    Description: Joins additional columns to the data flow by looking up values in a table. For example, join to the &#39;employee id&#39; column the employees table to get &#39;hire date&#39; and &#39;employee name&#39;. We recommend this transformation when the lookup table can fit into memory.
+    SqlCommand: select * from [Production].[Product]
+
+  - OLE DB Source (Source)
+    Description: OLE DB Source
+
+  -  (Unknown)
+
+  - Audit (Unknown)
+    Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.
+
+  - GetAllEnvVar (Unknown)
+    Description: Includes and runs custom script code. For example, apply a business rule that limits the range of valid values in an &amp;quot;income&amp;quot; column or add values in two columns and calculate the average of the sum.
+
+  - OLE DB Destination (Destination)
+    Description: OLE DB Destination
+
+  -  (Unknown)
+
+  - Cache Transform (Unknown)
+    Description: Writes data to a cache (a .caw file) with the Cache Connection Manager. Reuse the cache between multiple Lookup transforms to reduce database load. Share the cache to reduce memory usage. Note: cache data is stored in clear text and not recommended for sensitive data.
+
+  - OLE DB Source (Source)
+    Description: OLE DB Source
+
+Data Paths:
+  - :  → 
+  - Lookup Match Output: Lookup.Outputs[Lookup Match Output] → Flat File Destination.Inputs[Flat File Destination Input]
+  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Lookup.Inputs[Lookup Input]
+  - :  → 
+  - Audit Output 1: Audit.Outputs[Audit Output 1] → OLE DB Destination.Inputs[OLE DB Destination Input]
+  - Output: GetAllEnvVar.Outputs[Output] → Audit.Inputs[Audit Input 1]
+  - :  → 
+  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Cache Transform.Inputs[Cache Input]
+
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">WMIDataReader.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Data Flow Analysis:
+
+Data Flow Task found in package.
+
+No components found in data flow.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                  </tbody>
+                </table>
+              </div>
+            
+            
+            <a href="#" style="display: inline-block; margin-top: 0.5rem; font-size: 0.85rem; color: var(--primary-color); text-decoration: none;">↑ Back to top</a>
+          </section>
+        
+          <section id="dataflow_analysis_detailed" style="margin-bottom: 2.5rem;">
+            <h2 style="color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem;">dataflow_analysis_detailed</h2>
+            
+            
+              <div class="stats" style="margin-bottom: 1rem;">
+                <div class="stat-card">
+                  <div class="stat-label">Packages Analyzed</div>
+                  <div class="stat-value">13</div>
+                </div>
+              </div>
+              
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width: 20%;">Package</th>
+                      <th style="width: 8%;">Status</th>
+                      <th style="width: 12%;">Tool</th>
+                      <th style="width: 50%;">Results</th>
+                      <th style="width: 10%;">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">ConfigFile.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow_detailed</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Detailed Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+
+Component: Flat File Destination
+  Type: Destination
+  Description: Flat File Destination
+  Properties:
+    Overwrite: true
+    EscapeQualifier: false
+
+Component: OLE DB Source
+  Type: Source
+  Description: OLE DB Source
+  Properties:
+    CommandTimeout: 0
+    OpenRowset: 
+    OpenRowsetVariable: 
+    SqlCommand: select * from production.product where color=?
+    SqlCommandVariable: 
+    DefaultCodePage: 1252
+    AlwaysUseDefaultCodePage: false
+    AccessMode: 2
+    ParameterMapping: &#34;Parameter0:Input&#34;,{CED2D119-29E2-4453-A199-9377C9E54D88};
+
+Data Paths:
+  :  → 
+  OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Flat File Destination.Inputs[Flat File Destination Input]
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">ConfigTables.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow_detailed</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Detailed Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+
+Component: Flat File Destination
+  Type: Destination
+  Description: Flat File Destination
+  Properties:
+    Overwrite: true
+    EscapeQualifier: false
+
+Component: OLE DB Source
+  Type: Source
+  Description: OLE DB Source
+  Properties:
+    CommandTimeout: 0
+    OpenRowset: 
+    OpenRowsetVariable: 
+    SqlCommand: select * from production.product where color=?
+    SqlCommandVariable: 
+    DefaultCodePage: 1252
+    AlwaysUseDefaultCodePage: false
+    AccessMode: 2
+    ParameterMapping: &#34;Parameter0:Input&#34;,{7AD6B129-572C-493E-B3E5-80A63CAA3829};
+
+Data Paths:
+  :  → 
+  OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Flat File Destination.Inputs[Flat File Destination Input]
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">DupeAlertFail.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow_detailed</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Detailed Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+
+Component: Audit
+  Type: Unknown
+  Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.
+  Properties:
+    LineageItemSelected: 2
+    LineageItemSelected: 4
+
+Component: GET-DUPES
+  Type: Source
+  Description: OLE DB Source
+  Properties:
+    CommandTimeout: 0
+    OpenRowset: 
+    OpenRowsetVariable: 
+    SqlCommand: 
+    SqlCommandVariable: User::SQL_GETDUPES
+    DefaultCodePage: 1252
+    AlwaysUseDefaultCodePage: false
+    AccessMode: 3
+    ParameterMapping: 
+
+Component: SAVE DUPES TO demo-dest_dupes
+  Type: Destination
+  Description: OLE DB Destination
+  Properties:
+    CommandTimeout: 0
+    OpenRowset: [demo].[DEST_DUPES]
+    OpenRowsetVariable: 
+    SqlCommand: 
+    DefaultCodePage: 1252
+    AlwaysUseDefaultCodePage: false
+    AccessMode: 3
+    FastLoadKeepIdentity: false
+    FastLoadKeepNulls: false
+    FastLoadOptions: TABLOCK,CHECK_CONSTRAINTS
+    FastLoadMaxInsertCommitSize: 2147483647
+
+Component: Audit
+  Type: Unknown
+  Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.
+  Properties:
+    LineageItemSelected: 2
+    LineageItemSelected: 4
+
+Component: dest-no-dupes-allowed
+  Type: Destination
+  Description: OLE DB Destination
+  Properties:
+    CommandTimeout: 0
+    OpenRowset: [demo].[DESC_NODUPES]
+    OpenRowsetVariable: 
+    SqlCommand: 
+    DefaultCodePage: 1252
+    AlwaysUseDefaultCodePage: false
+    AccessMode: 3
+    FastLoadKeepIdentity: false
+    FastLoadKeepNulls: false
+    FastLoadOptions: TABLOCK,CHECK_CONSTRAINTS
+    FastLoadMaxInsertCommitSize: 2147483647
+
+Component: source-dupes-allowed
+  Type: Source
+  Description: OLE DB Source
+  Properties:
+    CommandTimeout: 0
+    OpenRowset: [temp].[SOURCE_DUPES]
+    OpenRowsetVariable: 
+    SqlCommand: 
+    SqlCommandVariable: 
+    DefaultCodePage: 1252
+    AlwaysUseDefaultCodePage: false
+    AccessMode: 0
+    ParameterMapping: 
+
+Data Paths:
+  :  → 
+  Audit Output 1: Audit.Outputs[Audit Output 1] → SAVE DUPES TO demo-dest_dupes.Inputs[OLE DB Destination Input]
+  OLE DB Source Output: GET-DUPES.Outputs[OLE DB Source Output] → Audit.Inputs[Audit Input 1]
+  :  → 
+  Audit Output 1: Audit.Outputs[Audit Output 1] → dest-no-dupes-allowed.Inputs[OLE DB Destination Input]
+  OLE DB Source Output: source-dupes-allowed.Outputs[OLE DB Source Output] → Audit.Inputs[Audit Input 1]
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">EXECProcess.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow_detailed</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Detailed Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">ExportColumn.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow_detailed</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Detailed Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+
+Component: Data Conversion
+  Type: Unknown
+  Description: Data Conversion
+  Properties:
+    SourceInputColumnLineageID: #{Package\Data Flow Task\OLE DB Source.Outputs[OLE DB Source Output].Columns[Description]}
+    FastParse: false
+
+Component: Export Column
+  Type: Unknown
+  Description: Reads data from a data flow and insert it into a file. For example, create image files based on a database column that contains photographs.
+  Properties:
+    FileDataColumnID: #{Package\Data Flow Task\Export Column.Inputs[Export Column Input].Columns[Copy of Description]}
+    WriteBOM: false
+    ForceTruncate: false
+    AllowAppend: true
+    FileDataColumnID: #{Package\Data Flow Task\0:invalid}
+    WriteBOM: false
+    ForceTruncate: false
+    AllowAppend: true
+
+Component: OLE DB Source
+  Type: Source
+  Description: OLE DB Source
+  Properties:
+    CommandTimeout: 0
+    OpenRowset: [demo].[export_column]
+    OpenRowsetVariable: 
+    SqlCommand: 
+    SqlCommandVariable: 
+    DefaultCodePage: 1252
+    AlwaysUseDefaultCodePage: false
+    AccessMode: 0
+    ParameterMapping: 
+
+Data Paths:
+  :  → 
+  Data Conversion Output: Data Conversion.Outputs[Data Conversion Output] → Export Column.Inputs[Export Column Input]
+  OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Data Conversion.Inputs[Data Conversion Input]
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Expressions.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow_detailed</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Detailed Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+
+Component: Convert_databytes
+  Type: Unknown
+  Description: Data Conversion
+  Properties:
+    SourceInputColumnLineageID: #{Package\SSIS_LOGS_TO_CSV\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[databytes]}
+    FastParse: false
+
+Component: Expressions_csv
+  Type: Destination
+  Description: Flat File Destination
+  Properties:
+    Overwrite: true
+    EscapeQualifier: false
+
+Component: PROTO_SSIS_LOGS
+  Type: Source
+  Description: OLE DB Source
+  Properties:
+    CommandTimeout: 0
+    OpenRowset: [dbo].[sysssislog]
+    OpenRowsetVariable: 
+    SqlCommand: 
+    SqlCommandVariable: 
+    DefaultCodePage: 1252
+    AlwaysUseDefaultCodePage: false
+    AccessMode: 0
+    ParameterMapping: 
+
+Data Paths:
+  :  → 
+  Data Conversion Output: Convert_databytes.Outputs[Data Conversion Output] → Expressions_csv.Inputs[Flat File Destination Input]
+  OLE DB Source Output: PROTO_SSIS_LOGS.Outputs[OLE DB Source Output] → Convert_databytes.Inputs[Data Conversion Input]
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Loader.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow_detailed</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Detailed Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+
+Component: Data Conversion
+  Type: Unknown
+  Description: Data Conversion
+  Properties:
+    SourceInputColumnLineageID: #{Package\Data Flow Task\Flat File Source.Outputs[Flat File Source Output].Columns[Category]}
+    FastParse: false
+
+Component: Flat File Source
+  Type: Source
+  Description: Flat File Source
+  Properties:
+    RetainNulls: false
+    FileNameColumnName: 
+    FastParse: false
+    UseBinaryFormat: false
+    FastParse: false
+    UseBinaryFormat: false
+
+Component: OLE DB Destination
+  Type: Destination
+  Description: OLE DB Destination
+  Properties:
+    CommandTimeout: 0
+    OpenRowset: [temp].[SOURCE_DUPES]
+    OpenRowsetVariable: 
+    SqlCommand: 
+    DefaultCodePage: 1252
+    AlwaysUseDefaultCodePage: false
+    AccessMode: 3
+    FastLoadKeepIdentity: false
+    FastLoadKeepNulls: false
+    FastLoadOptions: TABLOCK,CHECK_CONSTRAINTS
+    FastLoadMaxInsertCommitSize: 2147483647
+
+Data Paths:
+  :  → 
+  Data Conversion Output: Data Conversion.Outputs[Data Conversion Output] → OLE DB Destination.Inputs[OLE DB Destination Input]
+  Flat File Source Output: Flat File Source.Outputs[Flat File Source Output] → Data Conversion.Inputs[Data Conversion Input]
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">MSMQRec.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow_detailed</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Detailed Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">MSMQSender.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow_detailed</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Detailed Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Package2.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow_detailed</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Detailed Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">RunMultu.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow_detailed</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Detailed Data Flow Analysis:
+
+No Data Flow Tasks found in this package.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Scanner.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow_detailed</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Detailed Data Flow Analysis:
+
+Data Flow Task found in package.
+
+Components:
+
+Component: Flat File Destination
+  Type: Destination
+  Description: Flat File Destination
+  Properties:
+    Overwrite: true
+    EscapeQualifier: false
+
+Component: Lookup
+  Type: Unknown
+  Description: Joins additional columns to the data flow by looking up values in a table. For example, join to the &#39;employee id&#39; column the employees table to get &#39;hire date&#39; and &#39;employee name&#39;. We recommend this transformation when the lookup table can fit into memory.
+  Properties:
+    SqlCommand: select * from [Production].[Product]
+    SqlCommandParam: select * from (select * from [Production].[Product]) [refTable]
+where [refTable].[ProductID] = ?
+    ConnectionType: 1
+    CacheType: 0
+    NoMatchBehavior: 1
+    NoMatchCachePercentage: 0
+    MaxMemoryUsage: 25
+    MaxMemoryUsage64: 25
+    ReferenceMetadataXml: &amp;lt;referenceMetadata&amp;gt;&amp;lt;referenceColumns&amp;gt;&amp;lt;referenceColumn name=&#34;ProductID&#34; dataType=&#34;DT_I4&#34; length=&#34;0&#34; precision=&#34;0&#34; scale=&#34;0&#34; codePage=&#34;0&#34;/&amp;gt;&amp;lt;referenceColumn name=&#34;Name&#34; dataType=&#34;DT_WSTR&#34; length=&#34;50&#34; precision=&#34;0&#34; scale=&#34;0&#34; codePage=&#34;0&#34;/&amp;gt;&amp;lt;referenceColumn name=&#34;Color&#34; dataType=&#34;DT_WSTR&#34; length=&#34;15&#34; precision=&#34;0&#34; scale=&#34;0&#34; codePage=&#34;0&#34;/&amp;gt;&amp;lt;referenceColumn name=&#34;ListPrice&#34; dataType=&#34;DT_CY&#34; length=&#34;0&#34; precision=&#34;0&#34; scale=&#34;0&#34; codePage=&#34;0&#34;/&amp;gt;&amp;lt;/referenceColumns&amp;gt;&amp;lt;/referenceMetadata&amp;gt;
+    ParameterMap: #{Package\Data Flow Task\OLE DB Source.Outputs[OLE DB Source Output].Columns[ProductID]};
+    DefaultCodePage: 1252
+    TreatDuplicateKeysAsError: false
+    JoinToReferenceColumn: ProductID
+    CopyFromReferenceColumn: ProductID
+    CopyFromReferenceColumn: Name
+    CopyFromReferenceColumn: Color
+    CopyFromReferenceColumn: ListPrice
+
+Component: OLE DB Source
+  Type: Source
+  Description: OLE DB Source
+  Properties:
+    CommandTimeout: 0
+    OpenRowset: [Sales].[SalesOrderDetail]
+    OpenRowsetVariable: 
+    SqlCommand: 
+    SqlCommandVariable: 
+    DefaultCodePage: 1252
+    AlwaysUseDefaultCodePage: false
+    AccessMode: 0
+    ParameterMapping: 
+
+Component: Audit
+  Type: Unknown
+  Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.
+  Properties:
+    LineageItemSelected: 2
+    LineageItemSelected: 7
+    LineageItemSelected: 5
+    LineageItemSelected: 6
+    LineageItemSelected: 4
+
+Component: GetAllEnvVar
+  Type: Unknown
+  Description: Includes and runs custom script code. For example, apply a business rule that limits the range of valid values in an &amp;quot;income&amp;quot; column or add values in two columns and calculate the average of the sum.
+  Properties:
+    VSTAProjectName: SC_9a872c67bbfb40a5a468b691719abe7e
+    ScriptLanguage: CSharp
+    ReadOnlyVariables: User::LOADDATE
+    ReadWriteVariables: 
+    MetadataChecksum140: 76
+    UserComponentTypeName: Microsoft.ScriptComponentHost
+
+Component: OLE DB Destination
+  Type: Destination
+  Description: OLE DB Destination
+  Properties:
+    CommandTimeout: 0
+    OpenRowset: [temp].[LOG]
+    OpenRowsetVariable: 
+    SqlCommand: 
+    DefaultCodePage: 1252
+    AlwaysUseDefaultCodePage: false
+    AccessMode: 3
+    FastLoadKeepIdentity: false
+    FastLoadKeepNulls: false
+    FastLoadOptions: TABLOCK,CHECK_CONSTRAINTS
+    FastLoadMaxInsertCommitSize: 2147483647
+
+Component: Cache Transform
+  Type: Unknown
+  Description: Writes data to a cache (a .caw file) with the Cache Connection Manager. Reuse the cache between multiple Lookup transforms to reduce database load. Share the cache to reduce memory usage. Note: cache data is stored in clear text and not recommended for sensitive data.
+  Properties:
+    TreatDuplicateKeysAsError: false
+    CacheColumnName: ProductID
+    CacheColumnName: Name
+    CacheColumnName: Color
+    CacheColumnName: ListPrice
+
+Component: OLE DB Source
+  Type: Source
+  Description: OLE DB Source
+  Properties:
+    CommandTimeout: 0
+    OpenRowset: [Production].[Product]
+    OpenRowsetVariable: 
+    SqlCommand: 
+    SqlCommandVariable: 
+    DefaultCodePage: 1252
+    AlwaysUseDefaultCodePage: false
+    AccessMode: 0
+    ParameterMapping: 
+
+Data Paths:
+  :  → 
+  Lookup Match Output: Lookup.Outputs[Lookup Match Output] → Flat File Destination.Inputs[Flat File Destination Input]
+  OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Lookup.Inputs[Lookup Input]
+  :  → 
+  Audit Output 1: Audit.Outputs[Audit Output 1] → OLE DB Destination.Inputs[OLE DB Destination Input]
+  Output: GetAllEnvVar.Outputs[Output] → Audit.Inputs[Audit Input 1]
+  :  → 
+  OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Cache Transform.Inputs[Cache Input]
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">WMIDataReader.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_data_flow_detailed</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Detailed Data Flow Analysis:
+
+Data Flow Task found in package.
+
+No components found in data flow.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:19-05:00</span>
+                        </td>
+                      </tr>
+                    
+                  </tbody>
+                </table>
+              </div>
+            
+            
+            <a href="#" style="display: inline-block; margin-top: 0.5rem; font-size: 0.85rem; color: var(--primary-color); text-decoration: none;">↑ Back to top</a>
+          </section>
+        
+          <section id="logging_analysis" style="margin-bottom: 2.5rem;">
+            <h2 style="color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem;">logging_analysis</h2>
+            
+            
+              <div class="stats" style="margin-bottom: 1rem;">
+                <div class="stat-card">
+                  <div class="stat-label">Packages Analyzed</div>
+                  <div class="stat-value">13</div>
+                </div>
+              </div>
+              
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width: 20%;">Package</th>
+                      <th style="width: 8%;">Status</th>
+                      <th style="width: 12%;">Tool</th>
+                      <th style="width: 50%;">Results</th>
+                      <th style="width: 10%;">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">ConfigFile.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_logging_configuration</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Logging Configuration Analysis:
+[WARN] No logging configuration found in this package.
+[OK] Logging configuration detected.
+
+Recommendations:
+- Enable package logging to aid troubleshooting.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">ConfigTables.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_logging_configuration</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Logging Configuration Analysis:
+[WARN] No logging configuration found in this package.
+[OK] Logging configuration detected.
+
+Recommendations:
+- Enable package logging to aid troubleshooting.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">DupeAlertFail.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_logging_configuration</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Logging Configuration Analysis:
+[OK] Logging configuration detected.
+
+Recommendations:
+- Enable package logging to aid troubleshooting.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">EXECProcess.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_logging_configuration</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Logging Configuration Analysis:
+[WARN] No logging configuration found in this package.
+[OK] Logging configuration detected.
+
+Recommendations:
+- Enable package logging to aid troubleshooting.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">ExportColumn.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_logging_configuration</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Logging Configuration Analysis:
+[WARN] No logging configuration found in this package.
+[OK] Logging configuration detected.
+
+Recommendations:
+- Enable package logging to aid troubleshooting.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Expressions.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_logging_configuration</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Logging Configuration Analysis:
+[OK] Logging configuration detected.
+
+Recommendations:
+- Enable package logging to aid troubleshooting.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Loader.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_logging_configuration</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Logging Configuration Analysis:
+[WARN] No logging configuration found in this package.
+[OK] Logging configuration detected.
+
+Recommendations:
+- Enable package logging to aid troubleshooting.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">MSMQRec.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_logging_configuration</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Logging Configuration Analysis:
+[WARN] No logging configuration found in this package.
+[OK] Logging configuration detected.
+
+Recommendations:
+- Enable package logging to aid troubleshooting.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">MSMQSender.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_logging_configuration</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Logging Configuration Analysis:
+[WARN] No logging configuration found in this package.
+[OK] Logging configuration detected.
+
+Recommendations:
+- Enable package logging to aid troubleshooting.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Package2.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_logging_configuration</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Logging Configuration Analysis:
+[WARN] No logging configuration found in this package.
+[OK] Logging configuration detected.
+
+Recommendations:
+- Enable package logging to aid troubleshooting.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">RunMultu.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_logging_configuration</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Logging Configuration Analysis:
+[WARN] No logging configuration found in this package.
+[OK] Logging configuration detected.
+
+Recommendations:
+- Enable package logging to aid troubleshooting.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">Scanner.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_logging_configuration</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Logging Configuration Analysis:
+[WARN] No logging configuration found in this package.
+[OK] Logging configuration detected.
+
+Recommendations:
+- Enable package logging to aid troubleshooting.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                      <tr>
+                        <td>
+                          <span class="package-name">WMIDataReader.dtsx</span>
+                
+                        </td>
+                        <td>
+                          
+                            <span class="success-highlight">✓ Success</span>
+                          
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">analyze_logging_configuration</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">Logging Configuration Analysis:
+[WARN] No logging configuration found in this package.
+[OK] Logging configuration detected.
+
+Recommendations:
+- Enable package logging to aid troubleshooting.
+</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">2025-12-07T10:16:18-05:00</span>
+                        </td>
+                      </tr>
+                    
+                  </tbody>
+                </table>
+              </div>
+            
+            
+            <a href="#" style="display: inline-block; margin-top: 0.5rem; font-size: 0.85rem; color: var(--primary-color); text-decoration: none;">↑ Back to top</a>
+          </section>
+        
+      
+    </div>
+
+    <footer>
+      Generated by SSIS Analyzer MCP Server
+    </footer>
+  </div>
+</body>
+</html>

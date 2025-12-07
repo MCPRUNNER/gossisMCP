@@ -1,21 +1,3 @@
-# Workflow Execution Example Run
-
-## Copilot Query
-
-```copilot
-#workflow_runner .gossismcp\workflows\workflow_merged_example.json
-```
-
-## Results
-
-1. [logging_analysis.html](../reports/logging_analysis.html)
-1. [best_practices_validation.html](../reports/best_practices_validation.html)
-1. [dataflow_analysis_detailed.html](../reports/dataflow_analysis_detailed.html)
-1. [merged_analysis.html](../reports/merged_analysis.html)
-
-## Workflow Definition
-
-```json
 {
   "Steps": [
     {
@@ -166,4 +148,3 @@
     }
   ]
 }
-```

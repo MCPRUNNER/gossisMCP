@@ -1283,7 +1283,22 @@ func main() {
 	s.AddTool(profileMemoryUsageTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return optimization.HandleProfileMemoryUsage(ctx, request, packageDirectory)
 	})
+	// Tool to merge multiple JSON files into a single JSON object
+	mergeJSONFilesTool := mcp.NewTool("merge_json",
 
+		mcp.WithDescription("Merge multiple JSON files into a single JSON object with a 'root' parent, where each file's data is nested under its base filename"),
+		mcp.WithArray("file_paths",
+			mcp.Required(),
+			mcp.Description("Array of JSON file paths to merge (relative to package directory if set)"),
+			mcp.Items(map[string]any{"type": "string"}),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the merged JSON (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(mergeJSONFilesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return packagehandlers.MergeJSONFilesHandler(ctx, request, packageDirectory)
+	})
 	// Batch Processing Tools
 
 	// Tool for batch analysis of multiple DTSX files
@@ -1292,7 +1307,7 @@ func main() {
 		mcp.WithArray("file_paths",
 			mcp.Required(),
 			mcp.Description("Array of DTSX file paths to analyze (relative to package directory if set)"),
-			mcp.WithStringItems(),
+			mcp.Items(map[string]any{"type": "string"}),
 		),
 		mcp.WithString("format",
 			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
@@ -1395,6 +1410,7 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 		normalizeWorkflowPathArg(normalized, workflowPath, "template_file_path")
 		normalizeWorkflowPathArg(normalized, workflowPath, "json_file_path")
 		normalizeWorkflowPathArg(normalized, workflowPath, "jsonFilePath")
+		normalizeWorkflowPathArrayArg(normalized, workflowPath, "file_paths")
 
 		if tool == "list_packages" {
 			if format := stringFromAny(normalized["format"]); format == "" {
@@ -1454,6 +1470,12 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 			result = res
 		case "render_template":
 			res, err := templatehandlers.HandleRenderTemplate(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "merge_json":
+			res, err := packagehandlers.MergeJSONFilesHandler(stepCtx, req, packageDirectory)
 			if err != nil {
 				return "", err
 			}
@@ -1590,6 +1612,31 @@ func normalizeWorkflowPathArg(args map[string]interface{}, workflowPath, key str
 		return
 	}
 	args[key] = workflow.ResolveRelativePath(workflowPath, trimmed)
+}
+
+func normalizeWorkflowPathArrayArg(args map[string]interface{}, workflowPath, key string) {
+	raw, exists := args[key]
+	if !exists {
+		return
+	}
+
+	// Handle array of strings
+	if arr, ok := raw.([]interface{}); ok {
+		normalized := make([]interface{}, len(arr))
+		for i, item := range arr {
+			if str, ok := item.(string); ok {
+				trimmed := strings.TrimSpace(str)
+				if trimmed != "" {
+					normalized[i] = workflow.ResolveRelativePath(workflowPath, trimmed)
+				} else {
+					normalized[i] = str
+				}
+			} else {
+				normalized[i] = item
+			}
+		}
+		args[key] = normalized
+	}
 }
 
 func stringFromAny(value interface{}) string {

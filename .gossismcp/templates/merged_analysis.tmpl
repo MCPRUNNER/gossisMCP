@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{if .title}}{{.title}}{{else}}Merged SSIS Analysis Report{{end}}</title>
+  <link rel="stylesheet" href="gossismcp.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>{{if .title}}{{.title}}{{else}}Merged SSIS Analysis Report{{end}}</h1>
+      <p class="subtitle">Generated {{if .date}}{{.date}}{{else}}N/A{{end}}{{if .source}} · Source: {{.source}}{{end}}</p>
+    </header>
+
+    <div class="content">
+      {{if .root}}
+        <!-- Table of Contents -->
+        <nav class="toc" style="background: var(--surface-color); padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 2rem; box-shadow: var(--shadow-sm);">
+          <h3 style="margin-top: 0; margin-bottom: 0.5rem;">Contents</h3>
+          <ul style="margin: 0; padding-left: 1.5rem;">
+            {{range $key, $section := .root}}
+              <li style="margin: 0.25rem 0;"><a href="#{{$key}}" style="color: var(--primary-color); text-decoration: none;">{{$key}}</a>{{if $section.data}} ({{len $section.data}} items){{end}}</li>
+            {{end}}
+          </ul>
+        </nav>
+
+        <!-- Sections -->
+        {{range $key, $section := .root}}
+          <section id="{{$key}}" style="margin-bottom: 2.5rem;">
+            <h2 style="color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem;">{{$key}}</h2>
+            
+            {{if $section.data}}
+              <div class="stats" style="margin-bottom: 1rem;">
+                <div class="stat-card">
+                  <div class="stat-label">Packages Analyzed</div>
+                  <div class="stat-value">{{len $section.data}}</div>
+                </div>
+              </div>
+              
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width: 20%;">Package</th>
+                      <th style="width: 8%;">Status</th>
+                      <th style="width: 12%;">Tool</th>
+                      <th style="width: 50%;">Results</th>
+                      <th style="width: 10%;">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {{range $section.data}}
+                      <tr>
+                        <td>
+                          <span class="package-name">{{if .package}}{{.package}}{{else}}Unknown{{end}}</span>
+                
+                        </td>
+                        <td>
+                          {{if eq .status "success"}}
+                            <span class="success-highlight">✓ Success</span>
+                          {{else if eq .status "error"}}
+                            <span class="warning-highlight">✗ Error</span>
+                          {{else if eq .status "warning"}}
+                            <span class="warning-highlight">⚠ Warning</span>
+                          {{else}}
+                            <span>{{.status}}</span>
+                          {{end}}
+                        </td>
+                        <td>
+                          <span class="mono" style="color: var(--text-secondary);">{{if .tool_name}}{{.tool_name}}{{else}}—{{end}}</span>
+                        </td>
+                        <td>
+                          <pre class="analysis">{{if .results}}{{.results}}{{else if .analysis}}{{.analysis}}{{else if .data}}{{.data}}{{else}}No results{{end}}</pre>
+                        </td>
+                        <td>
+                          <span class="mono" style="font-size: 0.8rem; color: var(--text-secondary);">{{if .timestamp}}{{.timestamp}}{{else}}—{{end}}</span>
+                        </td>
+                      </tr>
+                    {{end}}
+                  </tbody>
+                </table>
+              </div>
+            {{else}}
+              <!-- Handle non-data sections (direct object) -->
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Property</th>
+                      <th>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {{range $propKey, $propVal := $section}}
+                      <tr>
+                        <td><strong>{{$propKey}}</strong></td>
+                        <td>
+                          <pre class="analysis">{{$propVal}}</pre>
+                        </td>
+                      </tr>
+                    {{end}}
+                  </tbody>
+                </table>
+              </div>
+            {{end}}
+            
+            <a href="#" style="display: inline-block; margin-top: 0.5rem; font-size: 0.85rem; color: var(--primary-color); text-decoration: none;">↑ Back to top</a>
+          </section>
+        {{end}}
+      {{else}}
+        <p class="no-data">No data found in root object.</p>
+      {{end}}
+    </div>
+
+    <footer>
+      Generated by SSIS Analyzer MCP Server
+    </footer>
+  </div>
+</body>
+</html>
