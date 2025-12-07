@@ -2,6 +2,10 @@
 
 This is a comprehensive Model Context Protocol (MCP) server written in Go that provides 80+ advanced tools for analyzing SSIS (SQL Server Integration Services) DTSX files. It offers detailed insights into package structure, data flow components (10 source types, 10 transform types, 6 destination types), control flow tasks, logging configurations, performance metrics, and best practices validation.
 
+## About
+
+This project is currently under active development and aims to become the go-to solution for SSIS package analysis, providing developers and DBAs with the tools they need to optimize and maintain their SSIS solutions effectively. Expect frequent updates and new features as the project evolves. Expect refactoring and possible changes to tool names.
+
 ## Documentation
 
 - [Main README](README.md) - This file with comprehensive server documentation
@@ -9,6 +13,25 @@ This is a comprehensive Model Context Protocol (MCP) server written in Go that p
 - [Workflow Usage Guide](Documents/WORKFLOWS_README.md) - Instructions for using workflows
 - [MSMQ Integration Examples](Documents/Query_EXAMPLES/MSMQ_README.md) - Detailed analysis of MSMQ message queue packages with architecture diagrams
 - [SSIS Feature Recommendations](Documents/EXAMPLE_QUERY.md) - Recommended features and implementation roadmap for SSIS packages
+- [Plugin Support](plugins/README.md) - Instructions for creating and managing plugins
+
+## Implementation Status
+
+All recommended missing features from the original feature request have been successfully implemented and significantly expanded, transforming this server from a basic DTSX parser into a comprehensive SSIS analysis platform. The server now includes:
+
+- ✅ **Batch Processing**: Parallel analysis of multiple DTSX files with aggregated results and performance metrics
+- ✅ **Workflow Support**: Execute multi-step workflows for complex analysis scenarios
+- ✅ **Multiple Output Formats**: Support for text, JSON, CSV, HTML, and Markdown output formats across all tools
+- ✅ **Performance Optimization Tools**: Buffer size optimization, parallel processing analysis, and memory usage profiling
+- ✅ **10 High/Medium Priority Features**: Data flow analysis, event handlers, parameters, dependencies, configurations, performance metrics
+- ✅ **5 Lower Priority Features**: Security analysis, package comparison, code quality metrics, text file integration
+- ✅ **Unified Analysis Interfaces**: Streamlined source and destination analysis with type-based dispatch
+- ✅ **Expanded Component Coverage**: Analysis tools for 10 source types, 10 transform types, and 6 destination types
+- ✅ **Template Support**: HTML and Markdown report templates for customizable output
+- ✅ **Plugin Support**: Instructions for creating and managing plugins
+- 🔄 **1 Remaining Feature**: SSIS Catalog Integration (database connectivity to SSISDB for deployed package analysis)
+
+The server has evolved from supporting basic package parsing to providing enterprise-grade SSIS development and maintenance capabilities with 80+ specialized analysis tools.
 
 ## Features
 
@@ -695,6 +718,98 @@ This configuration provides both HTTP and stdio transport options. The HTTP tran
     - Description: Read configuration or data from text files referenced by SSIS packages
     - Parameters:
       - `file_path` (string, required): Path to the text file to read (relative to package directory if set, or absolute path)
+      - `format` (string, optional): Output format: text, json, csv, html, markdown (default: text)
+      - `line_numbers` (boolean, optional): Include line numbers in the content (default: true)
+      - `output_file_path` (string, optional): Destination path to write the tool result (relative to package directory if set)
+
+54. **check_compliance**
+
+    - Description: Check SSIS packages for compliance with GDPR, HIPAA, and other regulatory requirements by detecting sensitive data patterns
+    - Parameters:
+      - `compliance_standard` (string, optional): Compliance standard to check (gdpr, hipaa, pci, or 'all' for comprehensive check)
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set)
+      - `format` (string, optional): Output format: text, json, csv, html, markdown (default: text)
+      - `output_file_path` (string, optional): Destination path to write the tool result (relative to package directory if set)
+
+55. **compare_packages**
+
+    - Description: Compare two DTSX files and highlight differences
+    - Parameters:
+      - `file_path1` (string, required): Path to the first DTSX file (relative to package directory if set)
+      - `file_path2` (string, required): Path to the second DTSX file (relative to package directory if set)
+      - `format` (string, optional): Output format: text, json, csv, html, markdown (default: text)
+      - `output_file_path` (string, optional): Destination path to write the tool result (relative to package directory if set)
+
+56. **create_analysis_rule**
+
+    - Description: Create a custom analysis rule plugin
+    - Parameters:
+      - `category` (string, required): Rule category: security, performance, best-practice, compliance
+      - `description` (string, required): Description of what the rule analyzes
+      - `rule_logic` (string, required): Go code for the rule logic (as string)
+      - `rule_name` (string, required): Name of the analysis rule
+      - `severity` (string, optional): Rule severity: critical, high, medium, low, info (default: medium)
+
+57. **detect_encryption**
+
+    - Description: Detect encryption settings and provide recommendations for securing sensitive data in SSIS packages
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set)
+      - `format` (string, optional): Output format: text, json, csv, html, markdown (default: text)
+      - `output_file_path` (string, optional): Destination path to write the tool result (relative to package directory if set)
+
+58. **marketplace_stats**
+
+    - Description: Get community marketplace statistics
+    - Parameters: None
+
+59. **render_template**
+
+    - Description: Render an html/template using JSON data and write the output to a file
+    - Parameters:
+      - `json_data` (string, optional): Inline JSON payload to apply to the template
+      - `json_file_path` (string, optional): Path to a JSON file containing the template data (relative to package directory if set)
+      - `output_file_path` (string, required): Destination path for the rendered output (relative to package directory if set)
+      - `template_file_path` (string, required): Path to the template file (relative to package directory if set)
+
+60. **scan_credentials**
+
+    - Description: Perform comprehensive credential scanning with advanced pattern matching to detect hardcoded credentials, API keys, tokens, and sensitive data patterns
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set)
+      - `format` (string, optional): Output format: text, json, csv, html, markdown (default: text)
+      - `output_file_path` (string, optional): Destination path to write the tool result (relative to package directory if set)
+
+61. **workflow_runner**
+
+    - Description: Execute a workflow definition file and run each referenced MCP tool step sequentially
+    - Parameters:
+      - `file_path` (string, required): Path to the workflow definition (JSON or YAML)
+      - `format` (string, optional): Output format: markdown (default) or json
+      - `output_file_path` (string, optional): Destination path to write the workflow summary (relative to package directory if set)
+
+62. **analyze_parallel_processing**
+
+    - Description: Analyze parallel processing capabilities and provide recommendations for optimizing concurrent execution in SSIS packages
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set)
+      - `format` (string, optional): Output format: text, json, csv, html, markdown (default: text)
+      - `output_file_path` (string, optional): Destination path to write the tool result (relative to package directory if set)
+
+63. **analyze_containers**
+
+    - Description: Analyze containers in a DTSX file, including Sequence, For Loop, and Foreach Loop containers with their properties and nested executables
+    - Parameters:
+      - `file_path` (string, required): Path to the DTSX file (relative to package directory if set)
+      - `format` (string, optional): Output format: text, json, csv, html, markdown (default: text)
+      - `output_file_path` (string, optional): Destination path to write the tool result (relative to package directory if set)
+
+64. **merge_json**
+
+    - Description: Merge multiple JSON files into a single JSON object
+    - Parameters:
+      - `file_paths` (array, required): Array of JSON file paths to merge (relative to package directory if set)
+      - `output_file_path` (string, optional): Destination path to write the merged JSON (relative to package directory if set)
 
 ## Advanced Analysis Capabilities
 
@@ -792,22 +907,6 @@ To modify or extend the server:
 - The HTTP transport uses the official MCP Streamable HTTP protocol for full compatibility with MCP clients
 - Both stdio and HTTP transports are supported for maximum flexibility
 - Use the `-pkg-dir` flag or `GOSSIS_PKG_DIRECTORY` environment variable to specify a root directory for SSIS packages, allowing relative path references in tool calls (defaults to current working directory if not specified)
-
-## Implementation Status
-
-All recommended missing features from the original feature request have been successfully implemented and significantly expanded, transforming this server from a basic DTSX parser into a comprehensive SSIS analysis platform. The server now includes:
-
-- ✅ **Batch Processing**: Parallel analysis of multiple DTSX files with aggregated results and performance metrics
-- ✅ **Multiple Output Formats**: Support for text, JSON, CSV, HTML, and Markdown output formats across all tools
-- ✅ **Performance Optimization Tools**: Buffer size optimization, parallel processing analysis, and memory usage profiling
-- ✅ **10 High/Medium Priority Features**: Data flow analysis, event handlers, parameters, dependencies, configurations, performance metrics
-- ✅ **5 Lower Priority Features**: Security analysis, package comparison, code quality metrics, text file integration
-- ✅ **Unified Analysis Interfaces**: Streamlined source and destination analysis with type-based dispatch
-- ✅ **Expanded Component Coverage**: Analysis tools for 10 source types, 10 transform types, and 6 destination types
-- ✅ **Advanced Task Analysis**: Comprehensive Script Task analysis with variables, entry points, and configuration
-- 🔄 **1 Remaining Feature**: SSIS Catalog Integration (database connectivity to SSISDB for deployed package analysis)
-
-The server has evolved from supporting basic package parsing to providing enterprise-grade SSIS development and maintenance capabilities with 80+ specialized analysis tools.
 
 ## License
 
