@@ -12,6 +12,7 @@
 1. [best_practices_validation.html](../reports/best_practices_validation.html)
 1. [dataflow_analysis_detailed.html](../reports/dataflow_analysis_detailed.html)
 1. [merged_analysis.html](../reports/merged_analysis.html)
+1. [merged_analysis.tmpl](../reports/merged_analysis.tmpl)
 
 ## Workflow Definition
 
@@ -22,7 +23,7 @@
       "Name": "GetMyPackages",
       "Type": "#list_packages",
       "Parameters": {
-        "directory": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES",
+        "directory": "Documents\\SSIS_EXAMPLES",
         "format": "json"
       },
       "Enabled": true,
