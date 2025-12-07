@@ -811,6 +811,17 @@ This configuration provides both HTTP and stdio transport options. The HTTP tran
       - `file_paths` (array, required): Array of JSON file paths to merge (relative to package directory if set)
       - `output_file_path` (string, optional): Destination path to write the merged JSON (relative to package directory if set)
 
+65. **xpath_query**
+
+    - Description: Execute XPath queries on XML data from files, raw XML strings, or JSONified XML content
+    - Parameters:
+      - `xpath` (string, required): XPath expression to execute
+      - `file_path` (string, optional): Path to XML file to query (relative to package directory if set)
+      - `xml` (string, optional): Raw XML string to query
+      - `json_xml` (string, optional): JSONified XML content (e.g., from read_text_file output)
+      - `format` (string, optional): Output format: text, json, csv, html, markdown (default: text)
+      - `output_file_path` (string, optional): Destination path to write the tool result (relative to package directory if set)
+
 ## Advanced Analysis Capabilities
 
 The SSIS DTSX Analyzer provides specialized analysis for:

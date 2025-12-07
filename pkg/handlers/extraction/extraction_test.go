@@ -108,3 +108,45 @@ func TestHandleExtractConnections(t *testing.T) {
 		t.Fatalf("expected connection list, got %q", textContent.Text)
 	}
 }
+
+func TestHandleXPathQuery(t *testing.T) {
+	// Test with raw XML string
+	xmlContent := `<root><item id="1">First</item><item id="2">Second</item></root>`
+	request := createRequest(map[string]interface{}{
+		"xpath": "//item",
+		"xml":   xmlContent,
+	})
+
+	result, err := HandleXPathQuery(context.Background(), request, "")
+	if err != nil {
+		t.Fatalf("HandleXPathQuery failed: %v", err)
+	}
+
+	if result == nil || len(result.Content) == 0 {
+		t.Fatal("expected xpath result")
+	}
+
+	textContent, ok := result.Content[0].(mcp.TextContent)
+	if !ok {
+		t.Fatalf("expected text content, got %T", result.Content[0])
+	}
+
+	if !strings.Contains(textContent.Text, "matches") {
+		t.Fatalf("expected xpath results, got %q", textContent.Text)
+	}
+
+	// Test with invalid XPath
+	request2 := createRequest(map[string]interface{}{
+		"xpath": "invalid[",
+		"xml":   xmlContent,
+	})
+
+	result2, err2 := HandleXPathQuery(context.Background(), request2, "")
+	if err2 != nil {
+		t.Fatalf("HandleXPathQuery should not return error for invalid xpath: %v", err2)
+	}
+
+	if result2 == nil || len(result2.Content) == 0 {
+		t.Fatal("expected error result for invalid xpath")
+	}
+}

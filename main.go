@@ -1131,7 +1131,7 @@ func main() {
 		return packagehandlers.HandleComparePackages(ctx, request, packageDirectory)
 	})
 
-	analyzeCodeQualityTool := mcp.NewTool("mcp_ssis-analyzer_analyze_code_quality",
+	analyzeCodeQualityTool := mcp.NewTool("analyze_code_quality",
 		mcp.WithDescription("Calculate maintainability metrics (complexity, duplication, etc.) to assess package quality and technical debt"),
 		mcp.WithString("file_path",
 			mcp.Required(),
@@ -1167,6 +1167,33 @@ func main() {
 	)
 	s.AddTool(readTextFileTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleReadTextFile(ctx, request, packageDirectory)
+	})
+
+	// Tool for XPath queries on XML data
+	xpathTool := mcp.NewTool("xpath_query",
+		mcp.WithDescription("Execute XPath queries on XML data from files, raw XML strings, or JSONified XML content"),
+		mcp.WithString("xpath",
+			mcp.Required(),
+			mcp.Description("XPath expression to execute"),
+		),
+		mcp.WithString("file_path",
+			mcp.Description("Path to XML file to query (relative to package directory if set)"),
+		),
+		mcp.WithString("xml",
+			mcp.Description("Raw XML string to query"),
+		),
+		mcp.WithString("json_xml",
+			mcp.Description("JSONified XML content (e.g., from read_text_file output)"),
+		),
+		mcp.WithString("format",
+			mcp.Description("Output format: text, json, csv, html, markdown (default: text)"),
+		),
+		mcp.WithString("output_file_path",
+			mcp.Description("Destination path to write the tool result (relative to package directory if set)"),
+		),
+	)
+	s.AddTool(xpathTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return extraction.HandleXPathQuery(ctx, request, packageDirectory)
 	})
 
 	// Advanced Security Features - Phase 2
@@ -1450,6 +1477,12 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 				return "", err
 			}
 			result = res
+		case "read_text_file":
+			res, err := handleReadTextFile(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
 		case "batch_analyze":
 			res, err := packagehandlers.HandleBatchAnalyze(stepCtx, req, packageDirectory)
 			if err != nil {
@@ -1488,6 +1521,306 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 			result = res
 		case "validate_best_practices":
 			res, err := packagehandlers.HandleValidateBestPractices(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "parse_dtsx":
+			res, err := extraction.HandleParseDtsx(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "extract_tasks":
+			res, err := extraction.HandleExtractTasks(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "extract_connections":
+			res, err := extraction.HandleExtractConnections(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "extract_precedence_constraints":
+			res, err := extraction.HandleExtractPrecedenceConstraints(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "extract_variables":
+			res, err := extraction.HandleExtractVariables(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "extract_parameters":
+			res, err := extraction.HandleExtractParameters(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "extract_script_code":
+			res, err := extraction.HandleExtractScriptCode(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "ask_about_dtsx":
+			res, err := packagehandlers.HandleAskAboutDtsx(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_message_queue_tasks":
+			res, err := packagehandlers.HandleAnalyzeMessageQueueTasks(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_script_task":
+			res, err := packagehandlers.HandleAnalyzeScriptTask(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "detect_hardcoded_values":
+			res, err := packagehandlers.HandleDetectHardcodedValues(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_source":
+			res, err := analysis.HandleAnalyzeSource(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_destination":
+			res, err := analysis.HandleAnalyzeDestination(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_ole_db_destination":
+			res, err := analysis.HandleAnalyzeOLEDBDestination(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_flat_file_destination":
+			res, err := analysis.HandleAnalyzeFlatFileDestination(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_sql_server_destination":
+			res, err := analysis.HandleAnalyzeSQLServerDestination(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_ole_db_source":
+			res, err := analysis.HandleAnalyzeOLEDBSource(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_ado_net_source":
+			res, err := analysis.HandleAnalyzeADONETSource(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_odbc_source":
+			res, err := analysis.HandleAnalyzeODBCSource(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_flat_file_source":
+			res, err := analysis.HandleAnalyzeFlatFileSource(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_excel_source":
+			res, err := analysis.HandleAnalyzeExcelSource(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_access_source":
+			res, err := analysis.HandleAnalyzeAccessSource(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_xml_source":
+			res, err := analysis.HandleAnalyzeXMLSource(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_raw_file_source":
+			res, err := analysis.HandleAnalyzeRawFileSource(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_cdc_source":
+			res, err := analysis.HandleAnalyzeCDCSource(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_sap_bw_source":
+			res, err := analysis.HandleAnalyzeSAPBWSource(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_export_column":
+			res, err := analysis.HandleAnalyzeExportColumn(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_data_conversion":
+			res, err := analysis.HandleAnalyzeDataConversion(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_union_all":
+			res, err := analysis.HandleAnalyzeUnionAll(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_multicast":
+			res, err := analysis.HandleAnalyzeMulticast(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_derived_column":
+			res, err := analysis.HandleAnalyzeDerivedColumn(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_lookup":
+			res, err := analysis.HandleAnalyzeLookup(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_conditional_split":
+			res, err := analysis.HandleAnalyzeConditionalSplit(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_sort":
+			res, err := analysis.HandleAnalyzeSort(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_aggregate":
+			res, err := analysis.HandleAnalyzeAggregate(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_merge_join":
+			res, err := analysis.HandleAnalyzeMergeJoin(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_row_count":
+			res, err := analysis.HandleAnalyzeRowCount(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_character_map":
+			res, err := analysis.HandleAnalyzeCharacterMap(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_copy_column":
+			res, err := analysis.HandleAnalyzeCopyColumn(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_containers":
+			res, err := analysis.HandleAnalyzeContainers(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_custom_components":
+			res, err := analysis.HandleAnalyzeCustomComponents(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "compare_packages":
+			res, err := packagehandlers.HandleComparePackages(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_code_quality":
+			res, err := analysis.HandleAnalyzeCodeQuality(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "xpath_query":
+			res, err := extraction.HandleXPathQuery(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "scan_credentials":
+			res, err := analysis.HandleScanCredentials(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "detect_encryption":
+			res, err := analysis.HandleDetectEncryption(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "check_compliance":
+			res, err := analysis.HandleCheckCompliance(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "optimize_buffer_size":
+			res, err := optimization.HandleOptimizeBufferSize(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "analyze_parallel_processing":
+			res, err := optimization.HandleAnalyzeParallelProcessing(stepCtx, req, packageDirectory)
+			if err != nil {
+				return "", err
+			}
+			result = res
+		case "profile_memory_usage":
+			res, err := optimization.HandleProfileMemoryUsage(stepCtx, req, packageDirectory)
 			if err != nil {
 				return "", err
 			}
