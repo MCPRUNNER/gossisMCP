@@ -10,6 +10,12 @@ import (
 )
 
 func TestNormalizeWorkflowPathArrayArg(t *testing.T) {
+	// Use platform-specific absolute paths for testing
+	absPath1 := filepath.Join(string(filepath.Separator), "absolute", "file1.dtsx")
+	absPath2 := filepath.Join(string(filepath.Separator), "absolute", "file2.dtsx")
+	workflowPath := filepath.Join(string(filepath.Separator), "workflows", "test.yaml")
+	workflowDir := filepath.Dir(workflowPath)
+
 	tests := []struct {
 		name         string
 		args         map[string]interface{}
@@ -22,32 +28,32 @@ func TestNormalizeWorkflowPathArrayArg(t *testing.T) {
 			args: map[string]interface{}{
 				"file_paths": []interface{}{"file1.dtsx", "./file2.dtsx", "../file3.dtsx"},
 			},
-			workflowPath: "/workflows/test.yaml",
+			workflowPath: workflowPath,
 			key:          "file_paths",
 			expected: map[string]interface{}{
-				"file_paths": []interface{}{"file1.dtsx", filepath.Join("/workflows", "./file2.dtsx"), filepath.Join("/workflows", "../file3.dtsx")},
+				"file_paths": []interface{}{"file1.dtsx", filepath.Join(workflowDir, "./file2.dtsx"), filepath.Join(workflowDir, "../file3.dtsx")},
 			},
 		},
 		{
 			name: "string slice with absolute paths",
 			args: map[string]interface{}{
-				"file_paths": []string{"/absolute/file1.dtsx", "/absolute/file2.dtsx"},
+				"file_paths": []string{absPath1, absPath2},
 			},
-			workflowPath: "/workflows/test.yaml",
+			workflowPath: workflowPath,
 			key:          "file_paths",
 			expected: map[string]interface{}{
-				"file_paths": []string{"/absolute/file1.dtsx", "/absolute/file2.dtsx"},
+				"file_paths": []string{absPath1, absPath2},
 			},
 		},
 		{
 			name: "mixed relative and absolute paths",
 			args: map[string]interface{}{
-				"file_paths": []interface{}{"/absolute/file1.dtsx", "./relative.dtsx"},
+				"file_paths": []interface{}{absPath1, "./relative.dtsx"},
 			},
-			workflowPath: "/workflows/test.yaml",
+			workflowPath: workflowPath,
 			key:          "file_paths",
 			expected: map[string]interface{}{
-				"file_paths": []interface{}{"/absolute/file1.dtsx", filepath.Join("/workflows", "./relative.dtsx")},
+				"file_paths": []interface{}{absPath1, filepath.Join(workflowDir, "./relative.dtsx")},
 			},
 		},
 		{
