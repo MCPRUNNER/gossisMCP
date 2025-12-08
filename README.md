@@ -2,9 +2,15 @@
 
 This is a comprehensive Model Context Protocol (MCP) server written in Go that provides 80+ advanced tools for analyzing SSIS (SQL Server Integration Services) DTSX files. It offers detailed insights into package structure, data flow components (10 source types, 10 transform types, 6 destination types), control flow tasks, logging configurations, performance metrics, and best practices validation.
 
+Unlike most MCP Servers, this has the capability to step through tools with content from one tool being the output of a precious tool. Forcing these steps in sequence leaves less to the whims of the LLM. This aids in controlling the data needed in the final results or staging the data needed for additional questions to the LLM.
+
 ## About
 
 This project is currently under active development and aims to become the go-to solution for SSIS package analysis, providing developers and DBAs with the tools they need to optimize and maintain their SSIS solutions effectively. Expect frequent updates and new features as the project evolves. Expect refactoring and possible changes to tool names.
+
+## Note
+
+Current code is primaraly being tested on Windows 11. Additional Linux testing is expected once code starts to mature. This means that path handling and file system operations may need further validation on non-Windows platforms.
 
 ## Documentation
 
@@ -810,6 +816,17 @@ This configuration provides both HTTP and stdio transport options. The HTTP tran
     - Parameters:
       - `file_paths` (array, required): Array of JSON file paths to merge (relative to package directory if set)
       - `output_file_path` (string, optional): Destination path to write the merged JSON (relative to package directory if set)
+
+65. **xpath_query**
+
+    - Description: Execute XPath queries on XML data from files, raw XML strings, or JSONified XML content
+    - Parameters:
+      - `xpath` (string, required): XPath expression to execute
+      - `file_path` (string, optional): Path to XML file to query (relative to package directory if set)
+      - `xml` (string, optional): Raw XML string to query
+      - `json_xml` (string, optional): JSONified XML content (e.g., from read_text_file output)
+      - `format` (string, optional): Output format: text, json, csv, html, markdown (default: text)
+      - `output_file_path` (string, optional): Destination path to write the tool result (relative to package directory if set)
 
 ## Advanced Analysis Capabilities
 

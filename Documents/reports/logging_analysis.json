@@ -1,0 +1,1 @@
+{"analysis":"Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n","file_path":"./WMIDataReader.dtsx","package":"WMIDataReader.dtsx","status":"success","timestamp":"2025-12-07T18:44:47-05:00","tool_name":"analyze_logging_configuration"}

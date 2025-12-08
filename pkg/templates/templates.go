@@ -26,13 +26,7 @@ func RenderTemplateFromJSON(jsonData []byte, templatePath, outputPath string) er
 		// Add any template helper functions here
 		"upper": func(s string) string { return strings.ToUpper(s) },
 		"basename": func(path string) string {
-			if path == "" {
-				return ""
-			}
-			// handle both forward and back slashes
-			p := strings.ReplaceAll(path, "\\", "/")
-			parts := strings.Split(p, "/")
-			return parts[len(parts)-1]
+			return filepath.Base(path)
 		},
 		"trimExt": func(name string) string {
 			if name == "" {

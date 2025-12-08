@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -14,10 +15,10 @@ import (
 
 // ResolveFilePath resolves a file path against the package directory
 func ResolveFilePath(filePath, packageDirectory string) string {
-	if strings.HasPrefix(filePath, "/") || (len(filePath) >= 3 && filePath[1:3] == ":\\") {
+	if packageDirectory == "" || filepath.IsAbs(filePath) {
 		return filePath
 	}
-	return packageDirectory + "/" + filePath
+	return filepath.Join(packageDirectory, filePath)
 }
 
 // getTaskType determines the type of a task based on its properties

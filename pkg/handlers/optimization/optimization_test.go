@@ -1,6 +1,8 @@
 package optimization
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/MCPRUNNER/gossisMCP/pkg/types"
@@ -9,11 +11,12 @@ import (
 func TestResolveFilePath(t *testing.T) {
 	base := "C:/packages"
 	relative := "sample.dtsx"
-	expected := base + "/" + relative
+	expected := filepath.Join(base, relative)
 	if got := ResolveFilePath(relative, base); got != expected {
 		t.Fatalf("expected %s, got %s", expected, got)
 	}
-	absolute := "C:\\data\\file.dtsx"
+	// Use a real absolute path that works on both platforms
+	absolute := filepath.Join(os.TempDir(), "data", "file.dtsx")
 	if got := ResolveFilePath(absolute, base); got != absolute {
 		t.Fatalf("expected absolute path %s, got %s", absolute, got)
 	}

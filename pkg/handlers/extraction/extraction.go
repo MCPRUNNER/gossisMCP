@@ -11,6 +11,9 @@ import (
 
 	"github.com/MCPRUNNER/gossisMCP/pkg/formatter"
 	"github.com/MCPRUNNER/gossisMCP/pkg/types"
+	"github.com/MCPRUNNER/gossisMCP/pkg/util/analysis"
+	"github.com/MCPRUNNER/gossisMCP/pkg/util/file"
+	"github.com/antchfx/xmlquery"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -395,4 +398,165 @@ func findVariableValue(name string, variables []types.Variable) string {
 		}
 	}
 	return ""
+}
+
+// HandleXPathQuery handles XPath queries on XML data
+func HandleXPathQuery(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	xpathExpr, err := request.RequireString("xpath")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Get format parameter (default to "text")
+	formatStr := request.GetString("format", "text")
+	format := formatter.OutputFormat(formatStr)
+
+	var xmlData string
+
+	// Check for file_path parameter
+	if filePath := request.GetString("file_path", ""); filePath != "" {
+		resolvedPath := ResolveFilePath(filePath, packageDirectory)
+		data, err := os.ReadFile(resolvedPath)
+		if err != nil {
+			result := formatter.CreateAnalysisResult("xpath_query", filePath, nil, err)
+			return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
+		}
+		xmlData = string(data)
+	} else if xmlString := request.GetString("xml", ""); xmlString != "" {
+		xmlData = xmlString
+	} else if jsonXml := request.GetString("json_xml", ""); jsonXml != "" {
+		// Handle JSONified XML - this would be the content from read_text_file
+		// For now, assume it's raw XML content
+		xmlData = jsonXml
+	} else {
+		return mcp.NewToolResultError("Either file_path, xml, or json_xml parameter must be provided"), nil
+	}
+
+	// Parse the XML
+	doc, err := xmlquery.Parse(strings.NewReader(xmlData))
+	if err != nil {
+		result := formatter.CreateAnalysisResult("xpath_query", xpathExpr, nil, fmt.Errorf("failed to parse XML: %v", err))
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
+	}
+
+	// Execute XPath query
+	nodes, err := xmlquery.QueryAll(doc, xpathExpr)
+	if err != nil {
+		result := formatter.CreateAnalysisResult("xpath_query", xpathExpr, nil, fmt.Errorf("failed to execute XPath: %v", err))
+		return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
+	}
+
+	// Collect results
+	var results []map[string]interface{}
+	for _, node := range nodes {
+		result := map[string]interface{}{
+			"type": node.Type,
+			"data": node.Data,
+		}
+
+		// Add attributes if any
+		if len(node.Attr) > 0 {
+			attrs := make(map[string]string)
+			for _, attr := range node.Attr {
+				attrs[attr.Name.Local] = attr.Value
+			}
+			result["attributes"] = attrs
+		}
+
+		// Add inner text
+		if node.FirstChild != nil {
+			result["inner_text"] = node.InnerText()
+		}
+
+		results = append(results, result)
+	}
+
+	// Create analysis result
+	analysisData := map[string]interface{}{
+		"xpath":      xpathExpr,
+		"matches":    len(results),
+		"results":    results,
+		"xml_source": "provided",
+	}
+
+	result := formatter.CreateAnalysisResult("xpath_query", xpathExpr, analysisData, nil)
+
+	// Handle output file if specified
+	if outputPath := request.GetString("output_file_path", ""); outputPath != "" {
+		resolvedOutputPath := ResolveFilePath(outputPath, packageDirectory)
+		outputDir := filepath.Dir(resolvedOutputPath)
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("failed to create output directory: %v", err)), nil
+		}
+		if err := os.WriteFile(resolvedOutputPath, []byte(formatter.FormatAnalysisResult(result, format)), 0644); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("failed to write output file: %v", err)), nil
+		}
+	}
+
+	return mcp.NewToolResultText(formatter.FormatAnalysisResult(result, format)), nil
+}
+
+// HandleReadTextFile handles reading and analyzing text files
+func HandleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageDirectory string) (*mcp.CallToolResult, error) {
+	filePath, err := request.RequireString("file_path")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	isLineNumberNeeded := request.GetBool("line_numbers", true)
+
+	// Resolve the file path against the package directory
+	resolvedPath := file.ResolveFilePath(filePath, packageDirectory)
+	isBinary, err := file.IsFileBinary(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to check if file is binary: %v", err)), nil
+	}
+	if isBinary {
+		return mcp.NewToolResultError("File is binary, cannot read as text"), nil
+	}
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read file: %v", err)), nil
+	}
+
+	var result strings.Builder
+	result.WriteString("📄 Options\n\n")
+	result.WriteString(fmt.Sprintf("Line Numbers: %t\n", isLineNumberNeeded))
+
+	result.WriteString("📄 Text File Analysis\n\n")
+	result.WriteString(fmt.Sprintf("File: %s\n", filepath.Base(resolvedPath)))
+	result.WriteString(fmt.Sprintf("Path: %s\n\n", resolvedPath))
+
+	content := string(data)
+	lines := strings.Split(content, "\n")
+	result.WriteString("📊 File Statistics:\n")
+	result.WriteString(fmt.Sprintf("• Total Lines: %d\n", len(lines)))
+	result.WriteString(fmt.Sprintf("• Total Characters: %d\n", len(content)))
+	result.WriteString(fmt.Sprintf("• File Size: %d bytes\n\n", len(data)))
+
+	// Detect file type and parse accordingly
+	ext := strings.ToLower(filepath.Ext(resolvedPath))
+	switch ext {
+	case ".bat", ".cmd":
+		result.WriteString("🛠 Batch File Analysis:\n")
+		analysis.AnalyzeBatchFile(content, isLineNumberNeeded, &result)
+	case ".config", ".cfg":
+		result.WriteString("⚙️ Configuration File Analysis:\n")
+		analysis.AnalyzeConfigFile(content, isLineNumberNeeded, &result)
+	case ".sql":
+		result.WriteString("🗄️ SQL File Analysis:\n")
+		analysis.AnalyzeSQLFile(content, isLineNumberNeeded, &result)
+	default:
+		result.WriteString("🗄️ Text File Analysis:\n")
+		analysis.AnalyzeGenericTextFile(content, isLineNumberNeeded, &result)
+	}
+	result.WriteString("📘 File Content:\n")
+	for i, line := range lines {
+		if isLineNumberNeeded {
+			result.WriteString(fmt.Sprintf("%d  %v\n", i, line))
+		} else {
+			result.WriteString(fmt.Sprintf("%v\n", line))
+		}
+
+	}
+	return mcp.NewToolResultText(result.String()), nil
 }
