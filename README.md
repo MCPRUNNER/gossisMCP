@@ -2,9 +2,15 @@
 
 This is a comprehensive Model Context Protocol (MCP) server written in Go that provides 80+ advanced tools for analyzing SSIS (SQL Server Integration Services) DTSX files. It offers detailed insights into package structure, data flow components (10 source types, 10 transform types, 6 destination types), control flow tasks, logging configurations, performance metrics, and best practices validation.
 
+Unlike most MCP Servers, this has the capability to step through tools with content from one tool being the output of a precious tool. Forcing these steps in sequence leaves less to the whims of the LLM. This aids in controlling the data needed in the final results or staging the data needed for additional questions to the LLM.
+
 ## About
 
 This project is currently under active development and aims to become the go-to solution for SSIS package analysis, providing developers and DBAs with the tools they need to optimize and maintain their SSIS solutions effectively. Expect frequent updates and new features as the project evolves. Expect refactoring and possible changes to tool names.
+
+## Note
+
+Current code is primaraly being tested on Windows 11. Additional Linux testing is expected once code starts to mature. This means that path handling and file system operations may need further validation on non-Windows platforms.
 
 ## Documentation
 
