@@ -57,10 +57,7 @@ func MergeJSONFilesHandler(ctx context.Context, request mcp.CallToolRequest, pac
 	// Process each file
 	for _, filePath := range filePaths {
 		// Resolve file path
-		resolvedPath := filePath
-		if !filepath.IsAbs(filePath) && packageDirectory != "" {
-			resolvedPath = filepath.Join(packageDirectory, filePath)
-		}
+		resolvedPath := resolveFilePath(filePath, packageDirectory)
 
 		// Read JSON file
 		fileData, err := os.ReadFile(resolvedPath)
@@ -96,10 +93,7 @@ func MergeJSONFilesHandler(ctx context.Context, request mcp.CallToolRequest, pac
 
 	// Write to output file if specified
 	if outputFilePath != "" {
-		resolvedOutputPath := outputFilePath
-		if !filepath.IsAbs(outputFilePath) && packageDirectory != "" {
-			resolvedOutputPath = filepath.Join(packageDirectory, outputFilePath)
-		}
+		resolvedOutputPath := resolveFilePath(outputFilePath, packageDirectory)
 
 		// Create directory if it doesn't exist
 		outputDir := filepath.Dir(resolvedOutputPath)

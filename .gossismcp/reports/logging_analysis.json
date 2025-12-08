@@ -1,0 +1,108 @@
+{
+  "data": [
+    {
+      "file_path": "ConfigFile.dtsx",
+      "package": "ConfigFile.dtsx",
+      "results": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_logging_configuration"
+    },
+    {
+      "file_path": "ConfigTables.dtsx",
+      "package": "ConfigTables.dtsx",
+      "results": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_logging_configuration"
+    },
+    {
+      "file_path": "DupeAlertFail.dtsx",
+      "package": "DupeAlertFail.dtsx",
+      "results": "Logging Configuration Analysis:\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_logging_configuration"
+    },
+    {
+      "file_path": "EXECProcess.dtsx",
+      "package": "EXECProcess.dtsx",
+      "results": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_logging_configuration"
+    },
+    {
+      "file_path": "ExportColumn.dtsx",
+      "package": "ExportColumn.dtsx",
+      "results": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_logging_configuration"
+    },
+    {
+      "file_path": "Expressions.dtsx",
+      "package": "Expressions.dtsx",
+      "results": "Logging Configuration Analysis:\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_logging_configuration"
+    },
+    {
+      "file_path": "Loader.dtsx",
+      "package": "Loader.dtsx",
+      "results": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_logging_configuration"
+    },
+    {
+      "file_path": "MSMQRec.dtsx",
+      "package": "MSMQRec.dtsx",
+      "results": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_logging_configuration"
+    },
+    {
+      "file_path": "MSMQSender.dtsx",
+      "package": "MSMQSender.dtsx",
+      "results": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_logging_configuration"
+    },
+    {
+      "file_path": "Package2.dtsx",
+      "package": "Package2.dtsx",
+      "results": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_logging_configuration"
+    },
+    {
+      "file_path": "RunMultu.dtsx",
+      "package": "RunMultu.dtsx",
+      "results": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_logging_configuration"
+    },
+    {
+      "file_path": "Scanner.dtsx",
+      "package": "Scanner.dtsx",
+      "results": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_logging_configuration"
+    },
+    {
+      "file_path": "WMIDataReader.dtsx",
+      "package": "WMIDataReader.dtsx",
+      "results": "Logging Configuration Analysis:\n[WARN] No logging configuration found in this package.\n[OK] Logging configuration detected.\n\nRecommendations:\n- Enable package logging to aid troubleshooting.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_logging_configuration"
+    }
+  ]
+}

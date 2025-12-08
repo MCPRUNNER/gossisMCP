@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -70,7 +71,7 @@ func TestNormalizeWorkflowPathArg(t *testing.T) {
 			workflowPath: "/workflow",
 			key:          "file_path",
 			expected: map[string]interface{}{
-				"file_path": "./test.dtsx",
+				"file_path": "test.dtsx",
 			},
 		},
 		{
@@ -81,7 +82,7 @@ func TestNormalizeWorkflowPathArg(t *testing.T) {
 			workflowPath: "/workflow",
 			key:          "file_path",
 			expected: map[string]interface{}{
-				"file_path": "./test.dtsx",
+				"file_path": filepath.Join("/", "./test.dtsx"),
 			},
 		},
 		{

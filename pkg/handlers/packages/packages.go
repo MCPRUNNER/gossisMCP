@@ -150,9 +150,16 @@ func loadExcludePatterns(packageDirectory, excludeFile string) ([]string, error)
 
 	path := strings.TrimSpace(excludeFile)
 	if path == "" {
+		// Default to .gossisignore in the package directory
 		path = filepath.Join(packageDirectory, excludeFileName)
 	} else if !filepath.IsAbs(path) {
-		path = filepath.Join(packageDirectory, path)
+		// Only join if excludeFile is relative - use current directory as base, not packageDirectory
+		// This prevents path duplication when packageDirectory is already in the path
+		if filepath.IsAbs(packageDirectory) {
+			path = filepath.Join(packageDirectory, path)
+		} else {
+			path = filepath.Join(".", path)
+		}
 	}
 
 	data, err := os.ReadFile(path)

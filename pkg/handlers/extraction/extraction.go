@@ -519,6 +519,9 @@ func HandleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageD
 	}
 
 	var result strings.Builder
+	result.WriteString("📄 Options\n\n")
+	result.WriteString(fmt.Sprintf("Line Numbers: %t\n", isLineNumberNeeded))
+
 	result.WriteString("📄 Text File Analysis\n\n")
 	result.WriteString(fmt.Sprintf("File: %s\n", filepath.Base(resolvedPath)))
 	result.WriteString(fmt.Sprintf("Path: %s\n\n", resolvedPath))
@@ -543,9 +546,17 @@ func HandleReadTextFile(_ context.Context, request mcp.CallToolRequest, packageD
 		result.WriteString("🗄️ SQL File Analysis:\n")
 		analysis.AnalyzeSQLFile(content, isLineNumberNeeded, &result)
 	default:
-		result.WriteString("📘 Text File Content:\n")
+		result.WriteString("🗄️ Text File Analysis:\n")
 		analysis.AnalyzeGenericTextFile(content, isLineNumberNeeded, &result)
 	}
+	result.WriteString("📘 File Content:\n")
+	for i, line := range lines {
+		if isLineNumberNeeded {
+			result.WriteString(fmt.Sprintf("%d  %v\n", i, line))
+		} else {
+			result.WriteString(fmt.Sprintf("%v\n", line))
+		}
 
+	}
 	return mcp.NewToolResultText(result.String()), nil
 }

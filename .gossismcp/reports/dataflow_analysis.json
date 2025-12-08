@@ -1,0 +1,108 @@
+{
+  "data": [
+    {
+      "file_path": "ConfigFile.dtsx",
+      "package": "ConfigFile.dtsx",
+      "results": "Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n  -  (Unknown)\n\n  - Flat File Destination (Destination)\n    Description: Flat File Destination\n\n  - OLE DB Source (Source)\n    Description: OLE DB Source\n    SqlCommand: select * from production.product where color=?\n\nData Paths:\n  - :  → \n  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Flat File Destination.Inputs[Flat File Destination Input]\n\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow"
+    },
+    {
+      "file_path": "ConfigTables.dtsx",
+      "package": "ConfigTables.dtsx",
+      "results": "Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n  -  (Unknown)\n\n  - Flat File Destination (Destination)\n    Description: Flat File Destination\n\n  - OLE DB Source (Source)\n    Description: OLE DB Source\n    SqlCommand: select * from production.product where color=?\n\nData Paths:\n  - :  → \n  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Flat File Destination.Inputs[Flat File Destination Input]\n\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow"
+    },
+    {
+      "file_path": "DupeAlertFail.dtsx",
+      "package": "DupeAlertFail.dtsx",
+      "results": "Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n  -  (Unknown)\n\n  - Audit (Unknown)\n    Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.\n\n  - GET-DUPES (Source)\n    Description: OLE DB Source\n\n  - SAVE DUPES TO demo-dest_dupes (Destination)\n    Description: OLE DB Destination\n\n  -  (Unknown)\n\n  - Audit (Unknown)\n    Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.\n\n  - dest-no-dupes-allowed (Destination)\n    Description: OLE DB Destination\n\n  - source-dupes-allowed (Source)\n    Description: OLE DB Source\n\nData Paths:\n  - :  → \n  - Audit Output 1: Audit.Outputs[Audit Output 1] → SAVE DUPES TO demo-dest_dupes.Inputs[OLE DB Destination Input]\n  - OLE DB Source Output: GET-DUPES.Outputs[OLE DB Source Output] → Audit.Inputs[Audit Input 1]\n  - :  → \n  - Audit Output 1: Audit.Outputs[Audit Output 1] → dest-no-dupes-allowed.Inputs[OLE DB Destination Input]\n  - OLE DB Source Output: source-dupes-allowed.Outputs[OLE DB Source Output] → Audit.Inputs[Audit Input 1]\n\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow"
+    },
+    {
+      "file_path": "EXECProcess.dtsx",
+      "package": "EXECProcess.dtsx",
+      "results": "Data Flow Analysis:\n\nNo Data Flow Tasks found in this package.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "Data Flow Analysis"
+    },
+    {
+      "file_path": "ExportColumn.dtsx",
+      "package": "ExportColumn.dtsx",
+      "results": "Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n  -  (Unknown)\n\n  - Data Conversion (Unknown)\n    Description: Data Conversion\n\n  - Export Column (Unknown)\n    Description: Reads data from a data flow and insert it into a file. For example, create image files based on a database column that contains photographs.\n\n  - OLE DB Source (Source)\n    Description: OLE DB Source\n\nData Paths:\n  - :  → \n  - Data Conversion Output: Data Conversion.Outputs[Data Conversion Output] → Export Column.Inputs[Export Column Input]\n  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Data Conversion.Inputs[Data Conversion Input]\n\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow"
+    },
+    {
+      "file_path": "Expressions.dtsx",
+      "package": "Expressions.dtsx",
+      "results": "Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n  -  (Unknown)\n\n  - Convert_databytes (Unknown)\n    Description: Data Conversion\n\n  - Expressions_csv (Destination)\n    Description: Flat File Destination\n\n  - PROTO_SSIS_LOGS (Source)\n    Description: OLE DB Source\n\nData Paths:\n  - :  → \n  - Data Conversion Output: Convert_databytes.Outputs[Data Conversion Output] → Expressions_csv.Inputs[Flat File Destination Input]\n  - OLE DB Source Output: PROTO_SSIS_LOGS.Outputs[OLE DB Source Output] → Convert_databytes.Inputs[Data Conversion Input]\n\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow"
+    },
+    {
+      "file_path": "Loader.dtsx",
+      "package": "Loader.dtsx",
+      "results": "Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n  -  (Unknown)\n\n  - Data Conversion (Unknown)\n    Description: Data Conversion\n\n  - Flat File Source (Source)\n    Description: Flat File Source\n\n  - OLE DB Destination (Destination)\n    Description: OLE DB Destination\n\nData Paths:\n  - :  → \n  - Data Conversion Output: Data Conversion.Outputs[Data Conversion Output] → OLE DB Destination.Inputs[OLE DB Destination Input]\n  - Flat File Source Output: Flat File Source.Outputs[Flat File Source Output] → Data Conversion.Inputs[Data Conversion Input]\n\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow"
+    },
+    {
+      "file_path": "MSMQRec.dtsx",
+      "package": "MSMQRec.dtsx",
+      "results": "Data Flow Analysis:\n\nNo Data Flow Tasks found in this package.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "Data Flow Analysis"
+    },
+    {
+      "file_path": "MSMQSender.dtsx",
+      "package": "MSMQSender.dtsx",
+      "results": "Data Flow Analysis:\n\nNo Data Flow Tasks found in this package.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "Data Flow Analysis"
+    },
+    {
+      "file_path": "Package2.dtsx",
+      "package": "Package2.dtsx",
+      "results": "Data Flow Analysis:\n\nNo Data Flow Tasks found in this package.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "Data Flow Analysis"
+    },
+    {
+      "file_path": "RunMultu.dtsx",
+      "package": "RunMultu.dtsx",
+      "results": "Data Flow Analysis:\n\nNo Data Flow Tasks found in this package.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "Data Flow Analysis"
+    },
+    {
+      "file_path": "Scanner.dtsx",
+      "package": "Scanner.dtsx",
+      "results": "Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n  -  (Unknown)\n\n  - Flat File Destination (Destination)\n    Description: Flat File Destination\n\n  - Lookup (Unknown)\n    Description: Joins additional columns to the data flow by looking up values in a table. For example, join to the 'employee id' column the employees table to get 'hire date' and 'employee name'. We recommend this transformation when the lookup table can fit into memory.\n    SqlCommand: select * from [Production].[Product]\n\n  - OLE DB Source (Source)\n    Description: OLE DB Source\n\n  -  (Unknown)\n\n  - Audit (Unknown)\n    Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.\n\n  - GetAllEnvVar (Unknown)\n    Description: Includes and runs custom script code. For example, apply a business rule that limits the range of valid values in an \u0026quot;income\u0026quot; column or add values in two columns and calculate the average of the sum.\n\n  - OLE DB Destination (Destination)\n    Description: OLE DB Destination\n\n  -  (Unknown)\n\n  - Cache Transform (Unknown)\n    Description: Writes data to a cache (a .caw file) with the Cache Connection Manager. Reuse the cache between multiple Lookup transforms to reduce database load. Share the cache to reduce memory usage. Note: cache data is stored in clear text and not recommended for sensitive data.\n\n  - OLE DB Source (Source)\n    Description: OLE DB Source\n\nData Paths:\n  - :  → \n  - Lookup Match Output: Lookup.Outputs[Lookup Match Output] → Flat File Destination.Inputs[Flat File Destination Input]\n  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Lookup.Inputs[Lookup Input]\n  - :  → \n  - Audit Output 1: Audit.Outputs[Audit Output 1] → OLE DB Destination.Inputs[OLE DB Destination Input]\n  - Output: GetAllEnvVar.Outputs[Output] → Audit.Inputs[Audit Input 1]\n  - :  → \n  - OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Cache Transform.Inputs[Cache Input]\n\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow"
+    },
+    {
+      "file_path": "WMIDataReader.dtsx",
+      "package": "WMIDataReader.dtsx",
+      "results": "Data Flow Analysis:\n\nData Flow Task found in package.\n\nNo components found in data flow.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow"
+    }
+  ]
+}

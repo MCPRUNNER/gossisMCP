@@ -1,6 +1,7 @@
 package optimization
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/MCPRUNNER/gossisMCP/pkg/types"
@@ -9,7 +10,7 @@ import (
 func TestResolveFilePath(t *testing.T) {
 	base := "C:/packages"
 	relative := "sample.dtsx"
-	expected := base + "/" + relative
+	expected := filepath.Join(base, relative)
 	if got := ResolveFilePath(relative, base); got != expected {
 		t.Fatalf("expected %s, got %s", expected, got)
 	}

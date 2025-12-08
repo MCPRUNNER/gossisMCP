@@ -4,7 +4,6 @@
       "Name": "GetMyPackages",
       "Type": "#list_packages",
       "Parameters": {
-        "directory": "c:\\Users\\U00001\\source\\repos\\gossisMCP\\Documents\\SSIS_EXAMPLES",
         "format": "json"
       },
       "Enabled": true,
@@ -17,7 +16,7 @@
       "Name": "AnalyzeDataFlow",
       "Type": "#analyze_data_flow",
       "loop": {
-        "input_data": "{GetMyPackages.Content.packages_absolute}",
+        "input_data": "{GetMyPackages.Content.packages}",
         "item_name": "pkg"
       },
       "Parameters": {
@@ -35,7 +34,7 @@
       "Name": "AnalyzeLogging",
       "Type": "#analyze_logging_configuration",
       "loop": {
-        "input_data": "{GetMyPackages.Content.packages_absolute}",
+        "input_data": "{GetMyPackages.Content.packages}",
         "item_name": "pkg"
       },
       "Parameters": {
@@ -50,7 +49,7 @@
       "Name": "ValidateBestPractices",
       "Type": "#validate_best_practices",
       "loop": {
-        "input_data": "{GetMyPackages.Content.packages_absolute}",
+        "input_data": "{GetMyPackages.Content.packages}",
         "item_name": "pkg"
       },
       "Parameters": {
@@ -65,7 +64,7 @@
       "Name": "AnalyzeDataFlowDetailed",
       "Type": "#analyze_data_flow_detailed",
       "loop": {
-        "input_data": "{GetMyPackages.Content.packages_absolute}",
+        "input_data": "{GetMyPackages.Content.packages}",
         "item_name": "pkg"
       },
       "Parameters": {

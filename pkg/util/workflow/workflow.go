@@ -51,9 +51,20 @@ func NormalizeWorkflowPathArg(args map[string]interface{}, workflowPath, key str
 	if value == "" {
 		return
 	}
-	if !strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "./") && !strings.HasPrefix(value, "../") {
-		args[key] = "./" + value
+	// If already absolute, leave it as-is
+	if filepath.IsAbs(value) {
+		return
 	}
+	// If starts with ./ or ../, resolve it relative to the workflow directory
+	if strings.HasPrefix(value, "./") || strings.HasPrefix(value, "../") {
+		if workflowPath != "" {
+			workflowDir := filepath.Dir(workflowPath)
+			absPath := filepath.Join(workflowDir, value)
+			args[key] = absPath
+			return
+		}
+	}
+	// Otherwise, leave bare relative paths as-is for the handlers to resolve against package directory
 }
 
 // NormalizeWorkflowPathArrayArg normalizes an array of workflow path arguments
@@ -63,19 +74,38 @@ func NormalizeWorkflowPathArrayArg(args map[string]interface{}, workflowPath, ke
 		return
 	}
 
+	workflowDir := ""
+	if workflowPath != "" {
+		workflowDir = filepath.Dir(workflowPath)
+	}
+
 	switch v := raw.(type) {
 	case []interface{}:
 		for i, item := range v {
 			if str, ok := item.(string); ok && str != "" {
-				if !strings.HasPrefix(str, "/") && !strings.HasPrefix(str, "./") && !strings.HasPrefix(str, "../") {
-					v[i] = "./" + str
+				// If already absolute, leave it
+				if filepath.IsAbs(str) {
+					continue
 				}
+				// If starts with ./ or ../, resolve relative to workflow dir
+				if (strings.HasPrefix(str, "./") || strings.HasPrefix(str, "../")) && workflowDir != "" {
+					v[i] = filepath.Join(workflowDir, str)
+				}
+				// Otherwise leave bare relative paths as-is for handlers to resolve
 			}
 		}
 	case []string:
 		for i, str := range v {
-			if str != "" && !strings.HasPrefix(str, "/") && !strings.HasPrefix(str, "./") && !strings.HasPrefix(str, "../") {
-				v[i] = "./" + str
+			if str != "" {
+				// If already absolute, leave it
+				if filepath.IsAbs(str) {
+					continue
+				}
+				// If starts with ./ or ../, resolve relative to workflow dir
+				if (strings.HasPrefix(str, "./") || strings.HasPrefix(str, "../")) && workflowDir != "" {
+					v[i] = filepath.Join(workflowDir, str)
+				}
+				// Otherwise leave bare relative paths as-is for handlers to resolve
 			}
 		}
 	}

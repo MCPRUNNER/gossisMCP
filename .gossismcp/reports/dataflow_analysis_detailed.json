@@ -1,0 +1,108 @@
+{
+  "data": [
+    {
+      "file_path": "ConfigFile.dtsx",
+      "package": "ConfigFile.dtsx",
+      "results": "Detailed Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n\nComponent: Flat File Destination\n  Type: Destination\n  Description: Flat File Destination\n  Properties:\n    Overwrite: true\n    EscapeQualifier: false\n\nComponent: OLE DB Source\n  Type: Source\n  Description: OLE DB Source\n  Properties:\n    CommandTimeout: 0\n    OpenRowset: \n    OpenRowsetVariable: \n    SqlCommand: select * from production.product where color=?\n    SqlCommandVariable: \n    DefaultCodePage: 1252\n    AlwaysUseDefaultCodePage: false\n    AccessMode: 2\n    ParameterMapping: \"Parameter0:Input\",{CED2D119-29E2-4453-A199-9377C9E54D88};\n\nData Paths:\n  :  → \n  OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Flat File Destination.Inputs[Flat File Destination Input]\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow_detailed"
+    },
+    {
+      "file_path": "ConfigTables.dtsx",
+      "package": "ConfigTables.dtsx",
+      "results": "Detailed Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n\nComponent: Flat File Destination\n  Type: Destination\n  Description: Flat File Destination\n  Properties:\n    Overwrite: true\n    EscapeQualifier: false\n\nComponent: OLE DB Source\n  Type: Source\n  Description: OLE DB Source\n  Properties:\n    CommandTimeout: 0\n    OpenRowset: \n    OpenRowsetVariable: \n    SqlCommand: select * from production.product where color=?\n    SqlCommandVariable: \n    DefaultCodePage: 1252\n    AlwaysUseDefaultCodePage: false\n    AccessMode: 2\n    ParameterMapping: \"Parameter0:Input\",{7AD6B129-572C-493E-B3E5-80A63CAA3829};\n\nData Paths:\n  :  → \n  OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Flat File Destination.Inputs[Flat File Destination Input]\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow_detailed"
+    },
+    {
+      "file_path": "DupeAlertFail.dtsx",
+      "package": "DupeAlertFail.dtsx",
+      "results": "Detailed Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n\nComponent: Audit\n  Type: Unknown\n  Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.\n  Properties:\n    LineageItemSelected: 2\n    LineageItemSelected: 4\n\nComponent: GET-DUPES\n  Type: Source\n  Description: OLE DB Source\n  Properties:\n    CommandTimeout: 0\n    OpenRowset: \n    OpenRowsetVariable: \n    SqlCommand: \n    SqlCommandVariable: User::SQL_GETDUPES\n    DefaultCodePage: 1252\n    AlwaysUseDefaultCodePage: false\n    AccessMode: 3\n    ParameterMapping: \n\nComponent: SAVE DUPES TO demo-dest_dupes\n  Type: Destination\n  Description: OLE DB Destination\n  Properties:\n    CommandTimeout: 0\n    OpenRowset: [demo].[DEST_DUPES]\n    OpenRowsetVariable: \n    SqlCommand: \n    DefaultCodePage: 1252\n    AlwaysUseDefaultCodePage: false\n    AccessMode: 3\n    FastLoadKeepIdentity: false\n    FastLoadKeepNulls: false\n    FastLoadOptions: TABLOCK,CHECK_CONSTRAINTS\n    FastLoadMaxInsertCommitSize: 2147483647\n\nComponent: Audit\n  Type: Unknown\n  Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.\n  Properties:\n    LineageItemSelected: 2\n    LineageItemSelected: 4\n\nComponent: dest-no-dupes-allowed\n  Type: Destination\n  Description: OLE DB Destination\n  Properties:\n    CommandTimeout: 0\n    OpenRowset: [demo].[DESC_NODUPES]\n    OpenRowsetVariable: \n    SqlCommand: \n    DefaultCodePage: 1252\n    AlwaysUseDefaultCodePage: false\n    AccessMode: 3\n    FastLoadKeepIdentity: false\n    FastLoadKeepNulls: false\n    FastLoadOptions: TABLOCK,CHECK_CONSTRAINTS\n    FastLoadMaxInsertCommitSize: 2147483647\n\nComponent: source-dupes-allowed\n  Type: Source\n  Description: OLE DB Source\n  Properties:\n    CommandTimeout: 0\n    OpenRowset: [temp].[SOURCE_DUPES]\n    OpenRowsetVariable: \n    SqlCommand: \n    SqlCommandVariable: \n    DefaultCodePage: 1252\n    AlwaysUseDefaultCodePage: false\n    AccessMode: 0\n    ParameterMapping: \n\nData Paths:\n  :  → \n  Audit Output 1: Audit.Outputs[Audit Output 1] → SAVE DUPES TO demo-dest_dupes.Inputs[OLE DB Destination Input]\n  OLE DB Source Output: GET-DUPES.Outputs[OLE DB Source Output] → Audit.Inputs[Audit Input 1]\n  :  → \n  Audit Output 1: Audit.Outputs[Audit Output 1] → dest-no-dupes-allowed.Inputs[OLE DB Destination Input]\n  OLE DB Source Output: source-dupes-allowed.Outputs[OLE DB Source Output] → Audit.Inputs[Audit Input 1]\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow_detailed"
+    },
+    {
+      "file_path": "EXECProcess.dtsx",
+      "package": "EXECProcess.dtsx",
+      "results": "Detailed Data Flow Analysis:\n\nNo Data Flow Tasks found in this package.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow_detailed"
+    },
+    {
+      "file_path": "ExportColumn.dtsx",
+      "package": "ExportColumn.dtsx",
+      "results": "Detailed Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n\nComponent: Data Conversion\n  Type: Unknown\n  Description: Data Conversion\n  Properties:\n    SourceInputColumnLineageID: #{Package\\Data Flow Task\\OLE DB Source.Outputs[OLE DB Source Output].Columns[Description]}\n    FastParse: false\n\nComponent: Export Column\n  Type: Unknown\n  Description: Reads data from a data flow and insert it into a file. For example, create image files based on a database column that contains photographs.\n  Properties:\n    FileDataColumnID: #{Package\\Data Flow Task\\Export Column.Inputs[Export Column Input].Columns[Copy of Description]}\n    WriteBOM: false\n    ForceTruncate: false\n    AllowAppend: true\n    FileDataColumnID: #{Package\\Data Flow Task\\0:invalid}\n    WriteBOM: false\n    ForceTruncate: false\n    AllowAppend: true\n\nComponent: OLE DB Source\n  Type: Source\n  Description: OLE DB Source\n  Properties:\n    CommandTimeout: 0\n    OpenRowset: [demo].[export_column]\n    OpenRowsetVariable: \n    SqlCommand: \n    SqlCommandVariable: \n    DefaultCodePage: 1252\n    AlwaysUseDefaultCodePage: false\n    AccessMode: 0\n    ParameterMapping: \n\nData Paths:\n  :  → \n  Data Conversion Output: Data Conversion.Outputs[Data Conversion Output] → Export Column.Inputs[Export Column Input]\n  OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Data Conversion.Inputs[Data Conversion Input]\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow_detailed"
+    },
+    {
+      "file_path": "Expressions.dtsx",
+      "package": "Expressions.dtsx",
+      "results": "Detailed Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n\nComponent: Convert_databytes\n  Type: Unknown\n  Description: Data Conversion\n  Properties:\n    SourceInputColumnLineageID: #{Package\\SSIS_LOGS_TO_CSV\\PROTO_SSIS_LOGS.Outputs[OLE DB Source Output].Columns[databytes]}\n    FastParse: false\n\nComponent: Expressions_csv\n  Type: Destination\n  Description: Flat File Destination\n  Properties:\n    Overwrite: true\n    EscapeQualifier: false\n\nComponent: PROTO_SSIS_LOGS\n  Type: Source\n  Description: OLE DB Source\n  Properties:\n    CommandTimeout: 0\n    OpenRowset: [dbo].[sysssislog]\n    OpenRowsetVariable: \n    SqlCommand: \n    SqlCommandVariable: \n    DefaultCodePage: 1252\n    AlwaysUseDefaultCodePage: false\n    AccessMode: 0\n    ParameterMapping: \n\nData Paths:\n  :  → \n  Data Conversion Output: Convert_databytes.Outputs[Data Conversion Output] → Expressions_csv.Inputs[Flat File Destination Input]\n  OLE DB Source Output: PROTO_SSIS_LOGS.Outputs[OLE DB Source Output] → Convert_databytes.Inputs[Data Conversion Input]\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow_detailed"
+    },
+    {
+      "file_path": "Loader.dtsx",
+      "package": "Loader.dtsx",
+      "results": "Detailed Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n\nComponent: Data Conversion\n  Type: Unknown\n  Description: Data Conversion\n  Properties:\n    SourceInputColumnLineageID: #{Package\\Data Flow Task\\Flat File Source.Outputs[Flat File Source Output].Columns[Category]}\n    FastParse: false\n\nComponent: Flat File Source\n  Type: Source\n  Description: Flat File Source\n  Properties:\n    RetainNulls: false\n    FileNameColumnName: \n    FastParse: false\n    UseBinaryFormat: false\n    FastParse: false\n    UseBinaryFormat: false\n\nComponent: OLE DB Destination\n  Type: Destination\n  Description: OLE DB Destination\n  Properties:\n    CommandTimeout: 0\n    OpenRowset: [temp].[SOURCE_DUPES]\n    OpenRowsetVariable: \n    SqlCommand: \n    DefaultCodePage: 1252\n    AlwaysUseDefaultCodePage: false\n    AccessMode: 3\n    FastLoadKeepIdentity: false\n    FastLoadKeepNulls: false\n    FastLoadOptions: TABLOCK,CHECK_CONSTRAINTS\n    FastLoadMaxInsertCommitSize: 2147483647\n\nData Paths:\n  :  → \n  Data Conversion Output: Data Conversion.Outputs[Data Conversion Output] → OLE DB Destination.Inputs[OLE DB Destination Input]\n  Flat File Source Output: Flat File Source.Outputs[Flat File Source Output] → Data Conversion.Inputs[Data Conversion Input]\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow_detailed"
+    },
+    {
+      "file_path": "MSMQRec.dtsx",
+      "package": "MSMQRec.dtsx",
+      "results": "Detailed Data Flow Analysis:\n\nNo Data Flow Tasks found in this package.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow_detailed"
+    },
+    {
+      "file_path": "MSMQSender.dtsx",
+      "package": "MSMQSender.dtsx",
+      "results": "Detailed Data Flow Analysis:\n\nNo Data Flow Tasks found in this package.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow_detailed"
+    },
+    {
+      "file_path": "Package2.dtsx",
+      "package": "Package2.dtsx",
+      "results": "Detailed Data Flow Analysis:\n\nNo Data Flow Tasks found in this package.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow_detailed"
+    },
+    {
+      "file_path": "RunMultu.dtsx",
+      "package": "RunMultu.dtsx",
+      "results": "Detailed Data Flow Analysis:\n\nNo Data Flow Tasks found in this package.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow_detailed"
+    },
+    {
+      "file_path": "Scanner.dtsx",
+      "package": "Scanner.dtsx",
+      "results": "Detailed Data Flow Analysis:\n\nData Flow Task found in package.\n\nComponents:\n\nComponent: Flat File Destination\n  Type: Destination\n  Description: Flat File Destination\n  Properties:\n    Overwrite: true\n    EscapeQualifier: false\n\nComponent: Lookup\n  Type: Unknown\n  Description: Joins additional columns to the data flow by looking up values in a table. For example, join to the 'employee id' column the employees table to get 'hire date' and 'employee name'. We recommend this transformation when the lookup table can fit into memory.\n  Properties:\n    SqlCommand: select * from [Production].[Product]\n    SqlCommandParam: select * from (select * from [Production].[Product]) [refTable]\r\nwhere [refTable].[ProductID] = ?\n    ConnectionType: 1\n    CacheType: 0\n    NoMatchBehavior: 1\n    NoMatchCachePercentage: 0\n    MaxMemoryUsage: 25\n    MaxMemoryUsage64: 25\n    ReferenceMetadataXml: \u0026lt;referenceMetadata\u0026gt;\u0026lt;referenceColumns\u0026gt;\u0026lt;referenceColumn name=\"ProductID\" dataType=\"DT_I4\" length=\"0\" precision=\"0\" scale=\"0\" codePage=\"0\"/\u0026gt;\u0026lt;referenceColumn name=\"Name\" dataType=\"DT_WSTR\" length=\"50\" precision=\"0\" scale=\"0\" codePage=\"0\"/\u0026gt;\u0026lt;referenceColumn name=\"Color\" dataType=\"DT_WSTR\" length=\"15\" precision=\"0\" scale=\"0\" codePage=\"0\"/\u0026gt;\u0026lt;referenceColumn name=\"ListPrice\" dataType=\"DT_CY\" length=\"0\" precision=\"0\" scale=\"0\" codePage=\"0\"/\u0026gt;\u0026lt;/referenceColumns\u0026gt;\u0026lt;/referenceMetadata\u0026gt;\n    ParameterMap: #{Package\\Data Flow Task\\OLE DB Source.Outputs[OLE DB Source Output].Columns[ProductID]};\n    DefaultCodePage: 1252\n    TreatDuplicateKeysAsError: false\n    JoinToReferenceColumn: ProductID\n    CopyFromReferenceColumn: ProductID\n    CopyFromReferenceColumn: Name\n    CopyFromReferenceColumn: Color\n    CopyFromReferenceColumn: ListPrice\n\nComponent: OLE DB Source\n  Type: Source\n  Description: OLE DB Source\n  Properties:\n    CommandTimeout: 0\n    OpenRowset: [Sales].[SalesOrderDetail]\n    OpenRowsetVariable: \n    SqlCommand: \n    SqlCommandVariable: \n    DefaultCodePage: 1252\n    AlwaysUseDefaultCodePage: false\n    AccessMode: 0\n    ParameterMapping: \n\nComponent: Audit\n  Type: Unknown\n  Description: Includes data about the environment in which the package runs. Map system variables to new output columns. For example, add the name of the computer and operator to the data flow.\n  Properties:\n    LineageItemSelected: 2\n    LineageItemSelected: 7\n    LineageItemSelected: 5\n    LineageItemSelected: 6\n    LineageItemSelected: 4\n\nComponent: GetAllEnvVar\n  Type: Unknown\n  Description: Includes and runs custom script code. For example, apply a business rule that limits the range of valid values in an \u0026quot;income\u0026quot; column or add values in two columns and calculate the average of the sum.\n  Properties:\n    VSTAProjectName: SC_9a872c67bbfb40a5a468b691719abe7e\n    ScriptLanguage: CSharp\n    ReadOnlyVariables: User::LOADDATE\n    ReadWriteVariables: \n    MetadataChecksum140: 76\n    UserComponentTypeName: Microsoft.ScriptComponentHost\n\nComponent: OLE DB Destination\n  Type: Destination\n  Description: OLE DB Destination\n  Properties:\n    CommandTimeout: 0\n    OpenRowset: [temp].[LOG]\n    OpenRowsetVariable: \n    SqlCommand: \n    DefaultCodePage: 1252\n    AlwaysUseDefaultCodePage: false\n    AccessMode: 3\n    FastLoadKeepIdentity: false\n    FastLoadKeepNulls: false\n    FastLoadOptions: TABLOCK,CHECK_CONSTRAINTS\n    FastLoadMaxInsertCommitSize: 2147483647\n\nComponent: Cache Transform\n  Type: Unknown\n  Description: Writes data to a cache (a .caw file) with the Cache Connection Manager. Reuse the cache between multiple Lookup transforms to reduce database load. Share the cache to reduce memory usage. Note: cache data is stored in clear text and not recommended for sensitive data.\n  Properties:\n    TreatDuplicateKeysAsError: false\n    CacheColumnName: ProductID\n    CacheColumnName: Name\n    CacheColumnName: Color\n    CacheColumnName: ListPrice\n\nComponent: OLE DB Source\n  Type: Source\n  Description: OLE DB Source\n  Properties:\n    CommandTimeout: 0\n    OpenRowset: [Production].[Product]\n    OpenRowsetVariable: \n    SqlCommand: \n    SqlCommandVariable: \n    DefaultCodePage: 1252\n    AlwaysUseDefaultCodePage: false\n    AccessMode: 0\n    ParameterMapping: \n\nData Paths:\n  :  → \n  Lookup Match Output: Lookup.Outputs[Lookup Match Output] → Flat File Destination.Inputs[Flat File Destination Input]\n  OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Lookup.Inputs[Lookup Input]\n  :  → \n  Audit Output 1: Audit.Outputs[Audit Output 1] → OLE DB Destination.Inputs[OLE DB Destination Input]\n  Output: GetAllEnvVar.Outputs[Output] → Audit.Inputs[Audit Input 1]\n  :  → \n  OLE DB Source Output: OLE DB Source.Outputs[OLE DB Source Output] → Cache Transform.Inputs[Cache Input]\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow_detailed"
+    },
+    {
+      "file_path": "WMIDataReader.dtsx",
+      "package": "WMIDataReader.dtsx",
+      "results": "Detailed Data Flow Analysis:\n\nData Flow Task found in package.\n\nNo components found in data flow.\n",
+      "status": "success",
+      "timestamp": "2025-12-07T18:49:16-05:00",
+      "tool_name": "analyze_data_flow_detailed"
+    }
+  ]
+}

@@ -1268,7 +1268,6 @@ func handleWorkflowRunner(ctx context.Context, request mcp.CallToolRequest, pack
 	runner := func(stepCtx context.Context, tool string, params map[string]interface{}) (string, error) {
 		normalized := workflowutil.CloneArguments(params)
 
-		workflowutil.NormalizeWorkflowPathArg(normalized, workflowPath, "directory")
 		workflowutil.NormalizeWorkflowPathArg(normalized, workflowPath, "file_path")
 		workflowutil.NormalizeWorkflowPathArg(normalized, workflowPath, "outputFilePath")
 		workflowutil.NormalizeWorkflowPathArg(normalized, workflowPath, "templateFilePath")
