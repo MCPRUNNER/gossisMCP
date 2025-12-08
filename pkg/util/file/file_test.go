@@ -10,7 +10,7 @@ func TestResolveFilePath(t *testing.T) {
 	// Create platform-agnostic paths using real absolute paths
 	absolutePath := filepath.Join(os.TempDir(), "absolute", "path", "file.txt")
 	packageDir := filepath.Join(os.TempDir(), "pkg", "dir")
-	
+
 	tests := []struct {
 		name             string
 		filePath         string

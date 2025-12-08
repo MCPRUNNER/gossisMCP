@@ -11,7 +11,7 @@ func TestNormalizeWorkflowPathArgWithResolution(t *testing.T) {
 	workflowPath := filepath.Join(os.TempDir(), "workflows", "workflow_merge_example.json")
 	workflowDir := filepath.Dir(workflowPath)
 	absolutePath := filepath.Join(os.TempDir(), "absolute", "path", "file.json")
-	
+
 	tests := []struct {
 		name     string
 		input    string
