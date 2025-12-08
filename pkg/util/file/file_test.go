@@ -7,6 +7,10 @@ import (
 )
 
 func TestResolveFilePath(t *testing.T) {
+	// Create platform-agnostic paths using real absolute paths
+	absolutePath := filepath.Join(os.TempDir(), "absolute", "path", "file.txt")
+	packageDir := filepath.Join(os.TempDir(), "pkg", "dir")
+	
 	tests := []struct {
 		name             string
 		filePath         string
@@ -15,27 +19,27 @@ func TestResolveFilePath(t *testing.T) {
 	}{
 		{
 			name:             "absolute path",
-			filePath:         "C:\\absolute\\path\\file.txt",
-			packageDirectory: "/pkg/dir",
-			expected:         "C:\\absolute\\path\\file.txt",
+			filePath:         absolutePath,
+			packageDirectory: packageDir,
+			expected:         absolutePath,
 		},
 		{
 			name:             "relative path with package directory",
-			filePath:         "relative/file.txt",
-			packageDirectory: "/pkg/dir",
-			expected:         filepath.Join("/pkg/dir", "relative/file.txt"),
+			filePath:         filepath.Join("relative", "file.txt"),
+			packageDirectory: packageDir,
+			expected:         filepath.Join(packageDir, "relative", "file.txt"),
 		},
 		{
 			name:             "relative path without package directory",
-			filePath:         "relative/file.txt",
+			filePath:         filepath.Join("relative", "file.txt"),
 			packageDirectory: "",
-			expected:         "relative/file.txt",
+			expected:         filepath.Join("relative", "file.txt"),
 		},
 		{
 			name:             "empty file path",
 			filePath:         "",
-			packageDirectory: "/pkg/dir",
-			expected:         `\pkg\dir`,
+			packageDirectory: packageDir,
+			expected:         packageDir,
 		},
 	}
 

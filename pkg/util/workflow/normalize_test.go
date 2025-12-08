@@ -1,13 +1,17 @@
 package workflow
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestNormalizeWorkflowPathArgWithResolution(t *testing.T) {
-	workflowPath := `C:\Users\U00001\source\repos\gossisMCP\.gossismcp\workflows\workflow_merge_example.json`
-
+	// Create platform-agnostic workflow path using temp dir
+	workflowPath := filepath.Join(os.TempDir(), "workflows", "workflow_merge_example.json")
+	workflowDir := filepath.Dir(workflowPath)
+	absolutePath := filepath.Join(os.TempDir(), "absolute", "path", "file.json")
+	
 	tests := []struct {
 		name     string
 		input    string
@@ -15,23 +19,23 @@ func TestNormalizeWorkflowPathArgWithResolution(t *testing.T) {
 	}{
 		{
 			name:     "absolute path unchanged",
-			input:    `C:\absolute\path\file.json`,
-			expected: `C:\absolute\path\file.json`,
+			input:    absolutePath,
+			expected: absolutePath,
 		},
 		{
 			name:     "relative path with ../",
-			input:    `../reports/dataflow_analysis.json`,
-			expected: `C:\Users\U00001\source\repos\gossisMCP\.gossismcp\reports\dataflow_analysis.json`,
+			input:    "../reports/dataflow_analysis.json",
+			expected: filepath.Join(workflowDir, "..", "reports", "dataflow_analysis.json"),
 		},
 		{
 			name:     "relative path with ./",
-			input:    `./file.json`,
-			expected: `C:\Users\U00001\source\repos\gossisMCP\.gossismcp\workflows\file.json`,
+			input:    "./file.json",
+			expected: filepath.Join(workflowDir, ".", "file.json"),
 		},
 		{
 			name:     "bare relative path",
-			input:    `file.json`,
-			expected: `./file.json`,
+			input:    "file.json",
+			expected: "file.json",
 		},
 	}
 
